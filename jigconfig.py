@@ -10,7 +10,7 @@ valid_base_types = ["mesh", "solid"]
 valid_insertions = ["top", "bottom"]
 
 TH_component_shell_value_keys = ["thickness", "gap", "clearance_from_pcb"]
-
+SMD_default_value_keys = ['clearance_from_shells', 'gap_from_shells']
 def transfer_default_values(default_cfg, cfg):
     """ transfer default values from default_cfg to cfg """
     for key, value in default_cfg.items():
@@ -24,7 +24,7 @@ def transfer_default_values(default_cfg, cfg):
                 # recurse
                 transfer_default_values(default_cfg[key], cfg[key])
 
-def load(configFile, TH_ref_names):
+def load(configFile, TH_ref_names, SMD_ref_names):
     """ load configuration file, validate against TH reference names"""
     default_config_text = get_default()
     default_cfg = tomllib.loads(default_config_text)
@@ -35,7 +35,7 @@ def load(configFile, TH_ref_names):
         #print(json.dumps(cfg, indent=2))
     else:
         config_text = default_config_text
-        cfg = copy.deepcopy(default_cfg)
+        cfg = deepcopy(default_cfg)
 
     transfer_default_values(default_cfg, cfg)
 
@@ -93,6 +93,26 @@ def load(configFile, TH_ref_names):
         if cfg['TH_component_shell'][ref]['component_insertion'] == 'bottom':
             cfg['TH_component_shell'][ref]['type'] = "wiggle"
 
+    for key in cfg['SMD']:
+        if key in default_cfg['SMD'].keys():
+            continue
+        if key in SMD_ref_names:
+            continue
+        raise ValueError(f"Can't use SMD.{key}. No such SMD component on the board.")
+
+    # Expand component level defaults
+    for ref in SMD_ref_names:
+        if ref in default_cfg['SMD'].keys():
+            continue
+        if ref not in cfg['SMD']:
+            cfg['SMD'][ref] = deepcopy(default_cfg['SMD'])
+            continue
+        # set default values, if not already present
+        for other_key in SMD_default_value_keys:
+            if other_key not in cfg['SMD'][ref]:
+                cfg['SMD'][ref][other_key] = default_cfg['SMD'][other_key]
+
+    #pprint(cfg)
     return cfg, config_text
     
 #
@@ -240,6 +260,19 @@ gap = 0.1
 # Think of this as a vertical "keep-out" distance between the PCB and the
 # shells
 clearance_from_pcb = 1
+
+[SMD]
+# Parameters for SMD components
+
+# Shells must not touch SMD components. It is better to have a small clearance
+# SMD keepout volume is it's courtyard extended along the height of the
+# component, extended by "clearance_from_shells"
+clearance_from_shells = 0.5
+
+# "gap" is similar to clearance but in XY direction
+# Courtyard is typically well outside the pads, so 0.5 mm is a good enough
+# default. Soldered components will stay well within this.
+gap_from_shells = 0.5
 
 [jig]
 #

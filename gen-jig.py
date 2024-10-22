@@ -32,6 +32,7 @@ import sys
 import json
 import subprocess
 import tempfile
+import re
 
 # Local imports
 from jigcommon import *
@@ -42,10 +43,41 @@ import jigconfig
 
 shell_protrude = 1 # shells will come above PCB by this much, so user can enable and see
 
-def get_th_info(board):
+_k_top_layer = 0
+_k_bottom_layer = 31
+_k_b_courtyard = 47
+_k_f_courtyard = 47
+
+def get_courtyard_polygon(shape):
+    # Courtyard Polygon Coordinate System Note:
+    #
+    # KiCAD returned courtyard polygons are in the KiCAD coordinate system. No need to apply
+    # offset or rotation. Just negate Y
+
+    # Shree : Grr.. how do I extract the freakin points.
+    # No API for get polygon ? Looks like only set stuff works from Python,
+    # but gets are only in C. Find this hard to believe...
+    # FIXME find out what you don't know!
+    #shape.Format(False) gives a C/C++ source code representation !!
+    #---------
+    #SHAPE_LINE_CHAIN poly;
+    #auto tmp = SHAPE_LINE_CHAIN( { VECTOR2I( 215000000, 105500000), VECTOR2I( 246000000, 88000000), VECTOR2I( 260500000, 118500000)}, true );;
+    #poly.AddOutline(tmp); }
+    #---------
+    shapeText = shape.Format(False)
+    verts = []
+    for s_pt in re.findall('VECTOR2I\\( [0-9]+, [0-9]+\\)',shapeText):
+        coord_parts = s_pt.split(' ')[1:]
+        x = units_to_mm(int(coord_parts[0][:-1]))
+        y = -units_to_mm(int(coord_parts[1][:-1]))
+        verts.append([x,y]) # YES, and yikes!
+    return verts
+
+def get_ref_info(board):
     mounting_holes = []
     fp_list = board.Footprints()
     th_info = []
+    smd_info = []
     for fp in fp_list:
         ref = fp.GetReference()
         fp_x = units_to_mm(fp.GetX())
@@ -56,40 +88,44 @@ def get_th_info(board):
         #print('  Orientation :', fp.GetOrientation().AsDegrees())
         #print('  DNP ?       :', fp.IsDNP())
         #print('  TH ?        :', fp.HasThroughHolePads())
+        models_3d = []
+        for mod3d in fp.Models():
+            # NOTE XXX don't hold references to internal vectors - they can get
+            # messed up! Make copies!
+            models_3d.append({
+                'model'    : mod3d.m_Filename,
+                'offset'   : [mod3d.m_Offset[0], mod3d.m_Offset[1], mod3d.m_Offset[2]],
+                'scale'    : [mod3d.m_Scale[0], mod3d.m_Scale[1], mod3d.m_Scale[2]],
+                'rotation' : [mod3d.m_Rotation[0], mod3d.m_Rotation[1], mod3d.m_Rotation[2]]
+            })
+        fp_rot = fp.GetOrientation().AsDegrees()
+        ref_info = {
+            'ref': fp.GetReference(),
+            'x' : fp_x,
+            'y' : fp_y,
+            'orientation' : fp_rot,
+            'side' : fp.GetSide(),
+            'position' : fp.GetPosition(),
+            'models' : models_3d,
+            'kfp' : fp, # Reference if we need more info later
+            'front_courtyard' : get_courtyard_polygon(fp.GetCourtyard(_k_f_courtyard)),
+            'back_courtyard' : get_courtyard_polygon(fp.GetCourtyard(_k_b_courtyard)),
+        }
+
         if fp.HasThroughHolePads():
-            thc_models = []
-            for mod3d in fp.Models():
-                # NOTE XXX don't hold references to internal vectors - they can get
-                # messed up! Make copies!
-                thc_models.append({
-                        'model'    : mod3d.m_Filename,
-                        'offset'   : [mod3d.m_Offset[0], mod3d.m_Offset[1], mod3d.m_Offset[2]],
-                        'scale'    : [mod3d.m_Scale[0], mod3d.m_Scale[1], mod3d.m_Scale[2]],
-                        'rotation' : [mod3d.m_Rotation[0], mod3d.m_Rotation[1], mod3d.m_Rotation[2]]
-                })
-            if len(thc_models)>0:
-                th_info.append({
-                    'ref': fp.GetReference(),
-                    'x' : fp_x,
-                    'y' : fp_y,
-                    'orientation' : fp.GetOrientation().AsDegrees(),
-                    'side' : fp.GetSide(),
-                    'position' : fp.GetPosition(),
-                    'models' : thc_models,
-                    'kfp' : fp}) # Reference if we need more info later
+            th_info.append(ref_info)
             for fn in fp.Fields():
-                #print(fn)
-                #print(dir(fn))
-                #print(fn.GetName(), fn.GetText(), fn.GetShownText(True), fn.GetHyperlink(), fn.GetCanonicalName(), fn.GetFriendlyName(), fn.GetParentFootprint(), fn.GetParentAsString())
                 if fn.GetText().startswith('MountingHole'):
-                    #print('  --> Is a Mounting Hole')
                     mounting_holes.append(
                         [fp_x, fp_y]
                     )
                     break
+        else:
+            smd_info.append(ref_info)
+
         #print(fp.Footprint().GetName())
         #pprint(dir(fp.Footprint()))
-    return th_info, mounting_holes
+    return smd_info, th_info, mounting_holes
 
 # generate module names used in oscad
 def ref2outline(ref):
@@ -100,11 +136,14 @@ def ref2pocket(ref):
     return 'pocket_%s'%(ref)
 def ref2peri(ref):
     return 'peri_%s'%(ref)
+def ref2keepout(ref):
+    return 'keepout_%s'%(ref)
 
 mod_map = {}
 shell_map = {}
 pocket_map = {}
 perimeter_map = {}
+keepout_map = {}
 
 # sv => scad value
 sv_max_z = {}
@@ -158,6 +197,20 @@ def gen_shell_shape(ref, x, y, rot, min_z, max_z, verts):
     perimeter_map[ref] = module(perimeter_name, perimeter_solid,
                            comment=f"Perimeter for {ref}")
 
+def gen_keepout_shape(ref, x, y, rot, min_z, max_z, courtyard_poly):
+    sv_max_z[ref] = ScadValue('max_z_%s'%(ref))
+    ref_smd_clearance_from_shells = ScadValue(f'smd_clearance_from_shells_{ref}')
+    ref_smd_gap_from_shells = ScadValue(f'smd_gap_from_shells_{ref}')
+    keepout_name = ref2keepout(ref)
+    keepout_solid = translate([0,0,sv_pcb_thickness]) (
+                     linear_extrude(sv_max_z[ref]+ref_smd_clearance_from_shells) (
+                         offset(ref_smd_gap_from_shells) (
+                            polygon(courtyard_poly)
+                         )
+                     )
+                 )
+    keepout_map[ref] = module(keepout_name, keepout_solid,
+                           comment=f"Keepout volume for {ref}")
 #
 # Execution starts here
 #
@@ -177,10 +230,12 @@ parser.add_argument("output", help='Output file to generate.')
 args = parser.parse_args()
 
 board = pcbnew.LoadBoard(args.kicad_pcb)
-th_info, mounting_holes = get_th_info(board)
+smd_info, th_info, mounting_holes = get_ref_info(board)
 
 try:
-    cfg, config_text = jigconfig.load(args.config, [compinfo['ref'] for compinfo in th_info])
+    cfg, config_text = jigconfig.load(args.config,
+                            [compinfo['ref'] for compinfo in th_info],
+                            [compinfo['ref'] for compinfo in smd_info])
 except ValueError as err:
     print(f"ERROR: {err}", file=sys.stderr)
     sys.exit(-1)
@@ -211,7 +266,8 @@ ref_process_only_these = cfg['TH_refs']['process_only_these']
 jig_style = cfg['jig']['type']
 jig_style_th_soldering = (jig_style == 'TH_soldering')
 jig_type_component_fitting = (jig_style == 'component_fitting')
-
+smd_clearance_from_shells = cfg['SMD']['clearance_from_shells']
+smd_gap_from_shells = cfg['SMD']['gap_from_shells']
 if jig_type_component_fitting:
     if shell_clearance>0:
         print('INFO: Generating component shells, note shell_clearance=%s will cut into shell.'
@@ -235,17 +291,28 @@ for comp in th_info:
 # Setup environment for file name expansion
 os.environ["KIPRJMOD"] = os.path.split(args.kicad_pcb)[0]
 path_sys_3dmodels = '/usr/share/kicad/3dmodels'
-for ver in [6,7,8]: # Hmm - would we need more ?
-    env_var_name = 'KICAD%d_3DMODEL_DIR'%(ver)
+for ver in ['', 6,7,8]: # Hmm - would we need more ?
+    env_var_name = 'KICAD%s_3DMODEL_DIR'%(ver)
     if env_var_name not in os.environ:
         os.environ[env_var_name] = path_sys_3dmodels
 
-# test if you can load all models
-for comp in th_info_proc:
-    # We're guaranteed to have at-least one 3d model
-    for modinfo in comp['models']:
-        model_filename = os.path.expandvars(modinfo['model'])
-        modinfo['mesh'] = mesh_ops.load_mesh(model_filename)
+def load_3d_models(l, desc):
+    fnames = []
+    for comp in l:
+        for modinfo in comp['models']:
+            model_filename = os.path.expandvars(modinfo['model'])
+            fnames.append(model_filename)
+    # get uniques
+    fnames = list(set(fnames))
+    print(f'Loading {len(fnames)} 3D models for {desc} components...')
+    for comp in l:
+        for modinfo in comp['models']:
+            model_filename = os.path.expandvars(modinfo['model'])
+            modinfo['mesh'] = mesh_ops.load_mesh(model_filename)
+
+load_3d_models(th_info_proc, 'Through Hole')
+load_3d_models(smd_info, 'SMD')
+
 #pprint(th_info)
 
 # Footprint useful things
@@ -337,9 +404,11 @@ base_is_solid = %s;
 // will be part of the model.
 lip_size=%s;
 
+smd_clearance_from_shells=%s;
+smd_gap_from_shells=%s;
 '''%(shell_gap, shell_thickness, pcb_thickness, shell_clearance,
      shell_protrude, base_thickness, mesh_line_width, mesh_line_height,
-     base_is_solid, lip_size))
+     base_is_solid, lip_size, smd_clearance_from_shells, smd_gap_from_shells))
 
 pcb_segments = []
 pcb_filled_shapes = []
@@ -368,12 +437,30 @@ pcb_filled_shapes.sort(key=lambda x:x['area'], reverse=True)
 # And hence these are the vertices
 pcb_edge_points = pcb_filled_shapes[0]['vertices']
 
+def xform_mesh(mesh, modinfo, orientation):
+    mesh_scale = mesh * modinfo['scale']
+    # FIXME: Hrrmph! why should I need to reverse these
+    # angles !?
+    rx = Rotation.from_euler('x', -modinfo['rotation'][0], degrees=True)
+    ry = Rotation.from_euler('y', -modinfo['rotation'][1], degrees=True)
+    rz = Rotation.from_euler('z', -modinfo['rotation'][2], degrees=True)
+    rot_angle=th['orientation'];
+    rz2 = Rotation.from_euler('z', rot_angle, degrees=True)
+    r_xyz = rx*ry*rz
+    mesh_rotated = r_xyz.apply(mesh_scale)
+    mesh2 = mesh_rotated + [modinfo['offset'][0], modinfo['offset'][1], modinfo['offset'][2]]
+    mesh = rz2.apply(mesh2)
+    min_z = min(mesh[:,2])
+    max_z = max(mesh[:,2])
+    return mesh, min_z, max_z
+
 all_shells = []
 fp_centers = []
 topmost_z = 0
+
 # For each TH component on the board
 for th in th_info_proc:
-    print('Processing ', th['ref'])
+    print('Processing TH :', th['ref'])
     # each footprint can have multiple models.
     # each model that is "in contact" with the board will generate
     # a shell
@@ -383,24 +470,7 @@ for th in th_info_proc:
             print('  WARNING: Mesh %s is empty on import. Watch out for intended side effects. SKIPPING!'
                   %(modinfo['model']))
             continue
-        #print(modinfo['model'])
-        #print(modinfo['offset'])
-        #print(modinfo['scale'])
-        #print(modinfo['rotation'])
-        mesh_scale = mesh * modinfo['scale']
-        # FIXME: Hrrmph! why should I need to reverse these
-        # angles !?
-        rx = Rotation.from_euler('x', -modinfo['rotation'][0], degrees=True)
-        ry = Rotation.from_euler('y', -modinfo['rotation'][1], degrees=True)
-        rz = Rotation.from_euler('z', -modinfo['rotation'][2], degrees=True)
-        rot_angle=th['orientation'];
-        rz2 = Rotation.from_euler('z', rot_angle, degrees=True)
-        r_xyz = rx*ry*rz
-        mesh_rotated = r_xyz.apply(mesh_scale)
-        mesh2 = mesh_rotated + [modinfo['offset'][0], modinfo['offset'][1], modinfo['offset'][2]]
-        mesh = rz2.apply(mesh2)
-        min_z = min(mesh[:,2])
-        max_z = max(mesh[:,2])
+        mesh, min_z, max_z = xform_mesh(mesh, modinfo, th['orientation'])
         #print('min_z = ', min_z, ' max_z = ', max_z)
         if min_z>0:
             print('  Mesh %s is NOT mounted on board. Skipping.'%(modinfo['model']))
@@ -437,6 +507,35 @@ for th in th_info_proc:
             print('  Generating shell %s for mesh %s'%(shell_ident, modinfo['model']))
             topmost_z = max(topmost_z, max_z)
 
+smd_keepouts = []
+for smd in smd_info:
+    #print('Processing SMD :', smd['ref'])
+    # each footprint can have multiple models.
+    # each model that is "in contact" with the board will generate
+    # a shell
+    for idx, modinfo in enumerate(smd['models']):
+        mesh = modinfo['mesh']
+        if mesh.shape[0]==0:
+            print('  WARNING: Mesh %s is empty on import. Watch out for intended side effects. SKIPPING!'
+                  %(modinfo['model']))
+            continue
+        mesh, min_z, max_z = xform_mesh(mesh, modinfo, smd['orientation'])
+        keepout_ident = '%s_%d'%(smd['ref'],idx)
+        gen_keepout_shape(keepout_ident,
+            smd['x'], smd['y'], smd['orientation'],
+            min_z, max_z, smd['front_courtyard'])
+        smd_keepouts.append({
+            'name' : keepout_ident,
+            'ref' : smd['ref'],
+            'min_z':min_z,
+            'max_z':max_z,
+            'model':modinfo['model'],
+            'x' : smd['x'],
+            'y' : smd['y'],
+            'orientation' : smd['orientation'],
+        })
+        topmost_z = max(topmost_z, max_z)
+
 bottom_insertion_z = topmost_z + 2*base_thickness
 
 fp_scad.write('''
@@ -471,16 +570,27 @@ mesh_start_z = pcb_thickness+topmost_z+base_thickness-mesh_line_height;
 
 # Allow tweaking bottom insertion from customizer. At a per component level
 fp_scad.write('/* [Component Insertion] */\n')
+insertion_handled = []
 for shell_info in all_shells:
-    fp_scad.write('%s_insertion="%s"; // [top,bottom]\n'%(
-        shell_info['ref'],
-        cfg['TH_component_shell'][shell_info['ref']]['component_insertion'])
-    )
+    # Multiple shells can be generated for one component - they'll all have
+    # the same configuration of insertion. We need to eliminate duplicates
+    # else the OpenSCAD will barf about them
+    if shell_info['ref'] not in insertion_handled:
+        fp_scad.write('%s_insertion="%s"; // [top,bottom]\n'%(
+            shell_info['ref'],
+            cfg['TH_component_shell'][shell_info['ref']]['component_insertion'])
+        )
+    insertion_handled.append(shell_info['ref'])
 fp_scad.write('/* [Hidden] */\n')
 fp_scad.write('bottom_insertion_z = %s;\n'%(bottom_insertion_z))
 fp_scad.write('// Height of the individual components\n')
 for shell_info in all_shells:
     fp_scad.write('max_z_%s= (%s_insertion=="bottom")? bottom_insertion_z : %s; //3D Model: %s\n'%(shell_info['name'],shell_info['ref'], shell_info['max_z'], shell_info['model']))
+for keepout_info in smd_keepouts:
+    fp_scad.write('max_z_%s= %s; //3D Model: %s\n'%(keepout_info['name'],keepout_info['max_z'], keepout_info['model']))
+    ref = keepout_info['ref']
+    fp_scad.write('smd_clearance_from_shells_%s= %s;\n'%(keepout_info['name'], cfg['SMD'][ref]['clearance_from_shells']))
+    fp_scad.write('smd_gap_from_shells_%s= %s;\n'%(keepout_info['name'], cfg['SMD'][ref]['gap_from_shells']))
 fp_scad.write('// } END : Computed Values\n')
 fp_scad.write('\n')
 
@@ -519,6 +629,13 @@ sm_mounted_component_pockets = module('mounted_component_pockets',
         combined_pockets
     )
 
+# all SMD keepouts
+combined_keepouts = union()
+for keepout_info in smd_keepouts:
+    combined_keepouts += keepout_map[keepout_info['name']]()
+sm_mounted_smd_keepouts = module('mounted_smd_keepouts',
+        combined_keepouts
+    )
 # Compute bounding box of PCB
 # FIXME: make this min, max code less verbose
 pcb_min_x = pcb_max_x = pcb_edge_points[0][0]
@@ -732,7 +849,8 @@ module complete_model() {
       component_shell_support();
       mounted_component_shells();
     }
-    mounted_component_pockets();
+    mounted_component_pockets(); // FIXME: fix terminology - "included"
+    #mounted_smd_keepouts(); // "mounted" means "does not include "DNP"
   }
 }
 ''')
