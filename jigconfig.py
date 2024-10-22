@@ -47,51 +47,51 @@ def load(configFile, TH_ref_names, SMD_ref_names):
     if jig_type not in valid_jig_types:
         raise ValueError(f"Bad value jig.type={jig_type}. Recognized values are:{valid_jig_types}")
 
-    shell_type = cfg['TH_component_shell']['type']
+    shell_type = cfg['TH']['component_shell']['type']
     if shell_type not in valid_shell_types:
-        raise ValueError(f"Bad value TH_component_shell.type={shell_type}. Recognized values are:{valid_shell_types}")
+        raise ValueError(f"Bad value TH.component_shell.type={shell_type}. Recognized values are:{valid_shell_types}")
 
-    insertion = cfg['TH_component_shell']['component_insertion']
+    insertion = cfg['TH']['component_shell']['component_insertion']
     if insertion not in valid_insertions:
-        raise ValueError(f"Bad value TH_component_shell.component_insertion={insertion}. Recognized values are:{valid_insertions}")
+        raise ValueError(f"Bad value TH.component_shell.component_insertion={insertion}. Recognized values are:{valid_insertions}")
 
-    for key in cfg['TH_component_shell']:
-        if key in default_cfg['TH_component_shell'].keys():
+    for key in cfg['TH']['component_shell']:
+        if key in default_cfg['TH']['component_shell'].keys():
             continue
         if key in TH_ref_names:
             continue
-        raise ValueError(f"Can't use TH_component_shell.{key}. No such TH component on the board.")
+        raise ValueError(f"Can't use TH.component_shell.{key}. No such TH component on the board.")
 
     # Expand component level defaults
     for ref in TH_ref_names:
-        if ref in default_cfg['TH_component_shell'].keys():
+        if ref in default_cfg['TH']['component_shell'].keys():
             continue
-        if ref not in cfg['TH_component_shell']:
-            cfg['TH_component_shell'][ref] = deepcopy(default_cfg['TH_component_shell'])
+        if ref not in cfg['TH']:
+            cfg['TH'][ref] = { 'component_shell' : deepcopy(default_cfg['TH']['component_shell']) }
             continue
 
         try:
-            ref_cs_type = cfg['TH_component_shell'][ref]['type']
+            ref_cs_type = cfg['TH'][ref]['component_shell']['type']
             if ref_cs_type not in valid_shell_types:
                 raise ValueError(
-                    f"Bad value TH_component_shell.{ref}.type={ref_cs_type}. Recognized values are:{valid_shell_types}")
+                    f"Bad value TH.{ref}.component_shell.type={ref_cs_type}. Recognized values are:{valid_shell_types}")
         except KeyError:
-            cfg['TH_component_shell'][ref]['type'] = shell_type
+            cfg['TH'][ref]['component_shell']['type'] = shell_type
 
         try:
-            ref_cs_insertion = cfg['TH_component_shell'][ref]['component_insertion']
+            ref_cs_insertion = cfg['TH'][ref]['component_shell']['component_insertion']
             if ref_cs_insertion not in valid_insertions:
                 raise ValueError(
-                    f"Bad value TH_component_shell.{ref}.component_insertion={ref_cs_insertion}. Recognized values are:{valid_insertions}")
+                    f"Bad value TH.{ref}.component_shell.component_insertion={ref_cs_insertion}. Recognized values are:{valid_insertions}")
         except KeyError:
-            cfg['TH_component_shell'][ref]['component_insertion'] = insertion
+            cfg['TH'][ref]['component_shell']['component_insertion'] = insertion
         
         for other_key in TH_component_shell_value_keys:
-            if other_key not in cfg['TH_component_shell'][ref]:
-                cfg['TH_component_shell'][ref][other_key] = default_cfg['TH_component_shell'][other_key]
+            if other_key not in cfg['TH'][ref]['component_shell']:
+                cfg['TH'][ref]['component_shell'][other_key] = default_cfg['TH']['component_shell'][other_key]
 
-        if cfg['TH_component_shell'][ref]['component_insertion'] == 'bottom':
-            cfg['TH_component_shell'][ref]['type'] = "wiggle"
+        if cfg['TH'][ref]['component_shell']['component_insertion'] == 'bottom':
+            cfg['TH'][ref]['component_shell']['type'] = "wiggle"
 
     for key in cfg['SMD']:
         if key in default_cfg['SMD'].keys():
@@ -112,7 +112,7 @@ def load(configFile, TH_ref_names, SMD_ref_names):
             if other_key not in cfg['SMD'][ref]:
                 cfg['SMD'][ref][other_key] = default_cfg['SMD'][other_key]
 
-    #pprint(cfg)
+    pprint(cfg)
     return cfg, config_text
     
 #
@@ -210,18 +210,19 @@ line_width = 2.0
 # consider a thin base with lines providing extra structural strength
 line_height = 1.0
 
-[TH_refs]
-# Generic properties around through hole componet refs.
-do_not_process = [
+[TH]
+# Parameters for Through Hole processing
+
+refs_do_not_process = [
   # list of refs that we should ignore
 ]
-process_only_these = [
+refs_process_only_these = [
   # list of refs to process
   # this takes precedence over "do_not_process"
   # this is exclusive with do_not_process
 ]
 
-[TH_component_shell]
+[TH.component_shell]
 # Around each through hole component (ref), the jig generator creates a "shell"
 # that serves as a component holder at its exact location on the board.
 

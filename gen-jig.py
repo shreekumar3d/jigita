@@ -241,13 +241,13 @@ except ValueError as err:
     sys.exit(-1)
     
 pcb_thickness = cfg['pcb']['thickness']
-shell_clearance = cfg['TH_component_shell']['clearance_from_pcb']
-shell_type = cfg['TH_component_shell']['type']
+shell_clearance = cfg['TH']['component_shell']['clearance_from_pcb']
+shell_type = cfg['TH']['component_shell']['type']
 if shell_type in ['fitting', 'tight']:
     print(f"ERROR: shell_type='{shell_type}' is not implemented yet.", file=sys.stderr)
     sys.exit(-1)
-shell_gap = cfg['TH_component_shell']['gap']
-shell_thickness = cfg['TH_component_shell']['thickness']
+shell_gap = cfg['TH']['component_shell']['gap']
+shell_thickness = cfg['TH']['component_shell']['thickness']
 base_is_solid = 0 if cfg['holder']['base']['type']=="mesh" else 1
 
 base_thickness = cfg['holder']['base']['thickness']
@@ -261,8 +261,8 @@ pcb_holder_overlap = cfg['holder']['pcb_overlap']
 pcb_holder_perimeter = cfg['holder']['perimeter']
 forced_pcb_supports = cfg['holder']['forced_lips']
 lip_size = cfg['holder']['lip_size']
-ref_do_not_process = cfg['TH_refs']['do_not_process']
-ref_process_only_these = cfg['TH_refs']['process_only_these']
+ref_do_not_process = cfg['TH']['refs_do_not_process']
+ref_process_only_these = cfg['TH']['refs_process_only_these']
 jig_style = cfg['jig']['type']
 jig_style_th_soldering = (jig_style == 'TH_soldering')
 jig_type_component_fitting = (jig_style == 'component_fitting')
@@ -578,7 +578,7 @@ for shell_info in all_shells:
     if shell_info['ref'] not in insertion_handled:
         fp_scad.write('%s_insertion="%s"; // [top,bottom]\n'%(
             shell_info['ref'],
-            cfg['TH_component_shell'][shell_info['ref']]['component_insertion'])
+            cfg['TH'][shell_info['ref']]['component_shell']['component_insertion'])
         )
     insertion_handled.append(shell_info['ref'])
 fp_scad.write('/* [Hidden] */\n')
