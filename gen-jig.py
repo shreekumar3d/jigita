@@ -297,9 +297,8 @@ forced_pcb_supports = cfg['holder']['forced_grooves']
 groove_size = cfg['holder']['groove_size']
 ref_do_not_process = cfg['TH']['refs_do_not_process']
 ref_process_only_these = cfg['TH']['refs_process_only_these']
-jig_style = cfg['jig']['type']
-jig_style_th_soldering = (jig_style == 'TH_soldering')
-jig_type_component_fitting = (jig_style == 'component_fitting')
+jig_type = cfg['jig']['type']
+jig_type_component_fitting = (jig_type == 'component_fitting')
 smd_clearance_from_shells = cfg['SMD']['clearance_from_shells']
 smd_gap_from_shells = cfg['SMD']['gap_from_shells']
 if jig_type_component_fitting:
@@ -393,6 +392,9 @@ Show_SMD_Keepout_Volumes = true; // [true,false]
 /* [PCB] */
 PCB_Thickness=%s;
 
+/* [Jig] */
+Type_of_Jig = "%s"; // [TH_soldering,component_fitting]
+
 /* [TH Soldering Jig] */
 
 // Gap between PCB edge and slot on the jig
@@ -433,6 +435,7 @@ SMD_Clearance_From_Shells=%s; // [%s:%s]
 SMD_Gap_From_Shells=%s; // [%s:%s]
 """%(
 pcb_thickness,
+jig_type,
 pcb_holder_gap, pcb_holder_overlap, pcb_holder_perimeter, pcb_perimeter_height,
 groove_size, groove_size,
 cfg['holder']['base']['type'],
@@ -711,17 +714,13 @@ def wide_line(start, end):
             translate(end)(cylinder(h=sv_mesh_line_height, d=sv_mesh_line_width))
             )
 # Delaunay triangulation will be done on the following points
-if jig_style_th_soldering:
-    # 1. centers of all considered footprints
-    # 2. mounting holes
-    # 3. bounding box corners of PCB edge. mounting holes are
-    #    inside the PCB and don't extend all the way to the edge.
-    #    If we don't include them, we may end up having a separate
-    #    "delaunay island", depending on the exact PCB.
-    dt_centers = fp_centers + mounting_holes + pcb_bb_corners
-else:
-    # it's enough to link footprint centers
-    dt_centers = fp_centers
+# 1. centers of all considered footprints
+# 2. mounting holes
+# 3. bounding box corners of PCB edge. mounting holes are
+#    inside the PCB and don't extend all the way to the edge.
+#    If we don't include them, we may end up having a separate
+#    "delaunay island", depending on the exact PCB.
+dt_centers = fp_centers + mounting_holes + pcb_bb_corners
 
 base_solid = translate([0,0,sv_pcb_thickness+sv_topmost_z])(
                 linear_extrude(sv_base_thickness) (
@@ -814,42 +813,40 @@ pcb_perimeter_short = translate([0,0,sv_pcb_thickness+sv_topmost_z-sv_pcb_perime
 
 sm_pcb_perimeter_short = module('pcb_perimeter_short', pcb_perimeter_short)
 
-if jig_style_th_soldering:
-    groove_lines = edge_cuts.compute_grooves(arc_resolution, pcb_filled_shapes[0], groove_size)
-    #print('groove lines no = ',len(groove_lines))
-    #pprint(groove_lines)
-    @exportReturnValueAsModule
-    def peri_line(start, end, line_width):
-        return solid2.hull() (
-            circle(d=line_width).translate(start),
-            circle(d=line_width).translate(end)
-        )
-
-    #fp_scad.write('  groove_width = max(pcb_gap+pcb_holder_perimeter, pcb_overlap)*1.2;\n')
-    #fp_scad.write('  tiny_dimension = 0.001;\n')
-    #fp_scad.write('  base_z =  pcb_thickness+topmost_z+base_thickness+2*tiny_dimension;\n')
-    sv_groove_width = ScadValue('groove_width')
-    sv_tiny_dimension = ScadValue('tiny_dimension')
-    sv_base_z = ScadValue('base_z')
-    s_groove_lines = union()
-    for line in groove_lines:
-        # FIXME: see the -y below? This is ugliness. Aim for consistency
-        s_groove_lines += peri_line(
-                        [line[0][0],-line[0][1]],
-                        [line[1][0],-line[1][1]],
-                        sv_groove_width)
-    sm_pcb_support_groove = module('pcb_support_groove',
-            translate([0,0,-sv_tiny_dimension]) (
-                linear_extrude(sv_base_z) (
-                    s_groove_lines
-                )
-            )
+groove_lines = edge_cuts.compute_grooves(arc_resolution, pcb_filled_shapes[0], groove_size)
+#print('groove lines no = ',len(groove_lines))
+#pprint(groove_lines)
+@exportReturnValueAsModule
+def peri_line(start, end, line_width):
+    return solid2.hull() (
+        circle(d=line_width).translate(start),
+        circle(d=line_width).translate(end)
     )
 
-    # Write out entire SolidPython generated scad, including the modules
-    # Hack : ScadValue can't be empty - so passing it a comment!
-    fp_scad.write(scad_render(ScadValue('//\n')))
+#fp_scad.write('  groove_width = max(pcb_gap+pcb_holder_perimeter, pcb_overlap)*1.2;\n')
+#fp_scad.write('  tiny_dimension = 0.001;\n')
+#fp_scad.write('  base_z =  pcb_thickness+topmost_z+base_thickness+2*tiny_dimension;\n')
+sv_groove_width = ScadValue('groove_width')
+sv_tiny_dimension = ScadValue('tiny_dimension')
+sv_base_z = ScadValue('base_z')
+s_groove_lines = union()
+for line in groove_lines:
+    # FIXME: see the -y below? This is ugliness. Aim for consistency
+    s_groove_lines += peri_line(
+                    [line[0][0],-line[0][1]],
+                    [line[1][0],-line[1][1]],
+                    sv_groove_width)
+sm_pcb_support_groove = module('pcb_support_groove',
+        translate([0,0,-sv_tiny_dimension]) (
+            linear_extrude(sv_base_z) (
+                s_groove_lines
+            )
+        )
+)
 
+# Write out entire SolidPython generated scad, including the modules
+# Hack : ScadValue can't be empty - so passing it a comment!
+fp_scad.write(scad_render(ScadValue('//\n')))
 
 fp_scad.write('module mounted_component_perimeters() {\n')
 fp_scad.write('  union() {\n')
@@ -883,36 +880,9 @@ for subshells in all_shells:
 fp_scad.write('  }\n')
 fp_scad.write('}\n')
 
-if jig_style_th_soldering:
-    fp_scad.write('''
-// This _is_ the entire jig model. Structured such that
-// you can individually check the parts. Color codes from
-// https://en.wikibooks.org/wiki/OpenSCAD_User_Manual/Transformations#color
-module complete_model() {
-  color("steelblue") {
-  difference() {
-    union() {
-      if(Groove == "All Around PCB Edge") {
-          pcb_holder();
-      } else {
-        intersection() {
-          pcb_support_groove();
-          pcb_holder();
-        };
-      }
-      pcb_perimeter_short();
-      if(Base_Type=="mesh") {
-        base_mesh();
-        } else {
-        base_solid();
-      }
-      mounted_component_perimeters();
-    }
-    mounted_component_pockets(); // FIXME: fix terminology - "included"
-    mounted_smd_keepouts();
-  }
-  }
+fp_scad.write('''
 
+module preview_helpers() {
   if(Show_PCB) {
     // Show transparent PCB. We use the background modifier, so this
     // won't be in output
@@ -920,31 +890,65 @@ module complete_model() {
       %pcb();
     }
   }
+  
   if(Show_Component_Holders) {
     color("darkorange", 0.8) {
       %mounted_component_pockets(); // always include, but don't visualize
     }
   }
+  
   if(Show_SMD_Keepout_Volumes) {
     color("crimson", 0.6) {
       %mounted_smd_keepouts();
     }
   }
 }
-''')
 
-else:
-    fp_scad.write('''
-module complete_model() {
-    union() {
-        if(base_is_solid==0) {
-            base_mesh();
+// This _is_ the entire jig model. Structured such that
+// you can individually check the parts. Color codes from
+// https://en.wikibooks.org/wiki/OpenSCAD_User_Manual/Transformations#color
+module complete_model_TH_soldering() {
+  color("steelblue") {
+    difference() {
+      union() {
+        if(Groove == "All Around PCB Edge") {
+          pcb_holder();
         } else {
-            base_solid();
+          intersection() {
+            pcb_support_groove();
+            pcb_holder();
+          };
         }
-        component_shell_support();
-        mounted_component_shells();
+        pcb_perimeter_short();
+        if(Base_Type=="mesh") {
+          base_mesh();
+        } else {
+          base_solid();
+        }
+        mounted_component_perimeters();
+      }
+      mounted_component_pockets(); // FIXME: fix terminology - "included"
+      mounted_smd_keepouts();
     }
+  }
+  preview_helpers();
+}
+module complete_model_component_fitting() {
+  color("steelblue") {
+    difference() {
+      union() {
+        if(Base_Type=="mesh") {
+          base_mesh();
+        } else {
+          base_solid();
+        }
+        mounted_component_perimeters();
+      }
+      mounted_component_pockets(); // FIXME: fix terminology - "included"
+      mounted_smd_keepouts();
+    }
+  }
+  preview_helpers();
 }
 ''')
 
@@ -956,6 +960,13 @@ pcb_max_y = %s;
 '''%(pcb_min_x, pcb_max_x, pcb_min_y, pcb_max_y))
 
 fp_scad.write('''
+module style_of_jig() {
+  if(Type_of_Jig=="TH_soldering")
+    complete_model_TH_soldering();
+  else
+    complete_model_component_fitting();
+}
+
 orient_to_print=%d;
 if(orient_to_print == 1) {
   // Center the PCB around the origin in XY,
@@ -964,48 +975,13 @@ if(orient_to_print == 1) {
     -pcb_min_x-0.5*(pcb_max_x-pcb_min_x),
     pcb_min_y+0.5*(pcb_max_y-pcb_min_y), 0 ]) {
     rotate([180,0,0]) {
-      complete_model();
+        style_of_jig();
     }
   }
 } else {
-    complete_model();
+    style_of_jig();
 }
 '''%(not args.keep_orientation))
-
-
-# Help understanding
-if jig_style_th_soldering:
-    fp_scad.write('''
-// Stackup of the mesh
-module stackup() {
-  sq_size = 5;
-  sq_gap = sq_size*1.2;
-  sq_x = pcb_min_x - sq_gap;
-
-  color("green")
-    translate([sq_x-sq_gap,0,0])
-      linear_extrude(pcb_thickness)
-        square(sq_size);
-
-  color("blue")
-    translate([sq_x-sq_gap,0,pcb_thickness])
-      linear_extrude(Shell_Clearance_From_PCB)
-        square(sq_size);
-
-  color("red")
-    translate([sq_x-sq_gap,0,pcb_thickness+Shell_Clearance_From_PCB])
-      linear_extrude(topmost_z-Shell_Clearance_From_PCB)
-        square(sq_size);
-
-  color("white")
-    translate([sq_x-sq_gap,0,pcb_thickness+topmost_z])
-      linear_extrude(base_thickness)
-        square(sq_size);
-}
-
-// Include the next line to visualize the "stack-up"
-//stackup();
-''')
 
 fp_scad.write('''
 /*
