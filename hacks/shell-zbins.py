@@ -111,6 +111,7 @@ for idx, h_bin in enumerate(hull_bins):
 		h_bin['start_z'] = h_bin['z_list'][0]
 	else:
 		h_bin['start_z'] = hull_bins[idx-1]['z_list'][-1]
+	h_bin['end_z'] = h_bin['z_list'][-1]
 	pprint(h_bin)
 
 fp_scad = open('test.scad', 'w')

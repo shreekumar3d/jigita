@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 
-# FIXME: right now coded to work with thejas32-testbed.
-# YMMV for other boards !
-
 #
 # Usage notes:
 #
@@ -124,8 +121,10 @@ def get_ref_info(board):
 # generate module names used in oscad
 def ref2outline(ref):
     return 'ref_%s'%(ref)
-def ref2pocket(ref):
-    return 'pocket_%s'%(ref)
+def ref2wiggle_pocket(ref):
+    return 'wiggle_pocket_%s'%(ref)
+def ref2fitting_pocket(ref):
+    return 'fitting_pocket_%s'%(ref)
 def ref2perimeter(ref):
     return 'perimeter_%s'%(ref)
 
@@ -140,7 +139,8 @@ def ref2keepout(ref):
     return 'keepout_%s'%(ref)
 
 mod_map = {}
-pocket_map = {}
+wiggle_pocket_map = {}
+fitting_pocket_map = {}
 perimeter_map = {}
 
 courtyard_map = {}
@@ -165,7 +165,91 @@ sv_mesh_line_width = ScadValue('Mesh_Line_Width')
 sv_mesh_line_height = ScadValue('Mesh_Line_Height')
 sv_mesh_start_z = ScadValue('mesh_start_z')
 
+def gen_fitting_pockets(verts, z_bin_size):
+    all_z = np.unique(mesh[:,2])
+    all_z.sort()
+    # we start working from highest Z (farthest from board)
+    # and compute the "step-wells", i.e. convex hulls
+    reverse_z = all_z[::-1]
+
+    z_bins = []
+    z_bins.append({
+        "start_z" : reverse_z[0],
+        "z_list" : [],
+        "verts" : None
+    })
+
+    for z_val in reverse_z:
+        # find all the verts at this Z
+        mask = np.isin(element = mesh[:,2], test_elements=z_val)
+        result = mesh[mask]
+
+        # append to existing bin, if we belong to the same bin,
+        # else start a new bin
+        last_z_bin = z_bins[-1]["start_z"]
+        if last_z_bin-z_val < z_bin_size:
+            if z_bins[-1]["verts"] is None:
+                z_bins[-1]["verts"] = result
+            else:
+                z_bins[-1]["verts"] = np.concatenate([z_bins[-1]["verts"], result])
+            z_bins[-1]["z_list"].append(z_val)
+        else:
+            z_bins.append({
+                "start_z" : z_val,
+                "z_list" : [z_val],
+                "verts" : result
+            })
+
+    # Each bin basically represents an area that casts a shadow looking down at Z=0
+    # We can take the convex hull of the area.
+    # Subsequent bins will keep adding to convex hulls from the previous bins
+    # Thus, cumulatively we'll cover every bin, and the largest covex hull will be
+    # at the bottom, allowing the part to slide in.
+
+    prev_bin = None
+    hull_bins = []
+    for this_bin in z_bins:
+        points_xy = this_bin['verts'][:,0:2] # chuck Z
+        if len(hull_bins)>0:
+            points_xy = np.concatenate([points_xy, hull_bins[-1]['hull']])
+        hull = scipy.spatial.ConvexHull(points_xy)
+        hull_verts = points_xy[hull.vertices]
+        tris = tripy.earclip(hull_verts)
+        area = tripy.calculate_total_area(tris)
+        if len(hull_bins)>0:
+            if area > hull_bins[-1]['area']+1: # heh - looking for some meaningful change :)
+                # start new bin
+                hull_bins.append({
+                    'hull' : hull_verts,
+                    'area' : area,
+                    'z_list' : this_bin['z_list']
+                })
+            else:
+                hull_bins[-1]['z_list'] = hull_bins[-1]['z_list']+this_bin['z_list']
+        else:
+            hull_bins.append({
+                'hull' : hull_verts,
+                'area' : area,
+                "z_list" : this_bin["z_list"],
+            })
+
+    # reverse the hull bins, as it represents the right order of
+    # cutting out!
+    hull_bins.reverse()
+
+    for idx, h_bin in enumerate(hull_bins):
+        h_bin['z_list'].sort()
+        if idx==0:
+            h_bin['start_z'] = h_bin['z_list'][0]
+        else:
+            h_bin['start_z'] = hull_bins[idx-1]['z_list'][-1]
+        h_bin['end_z'] = h_bin['z_list'][-1]
+
+    # Each bin has start_z, end_z, area, hull and z_list keys
+    return hull_bins
+
 def gen_shell_shape(ref, ident, x, y, rot, min_z, max_z, verts):
+    sv_tiny_dimension = ScadValue('tiny_dimension')
     sv_ref_shell_gap = ScadValue('Shell_Gap_For_%s'%(ref))
     sv_ref_shell_thickness = ScadValue('Shell_Thickness_For_%s'%(ref))
     sv_ref_shell_clearance = ScadValue('Shell_Clearance_From_PCB_For_%s'%(ref))
@@ -175,8 +259,8 @@ def gen_shell_shape(ref, ident, x, y, rot, min_z, max_z, verts):
     mod_name = ref2outline(ident)
     mod_map[ident] = module(mod_name, polygon(verts))
 
-    pocket_name = ref2pocket(ident)
-    pocket = translate([x,y,sv_pcb_thickness])(
+    wiggle_pocket_name = ref2wiggle_pocket(ident)
+    wiggle_pocket = translate([x,y,sv_pcb_thickness])(
                 translate([0,0,sv_ref_min_z])(
                     linear_extrude(sv_ref_max_z-sv_ref_min_z) (
                         offset(sv_ref_shell_gap) (
@@ -185,7 +269,28 @@ def gen_shell_shape(ref, ident, x, y, rot, min_z, max_z, verts):
                     )
                 )
              )
-    pocket_map[ident] = module(pocket_name, pocket)
+    wiggle_pocket_map[ident] = module(wiggle_pocket_name, wiggle_pocket)
+
+    # compute the fitting pockets
+    h_bins = gen_fitting_pockets(verts, 0.5)
+    fitting_pocket_name = ref2fitting_pocket(ident)
+    fitting_pocket = union()
+    min_fitting_z = h_bins[0]['start_z']
+    # tiny_dimension ensures overlap across adjacent shells - important for boolean ops
+    for this_bin in h_bins:
+        # FIXME: check the area attribute here. If the area is very small, then the offset needs to be
+        # increased to ensure printability. Very small features can't be printed - and this can happen
+        # with things like tip of a single berg header
+        fitting_pocket += translate([0,0,-sv_tiny_dimension+min_fitting_z+(this_bin['start_z']-min_fitting_z)]) (
+                            translate([x,y,sv_pcb_thickness]) (
+                                linear_extrude(this_bin['end_z']-this_bin['start_z']+2*sv_tiny_dimension) (
+                                    offset(sv_ref_shell_gap) (
+                                        polygon(this_bin['hull'])
+                                    )
+                                )
+                            )
+                        )
+    fitting_pocket_map[ident] = module(fitting_pocket_name, fitting_pocket)
 
     perimeter_name = ref2perimeter(ident)
     perimeter_solid = translate([x,y,sv_pcb_thickness+sv_ref_shell_clearance]) (
@@ -277,7 +382,7 @@ except ValueError as err:
 pcb_thickness = cfg['pcb']['thickness']
 shell_clearance = cfg['TH']['component_shell']['clearance_from_pcb']
 shell_type = cfg['TH']['component_shell']['type']
-if shell_type in ['fitting', 'tight']:
+if shell_type in ['tight']:
     print(f"ERROR: shell_type='{shell_type}' is not implemented yet.", file=sys.stderr)
     sys.exit(-1)
 shell_gap = cfg['TH']['component_shell']['gap']
@@ -615,7 +720,7 @@ for this_ref, area in ui_refs:
         this_ref,
         cfg['TH'][this_ref]['component_shell']['component_insertion'])
     )
-    fp_scad.write('Shell_Type_For_%s="%s"; // [wiggle,courtyard]\n'%(
+    fp_scad.write('Shell_Type_For_%s="%s"; // [wiggle,fitting,courtyard]\n'%(
         this_ref,
         cfg['TH'][this_ref]['component_shell']['type'])
     )
@@ -873,9 +978,15 @@ for subshells in all_shells:
     fp_scad.write('  if(Shell_Type_For_%s=="courtyard") {\n'%(this_ref))
     fp_scad.write('      %s();\n'%(ref2courtyard_pocket(this_ref)))
     fp_scad.write('} else {\n')
+    fp_scad.write('  if(Shell_Type_For_%s=="wiggle") {\n'%(this_ref))
     for shell_info in subshells['wiggle']:
         this_name = shell_info['name']
-        fp_scad.write('      %s();\n'%(ref2pocket(this_name)))
+        fp_scad.write('      %s();\n'%(ref2wiggle_pocket(this_name)))
+    fp_scad.write('  } else { // fitting\n')
+    for shell_info in subshells['wiggle']:
+        this_name = shell_info['name']
+        fp_scad.write('      %s();\n'%(ref2fitting_pocket(this_name)))
+    fp_scad.write('  }\n')
     fp_scad.write('}\n')
 fp_scad.write('  }\n')
 fp_scad.write('}\n')

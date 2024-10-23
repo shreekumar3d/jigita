@@ -4,7 +4,7 @@ import json
 from copy import deepcopy
 from pprint import pprint
 
-valid_shell_types = ['wiggle', 'courtyard']
+valid_shell_types = ['wiggle', 'fitting', 'courtyard']
 valid_jig_types = ['TH_soldering', 'component_fitting']
 valid_base_types = ["mesh", "solid"]
 valid_insertions = ["top", "bottom"]
@@ -38,7 +38,7 @@ def load(configFile, TH_ref_names, SMD_ref_names):
         cfg = deepcopy(default_cfg)
 
     transfer_default_values(default_cfg, cfg)
-
+    #pprint(cfg)
     base_type = cfg['holder']['base']['type']
     if base_type not in valid_base_types:
         raise ValueError(f"Bad value holder.base.type={base_type}. Recognized values are:{valid_base_types}")
@@ -67,7 +67,7 @@ def load(configFile, TH_ref_names, SMD_ref_names):
         if ref in default_cfg['TH']['component_shell'].keys():
             continue
         if ref not in cfg['TH']:
-            cfg['TH'][ref] = { 'component_shell' : deepcopy(default_cfg['TH']['component_shell']) }
+            cfg['TH'][ref] = { 'component_shell' : deepcopy(cfg['TH']['component_shell']) }
             continue
 
         try:
@@ -88,7 +88,7 @@ def load(configFile, TH_ref_names, SMD_ref_names):
         
         for other_key in TH_component_shell_value_keys:
             if other_key not in cfg['TH'][ref]['component_shell']:
-                cfg['TH'][ref]['component_shell'][other_key] = default_cfg['TH']['component_shell'][other_key]
+                cfg['TH'][ref]['component_shell'][other_key] = cfg['TH']['component_shell'][other_key]
 
         if cfg['TH'][ref]['component_shell']['component_insertion'] == 'bottom':
             # Both wiggle and courtyard are compatible with bottom insertion. If not
@@ -247,8 +247,7 @@ refs_process_only_these = [
 #                  - With component_insertion="bottom" (see below), this
 #                    gives ample room to push in the component
 #
-# "fitting" and "tight" are not implemented yet, and aren't treated valid
-# right now.
+# "tight" is not implemented yet, and isn't treated valid right now.
 type = "wiggle"
 
 # component will typically be inserted from the top side (w.r.t # the PCB, and
