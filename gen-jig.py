@@ -40,6 +40,7 @@ import edge_cuts
 import mesh_ops
 from solid2_module import module, exportReturnValueAsModule
 import jigconfig
+import tripy
 
 shell_protrude = 1 # shells will come above PCB by this much, so user can enable and see
 
@@ -130,19 +131,29 @@ def get_ref_info(board):
 # generate module names used in oscad
 def ref2outline(ref):
     return 'ref_%s'%(ref)
-def ref2shell(ref):
-    return 'shell_%s'%(ref)
 def ref2pocket(ref):
     return 'pocket_%s'%(ref)
-def ref2peri(ref):
-    return 'peri_%s'%(ref)
+def ref2perimeter(ref):
+    return 'perimeter_%s'%(ref)
+
+def ref2courtyard(ref):
+    return 'courtyard_%s'%(ref)
+def ref2courtyard_pocket(ref):
+    return 'courtyard_pocket_%s'%(ref)
+def ref2courtyard_perimeter(ref):
+    return 'courtyard_perimeter_%s'%(ref)
+
 def ref2keepout(ref):
     return 'keepout_%s'%(ref)
 
 mod_map = {}
-shell_map = {}
 pocket_map = {}
 perimeter_map = {}
+
+courtyard_map = {}
+courtyard_pocket_map = {}
+courtyard_perimeter_map = {}
+
 keepout_map = {}
 
 # sv => scad value
@@ -152,50 +163,75 @@ sv_shell_thickness = ScadValue('shell_thickness');
 sv_shell_gap = ScadValue('shell_gap');
 sv_pcb_thickness = ScadValue('pcb_thickness');
 sv_shell_protrude = ScadValue('shell_protrude');
+sv_topmost_z = ScadValue('topmost_z')
+sv_pcb_holder_perimeter = ScadValue('pcb_holder_perimeter')
+sv_pcb_gap = ScadValue('pcb_gap')
+sv_pcb_overlap = ScadValue('pcb_overlap')
+sv_pcb_perimeter_height = ScadValue('pcb_perimeter_height')
+sv_base_thickness = ScadValue('base_thickness')
+sv_mesh_line_width = ScadValue('mesh_line_width')
+sv_mesh_line_height = ScadValue('mesh_line_height')
+sv_mesh_start_z = ScadValue('mesh_start_z')
 
-def gen_shell_shape(ref, x, y, rot, min_z, max_z, verts):
-    sv_max_z[ref] = ScadValue('max_z_%s'%(ref))
+def gen_shell_shape(ref, ident, x, y, rot, min_z, max_z, verts):
+    sv_ref_shell_gap = ScadValue('%s_shell_gap'%(ref))
+    sv_ref_shell_thickness = ScadValue('%s_shell_thickness'%(ref))
+    sv_ref_shell_clearance = ScadValue('%s_shell_clearance_from_pcb'%(ref))
+    sv_ref_max_z = ScadValue('max_z_%s'%(ref))
     # first define the polygon so that we can do offset on it
-    mod_name = ref2outline(ref)
-    mod_map[ref] = module(mod_name, polygon(verts))
-    #
-    # note: max_z is positive - so this lifts
-    #if rot==90 or rot==-90: # Invert 90 and -90
-    #    rot=-rot
-    shell_name = ref2shell(ref)
-    # note linear extrude is only "max_z". Assumes top
-    # side of the board. "min_z" is the extent from the top
-    # side of the board all the way to the end of the pin
-    # on the other side of the bottom.
-    shell = translate([x,y,sv_shell_clearance]) (
-                linear_extrude(sv_max_z[ref]-sv_shell_clearance) (
-                    offset(sv_shell_gap+sv_shell_thickness) (
-                        mod_map[ref]()
-                    ) - offset(sv_shell_gap) (
-                        mod_map[ref]()
-                    )
-                )
-            )
-    shell_map[ref] = module(shell_name, shell)
+    mod_name = ref2outline(ident)
+    mod_map[ident] = module(mod_name, polygon(verts))
 
-    pocket_name = ref2pocket(ref)
+    pocket_name = ref2pocket(ident)
     pocket = translate([x,y,-sv_shell_protrude])(
-                linear_extrude(sv_shell_protrude+sv_pcb_thickness+sv_max_z[ref]) (
-                    offset(sv_shell_gap) (
-                        mod_map[ref]()
+                linear_extrude(sv_shell_protrude+sv_pcb_thickness+sv_ref_max_z) (
+                    offset(sv_ref_shell_gap) (
+                        mod_map[ident]()
                     )
                 )
              )
-    pocket_map[ref] = module(pocket_name, pocket)
+    pocket_map[ident] = module(pocket_name, pocket)
 
-    perimeter_name = ref2peri(ref)
-    perimeter_solid = translate([x,y,sv_pcb_thickness+sv_max_z[ref]]) (
-                     offset(sv_shell_gap+sv_shell_thickness) (
-                         mod_map[ref]()
-                     )
-                 )
-    perimeter_map[ref] = module(perimeter_name, perimeter_solid,
-                           comment=f"Perimeter for {ref}")
+    perimeter_name = ref2perimeter(ident)
+    perimeter_solid = translate([x,y,sv_pcb_thickness+sv_ref_shell_clearance]) (
+                        linear_extrude(sv_topmost_z-sv_ref_shell_clearance+sv_base_thickness) (
+                            offset(sv_ref_shell_gap+sv_ref_shell_thickness) (
+                                mod_map[ident]()
+                            )
+                        )
+                      )
+    perimeter_map[ident] = module(perimeter_name, perimeter_solid,
+                           comment=f"Perimeter for {ident}")
+
+def gen_courtyard_shell_shape(ref, courtyard_poly):
+    sv_max_z[ref] = ScadValue('max_z_%s'%(ref))
+    sv_ref_shell_gap = ScadValue('%s_shell_gap'%(ref))
+    sv_ref_shell_thickness = ScadValue('%s_shell_thickness'%(ref))
+    sv_ref_shell_clearance = ScadValue('%s_shell_clearance_from_pcb'%(ref))
+
+    courtyard_name = ref2courtyard(ref)
+    courtyard_map[ref] = module(courtyard_name, polygon(courtyard_poly))
+
+    courtyard_pocket_name = ref2courtyard_pocket(ref)
+    courtyard_pocket = translate([0,0,-sv_shell_protrude])(
+                linear_extrude(sv_shell_protrude+sv_pcb_thickness+sv_max_z[ref]) (
+                    offset(sv_ref_shell_gap) (
+                        courtyard_map[ref]()
+                    )
+                )
+             )
+    courtyard_pocket_map[ref] = module(courtyard_pocket_name, courtyard_pocket)
+
+    courtyard_perimeter_name = ref2courtyard_perimeter(ref)
+    courtyard_perimeter_solid = translate([0,0,sv_pcb_thickness+sv_ref_shell_clearance]) (
+                        linear_extrude(sv_topmost_z-sv_ref_shell_clearance+sv_base_thickness) (
+                            offset(sv_ref_shell_gap+sv_ref_shell_thickness) (
+                                courtyard_map[ref]()
+                            )
+                        )
+                      )
+    courtyard_perimeter_map[ref] = module(courtyard_perimeter_name, courtyard_perimeter_solid,
+                           comment=f"Courtyard Perimeter for {ref}")
 
 def gen_keepout_shape(ref, x, y, rot, min_z, max_z, courtyard_poly):
     sv_max_z[ref] = ScadValue('max_z_%s'%(ref))
@@ -314,14 +350,6 @@ load_3d_models(th_info_proc, 'Through Hole')
 load_3d_models(smd_info, 'SMD')
 
 #pprint(th_info)
-
-# Footprint useful things
-# fp.GetCenter()
-# fp.GetX(), fp.GetY() - same as center?
-# fp.GetSide() - 0 for top, 31 for bottom
-# fp.GetOrientation() - 0, 90, ...
-
-geom_lines = []
 
 if args.output_format == 'stl':
     fp_scad = tempfile.NamedTemporaryFile(mode='w', suffix='.scad', delete_on_close=False)
@@ -464,6 +492,13 @@ for th in th_info_proc:
     # each footprint can have multiple models.
     # each model that is "in contact" with the board will generate
     # a shell
+    local_max_z = 0
+    this_ref = th['ref']
+    subshells = {
+        'ref' : this_ref,
+        'wiggle' : [],
+        'courtyard' : None
+    }
     for idx, modinfo in enumerate(th['models']):
         mesh = modinfo['mesh']
         if mesh.shape[0]==0:
@@ -490,13 +525,12 @@ for th in th_info_proc:
             hull_verts = mesh_xy[hull.vertices]
             #print('Hull size = ', len(hull.vertices), ' min Z=', min_z, ' max Z=', max_z)
             #print(hull_verts)
-            shell_ident = '%s_%d'%(th['ref'],idx)
-            gen_shell_shape(shell_ident,
+            shell_ident = '%s_%d'%(this_ref,idx)
+            gen_shell_shape(this_ref, shell_ident,
                     th['x'], th['y'], th['orientation'],
                     min_z, max_z, hull_verts)
-            all_shells.append({
+            subshells['wiggle'].append({
                 'name':shell_ident,
-                'ref':th['ref'],
                 'min_z':min_z,
                 'max_z':max_z,
                 'model':modinfo['model'],
@@ -504,8 +538,14 @@ for th in th_info_proc:
                 'y' : th['y'],
                 'orientation' : th['orientation'],
                 'hull_verts' : hull_verts})
-            print('  Generating shell %s for mesh %s'%(shell_ident, modinfo['model']))
-            topmost_z = max(topmost_z, max_z)
+            print('  Generating shell %s for ref %s with mesh %s'%(shell_ident, this_ref, modinfo['model']))
+            local_max_z = max(local_max_z, max_z)
+    if local_max_z > 0: # Means we found a mesh
+        subshells['max_z'] = local_max_z
+        gen_courtyard_shell_shape(this_ref, th['front_courtyard'])
+        subshells['front_courtyard'] = th['front_courtyard']
+        all_shells.append(subshells)
+    topmost_z = max(topmost_z, local_max_z)
 
 smd_keepouts = []
 for smd in smd_info:
@@ -568,24 +608,56 @@ base_z =  pcb_thickness+topmost_z+base_thickness+2*tiny_dimension;
 mesh_start_z = pcb_thickness+topmost_z+base_thickness-mesh_line_height;
 '''%(pcb_holder_gap, pcb_holder_overlap, pcb_holder_perimeter, pcb_perimeter_height, topmost_z))
 
-# Allow tweaking bottom insertion from customizer. At a per component level
-fp_scad.write('/* [Component Insertion] */\n')
-insertion_handled = []
-for shell_info in all_shells:
-    # Multiple shells can be generated for one component - they'll all have
-    # the same configuration of insertion. We need to eliminate duplicates
-    # else the OpenSCAD will barf about them
-    if shell_info['ref'] not in insertion_handled:
-        fp_scad.write('%s_insertion="%s"; // [top,bottom]\n'%(
-            shell_info['ref'],
-            cfg['TH'][shell_info['ref']]['component_shell']['component_insertion'])
-        )
-    insertion_handled.append(shell_info['ref'])
+# Allow tweaking per component values from customizer
+# Refs we get can be in any order. Customizer in OpenSCAD opens up all the tabs
+# together. This creates a cluttered user interface. Question is how do we
+# enable the user to easily find the components they may want to tweak ? A
+# reasonable assumption we can make is - they are likely to need to tweak major
+# components, rather than minor components.  Major components will be things
+# such as connectors and ICs. We can show the larger components ahead of the
+# rest, by rearranging the refs by area of the courtyard.
+ui_refs = []
+for subshells in all_shells:
+    this_ref = subshells['ref']
+    tris = tripy.earclip(subshells['front_courtyard'])
+    area = tripy.calculate_total_area(tris)
+    ui_refs.append([this_ref,area])
+ui_refs.sort(reverse=True, key=lambda x:x[1]) # key is the area
+#pprint(ui_refs)
+
+for this_ref, area in ui_refs:
+    fp_scad.write('/* [Component : %s] */\n'%(this_ref))
+    fp_scad.write('%s_insertion="%s"; // [top,bottom]\n'%(
+        this_ref,
+        cfg['TH'][this_ref]['component_shell']['component_insertion'])
+    )
+    fp_scad.write('%s_shell_type="%s"; // [wiggle,courtyard]\n'%(
+        this_ref,
+        cfg['TH'][this_ref]['component_shell']['type'])
+    )
+    fp_scad.write('%s_shell_thickness=%s;\n'%(
+        this_ref,
+        cfg['TH'][this_ref]['component_shell']['thickness'])
+    )
+    fp_scad.write('%s_shell_gap=%s;\n'%(
+        this_ref,
+        cfg['TH'][this_ref]['component_shell']['gap'])
+    )
+    fp_scad.write('%s_shell_clearance_from_pcb=%s;\n'%(
+        this_ref,
+        cfg['TH'][this_ref]['component_shell']['clearance_from_pcb'])
+    )
+    fp_scad.write('%s_included="yes"; // [no,yes]\n'%(this_ref))
+
 fp_scad.write('/* [Hidden] */\n')
 fp_scad.write('bottom_insertion_z = %s;\n'%(bottom_insertion_z))
 fp_scad.write('// Height of the individual components\n')
-for shell_info in all_shells:
-    fp_scad.write('max_z_%s= (%s_insertion=="bottom")? bottom_insertion_z : %s; //3D Model: %s\n'%(shell_info['name'],shell_info['ref'], shell_info['max_z'], shell_info['model']))
+for subshells in all_shells:
+    this_ref = subshells['ref']
+    applies_to = ''
+    for shell_info in subshells['wiggle']:
+        applies_to += ' %s'%(shell_info['model'])
+    fp_scad.write('max_z_%s= (%s_insertion=="bottom")? bottom_insertion_z : %s; //Applies to 3D Model(s):%s\n'%(this_ref,this_ref, subshells['max_z'], applies_to))
 for keepout_info in smd_keepouts:
     fp_scad.write('max_z_%s= %s; //3D Model: %s\n'%(keepout_info['name'],keepout_info['max_z'], keepout_info['model']))
     ref = keepout_info['ref']
@@ -608,26 +680,6 @@ sm_pcb_edge = module('pcb_edge', polygon(pcb_edge_points))
 #plt.plot(x1,y1)
 #plt.show()
 
-fp_scad.write(''.join(geom_lines))
-# This module will include all shells
-combined_shell = union()
-for shell_info in all_shells:
-    combined_shell += shell_map[shell_info['name']]()
-
-sm_mounted_component_shells = module('mounted_component_shells',
-        translate([0,0,sv_pcb_thickness]) (
-            combined_shell
-        )
-    )
-
-# This module will include all pockets
-combined_pockets = union()
-for shell_info in all_shells:
-    combined_pockets += pocket_map[shell_info['name']]()
-
-sm_mounted_component_pockets = module('mounted_component_pockets',
-        combined_pockets
-    )
 
 # all SMD keepouts
 combined_keepouts = union()
@@ -653,10 +705,6 @@ pcb_bb_corners = [
     [pcb_max_x , pcb_max_y]
 ]
 
-sv_base_thickness = ScadValue('base_thickness')
-sv_mesh_line_width = ScadValue('mesh_line_width')
-sv_mesh_line_height = ScadValue('mesh_line_height')
-sv_mesh_start_z = ScadValue('mesh_start_z')
 @exportReturnValueAsModule
 def wide_line(start, end):
     return solid2.hull()(
@@ -676,11 +724,6 @@ else:
     # it's enough to link footprint centers
     dt_centers = fp_centers
 
-sv_topmost_z = ScadValue('topmost_z')
-sv_pcb_holder_perimeter = ScadValue('pcb_holder_perimeter')
-sv_pcb_gap = ScadValue('pcb_gap')
-sv_pcb_overlap = ScadValue('pcb_overlap')
-sv_pcb_perimeter_height = ScadValue('pcb_perimeter_height')
 base_solid = translate([0,0,sv_pcb_thickness+sv_topmost_z])(
                 linear_extrude(sv_base_thickness) (
                     offset(sv_pcb_holder_perimeter+sv_pcb_gap)(
@@ -732,31 +775,6 @@ base_mesh = translate([0,0,sv_mesh_start_z]) (
             )
 
 sm_base_mesh = module('base_mesh', base_mesh())
-
-support_component_shells = union()
-for shell_info in all_shells:
-    this_ref = shell_info['name']
-    # if this component is less taller than the tallest component
-    # then the extra must be filled up
-    extra_extrude = topmost_z - shell_info['max_z']
-    if extra_extrude>0:
-        support_component_shells += translate([0,0,sv_max_z[this_ref]-sv_topmost_z]) (
-                linear_extrude(sv_base_thickness+sv_topmost_z-sv_max_z[this_ref]) (
-                    perimeter_map[this_ref]()
-                )
-            )
-    else:
-        # we only need a solid as thick as the base to hold the
-        # component from falling down :)
-        support_component_shells += linear_extrude(sv_base_thickness) (
-                perimeter_map[this_ref]()
-            )
-
-component_shell_support = translate([0,0,sv_pcb_thickness+sv_topmost_z]) (
-        support_component_shells
-    )
-
-sm_component_shell_support = module('component_shell_support', component_shell_support)
 
 pcb_holder = linear_extrude(sv_topmost_z+sv_pcb_thickness+sv_base_thickness) (
         difference()(
@@ -829,7 +847,44 @@ if jig_style_th_soldering:
             )
     )
 
-    fp_scad.write(scad_render(ScadValue('//')))
+    # Write out entire SolidPython generated scad, including the modules
+    # Hack : ScadValue can't be empty - so passing it a comment!
+    fp_scad.write(scad_render(ScadValue('//\n')))
+
+
+fp_scad.write('module mounted_component_perimeters() {\n')
+fp_scad.write('  union() {\n')
+for subshells in all_shells:
+    this_ref = subshells['ref']
+    fp_scad.write('  if(%s_included=="yes") {\n'%(this_ref))
+    fp_scad.write('  if(%s_shell_type=="courtyard") {\n'%(this_ref))
+    fp_scad.write('      %s();\n'%(ref2courtyard_perimeter(this_ref)))
+    fp_scad.write('} else {\n')
+    for shell_info in subshells['wiggle']:
+        this_name = shell_info['name']
+        fp_scad.write('      %s();\n'%(ref2perimeter(this_name)))
+    fp_scad.write('}\n')
+    fp_scad.write('}\n') # included
+fp_scad.write('  }\n')
+fp_scad.write('}\n')
+
+fp_scad.write('module mounted_component_pockets() {\n')
+fp_scad.write('  union() {\n')
+# NOTE: pockets are always included, unlike shells. This is to prevent
+# protruding shells from elsewhere to get into that volume
+for subshells in all_shells:
+    this_ref = subshells['ref']
+    fp_scad.write('  if(%s_shell_type=="courtyard") {\n'%(this_ref))
+    fp_scad.write('      %s();\n'%(ref2courtyard_pocket(this_ref)))
+    fp_scad.write('} else {\n')
+    for shell_info in subshells['wiggle']:
+        this_name = shell_info['name']
+        fp_scad.write('      %s();\n'%(ref2pocket(this_name)))
+    fp_scad.write('}\n')
+fp_scad.write('  }\n')
+fp_scad.write('}\n')
+
+if jig_style_th_soldering:
     fp_scad.write('''
 // This _is_ the entire jig model. Structured such that
 // you can individually check the parts
@@ -846,8 +901,7 @@ module complete_model() {
         } else {
         base_solid();
       }
-      component_shell_support();
-      mounted_component_shells();
+      mounted_component_perimeters();
     }
     mounted_component_pockets(); // FIXME: fix terminology - "included"
     #mounted_smd_keepouts(); // "mounted" means "does not include "DNP"

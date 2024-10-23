@@ -4,7 +4,7 @@ import json
 from copy import deepcopy
 from pprint import pprint
 
-valid_shell_types = ['wiggle', 'fitting', 'tight']
+valid_shell_types = ['wiggle', 'courtyard']
 valid_jig_types = ['TH_soldering', 'component_fitting']
 valid_base_types = ["mesh", "solid"]
 valid_insertions = ["top", "bottom"]
@@ -41,7 +41,7 @@ def load(configFile, TH_ref_names, SMD_ref_names):
 
     base_type = cfg['holder']['base']['type']
     if base_type not in valid_base_types:
-        raise ValueError(f"Bad value holder.base.type={shell_type}. Recognized values are:{valid_base_types}")
+        raise ValueError(f"Bad value holder.base.type={base_type}. Recognized values are:{valid_base_types}")
 
     jig_type = cfg['jig']['type']
     if jig_type not in valid_jig_types:
@@ -91,7 +91,10 @@ def load(configFile, TH_ref_names, SMD_ref_names):
                 cfg['TH'][ref]['component_shell'][other_key] = default_cfg['TH']['component_shell'][other_key]
 
         if cfg['TH'][ref]['component_shell']['component_insertion'] == 'bottom':
-            cfg['TH'][ref]['component_shell']['type'] = "wiggle"
+            # Both wiggle and courtyard are compatible with bottom insertion. If not
+            # these, we default to wiggle for its usability characteristics
+            if cfg['TH'][ref]['component_shell']['type'] not in ["wiggle", "courtyard"]:
+                cfg['TH'][ref]['component_shell']['type'] = "wiggle"
 
     for key in cfg['SMD']:
         if key in default_cfg['SMD'].keys():
@@ -112,7 +115,7 @@ def load(configFile, TH_ref_names, SMD_ref_names):
             if other_key not in cfg['SMD'][ref]:
                 cfg['SMD'][ref][other_key] = default_cfg['SMD'][other_key]
 
-    pprint(cfg)
+    #pprint(cfg)
     return cfg, config_text
     
 #
@@ -227,16 +230,25 @@ refs_process_only_these = [
 # that serves as a component holder at its exact location on the board.
 
 # shell can have one of a few types
-# - wiggle =>  A shape that gives a bit of wiggle room for the component,
-#              when inserted into the shell. Depending on the exact shape of
-#              the component, it may be possible to rock/shake the component
-#              around.
-# - fitting => multiple outlines, like a "step well". Each level helps hold
-#              the component in place, thus reducing wiggle room
-# - tight   => step-well of concave hulls. Provides the tightest fit, but
-#              also requires the most accuracy in dimensions and printing
+# - wiggle    => A shape that gives a bit of wiggle room for the component,
+#                when inserted into the shell. Depending on the exact shape of
+#                the component, it may be possible to rock/shake the component
+#                around.
+# - fitting   => multiple outlines, like a "step well". Each level helps hold
+#                the component in place, thus reducing wiggle room
+# - tight     => step-well of concave hulls. Provides the tightest fit, but
+#                also requires the most accuracy in dimensions and printing
+# - courtyard => the "courtyard" of the component is used as the shape of the
+#                shell. In almost all cases, this will allow the component
+#                to move around freely in the shell. This is potentially
+#                useful in two cases:
+#                  - components that you mount on the PCB directly, rather
+#                    than in the shell
+#                  - With component_insertion="bottom" (see below), this
+#                    gives ample room to push in the component
 #
-# "fitting" and "tight" are not implemented yet.
+# "fitting" and "tight" are not implemented yet, and aren't treated valid
+# right now.
 type = "wiggle"
 
 # component will typically be inserted from the top side (w.r.t # the PCB, and
