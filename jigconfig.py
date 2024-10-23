@@ -156,7 +156,7 @@ pcb_overlap = 0.3
 pcb_gap = 0.3
 
 # Drawings on the EdgeCuts layer provide the PCB outline. At every vertex
-# on the PCB outline, a "lip" is created, to hold the PCB. Lips are created
+# on the PCB outline, a "groove" is created, to hold the PCB. Lips are created
 # at these points:
 #  - start end points of lines
 #  - corners of rectangles
@@ -164,16 +164,16 @@ pcb_gap = 0.3
 #  - north, east, west, south points on circles
 #  - each vertex on a polygon
 #
-# lips are generated only on the external edge of the PCB, i.e. they are not
+# grooves are generated only on the external edge of the PCB, i.e. they are not
 # generated on interior drawings such as holes.
 #
-# Use 0 to enforce a lip along the entire PCB edge
+# Use 0 to enforce a groove along the entire PCB edge
 #
-lip_size = 15
+groove_size = 15
 
-# In some cases, you may want to force addition of lips at specific points.
-#Use this. Note lip will be centerd on this point.
-forced_lips = [
+# In some cases, you may want to force addition of grooves at specific points.
+#Use this. Note groove will be centerd on this point.
+forced_grooves = [
   #  [ X, Y ] coordinates from KiCAD PCB
 ]
 
@@ -193,7 +193,7 @@ perimeter = 1.6
 type = "mesh"
 
 # Thickness of the base. Higher value will improve rigidity in the
-# xy dimension (apart from the lips)
+# xy dimension (apart from the grooves)
 thickness = 1
 
 # A "perimeter" can be added on top of the base. This also improves the
@@ -307,7 +307,7 @@ type = "TH_soldering"
 # E.g., parameters that are related to printing/manufacturing tolerances can be
 # tuned in OpenSCAD, without access to the original PCB file.
 #
-# Parameters that result in geometry generation in the tool (e.g. lips)
+# Parameters that result in geometry generation in the tool (e.g. grooves)
 # aren't tunable from OpenSCAD. Also, the shapes of the shells aren't
 # tunable from OpenSCAD as parameters, but thickness and height can be
 # easily changed. Please tune parameters carefully, and always 

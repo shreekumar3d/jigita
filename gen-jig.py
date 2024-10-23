@@ -151,24 +151,24 @@ keepout_map = {}
 
 # sv => scad value
 sv_max_z = {}
-sv_shell_clearance = ScadValue('shell_clearance');
-sv_shell_thickness = ScadValue('shell_thickness');
-sv_shell_gap = ScadValue('shell_gap');
-sv_pcb_thickness = ScadValue('pcb_thickness');
+sv_shell_clearance = ScadValue('Shell_Clearance_From_PCB');
+sv_shell_thickness = ScadValue('Shell_Thickness');
+sv_shell_gap = ScadValue('Shell_Gap');
+sv_pcb_thickness = ScadValue('PCB_Thickness');
 sv_topmost_z = ScadValue('topmost_z')
-sv_pcb_holder_perimeter = ScadValue('pcb_holder_perimeter')
-sv_pcb_gap = ScadValue('pcb_gap')
-sv_pcb_overlap = ScadValue('pcb_overlap')
-sv_pcb_perimeter_height = ScadValue('pcb_perimeter_height')
-sv_base_thickness = ScadValue('base_thickness')
-sv_mesh_line_width = ScadValue('mesh_line_width')
-sv_mesh_line_height = ScadValue('mesh_line_height')
+sv_pcb_holder_perimeter = ScadValue('PCB_Holder_Perimeter')
+sv_pcb_gap = ScadValue('PCB_Gap')
+sv_pcb_overlap = ScadValue('PCB_Overlap')
+sv_pcb_perimeter_height = ScadValue('Lower_Perimeter_Height')
+sv_base_thickness = ScadValue('Base_Thickness')
+sv_mesh_line_width = ScadValue('Mesh_Line_Width')
+sv_mesh_line_height = ScadValue('Mesh_Line_Height')
 sv_mesh_start_z = ScadValue('mesh_start_z')
 
 def gen_shell_shape(ref, ident, x, y, rot, min_z, max_z, verts):
-    sv_ref_shell_gap = ScadValue('%s_shell_gap'%(ref))
-    sv_ref_shell_thickness = ScadValue('%s_shell_thickness'%(ref))
-    sv_ref_shell_clearance = ScadValue('%s_shell_clearance_from_pcb'%(ref))
+    sv_ref_shell_gap = ScadValue('Shell_Gap_For_%s'%(ref))
+    sv_ref_shell_thickness = ScadValue('Shell_Thickness_For_%s'%(ref))
+    sv_ref_shell_clearance = ScadValue('Shell_Clearance_From_PCB_For_%s'%(ref))
     sv_ref_max_z = ScadValue('max_z_%s'%(ref))
     sv_ref_min_z = ScadValue('min_z_%s'%(ref))
     # first define the polygon so that we can do offset on it
@@ -201,9 +201,9 @@ def gen_shell_shape(ref, ident, x, y, rot, min_z, max_z, verts):
 def gen_courtyard_shell_shape(ref, courtyard_poly):
     sv_ref_max_z = ScadValue('max_z_%s'%(ref))
     sv_ref_min_z = ScadValue('min_z_%s'%(ref))
-    sv_ref_shell_gap = ScadValue('%s_shell_gap'%(ref))
-    sv_ref_shell_thickness = ScadValue('%s_shell_thickness'%(ref))
-    sv_ref_shell_clearance = ScadValue('%s_shell_clearance_from_pcb'%(ref))
+    sv_ref_shell_gap = ScadValue('Shell_Gap_For_%s'%(ref))
+    sv_ref_shell_thickness = ScadValue('Shell_Thickness_For_%s'%(ref))
+    sv_ref_shell_clearance = ScadValue('Shell_Clearance_From_PCB_For_%s'%(ref))
 
     courtyard_name = ref2courtyard(ref)
     courtyard_map[ref] = module(courtyard_name, polygon(courtyard_poly))
@@ -293,8 +293,8 @@ pcb_perimeter_height = cfg['holder']['base']['perimeter_height']
 pcb_holder_gap = cfg['holder']['pcb_gap']
 pcb_holder_overlap = cfg['holder']['pcb_overlap']
 pcb_holder_perimeter = cfg['holder']['perimeter']
-forced_pcb_supports = cfg['holder']['forced_lips']
-lip_size = cfg['holder']['lip_size']
+forced_pcb_supports = cfg['holder']['forced_grooves']
+groove_size = cfg['holder']['groove_size']
 ref_do_not_process = cfg['TH']['refs_do_not_process']
 ref_process_only_these = cfg['TH']['refs_process_only_these']
 jig_style = cfg['jig']['type']
@@ -390,46 +390,60 @@ Show_Component_Holders = true; // [true,false]
 
 Show_SMD_Keepout_Volumes = true; // [true,false]
 
+/* [PCB] */
+PCB_Thickness=%s;
+
+/* [TH Soldering Jig] */
+
+// Gap between PCB edge and slot on the jig
+PCB_Gap=%s;
+
+// Width of the groove on the jig, holding the PCB
+PCB_Overlap=%s;
+
+// Wall thickness of the jig, abutting the PCB
+PCB_Holder_Perimeter=%s;
+
+// Height of solid perimeter at the base
+Lower_Perimeter_Height = %s;
+
+Groove="At PCB Corners: %s mm"; //["At PCB Corners: %s mm", "All Around PCB Edge"]
+
+/* [Base] */
+
 Base_Type = "%s"; // [mesh, solid]
+Base_Thickness = %s;
 
-/* [Global Defaults] */
+// Applicable if Base is a Mesh
+Mesh_Line_Width = %s;
 
-// Gap for components to slide into their shell,
-// on all sides in the horizontal plane (in mm)
-shell_gap = %s;
-                
-// Thickness of shells (in mm)
-shell_thickness = %s;
+// Applicable if Base is a Mesh
+Mesh_Line_Height = %s;
 
-// Thickness of PCB (in mm)
-pcb_thickness=%s;
+/* [Global Defaults - Fixed and Unmodifiable. Customize Next Sections] */
 
-// Clearance between typical shells and PCB
-// Allows you to check and confirm component fit
-shell_clearance=%s;
+Shell_Gap = %s; // [%s:%s]
 
-// Thickness of base (in mm)
-// base provides a holding structure for the shells
-// and connects it to the frame (on which the board
-// sits)
-base_thickness = %s;
+Shell_Thickness = %s; // [%s:%s]
 
-// Line width in the mesh
-mesh_line_width = %s;
+Shell_Clearance_From_PCB=%s; // [%s:%s]
 
-// Line height in the mesh
-mesh_line_height = %s;
+SMD_Clearance_From_Shells=%s; // [%s:%s]
 
-// Board will sit on a lip, close to mounting holes
-// Lips that lie in a square of this size (in mm)
-// will be part of the model.
-lip_size=%s;
-
-smd_clearance_from_shells=%s;
-smd_gap_from_shells=%s;
-"""%(cfg['holder']['base']['type'], shell_gap, shell_thickness, pcb_thickness,
-     shell_clearance, base_thickness, mesh_line_width, mesh_line_height,
-     lip_size, smd_clearance_from_shells, smd_gap_from_shells))
+SMD_Gap_From_Shells=%s; // [%s:%s]
+"""%(
+pcb_thickness,
+pcb_holder_gap, pcb_holder_overlap, pcb_holder_perimeter, pcb_perimeter_height,
+groove_size, groove_size,
+cfg['holder']['base']['type'],
+base_thickness,
+mesh_line_width, mesh_line_height,
+shell_gap, shell_gap, shell_gap,
+shell_thickness, shell_thickness, shell_thickness,
+shell_clearance, shell_clearance, shell_clearance,
+smd_clearance_from_shells, smd_clearance_from_shells, smd_clearance_from_shells,
+smd_gap_from_shells, smd_gap_from_shells, smd_gap_from_shells
+))
 
 pcb_segments = []
 pcb_filled_shapes = []
@@ -574,36 +588,6 @@ for smd in smd_info:
 
 bottom_insertion_z = topmost_z + 2*base_thickness
 
-fp_scad.write('''
-// Gap (in mm) between board edge and slot on which the board sits
-pcb_gap=%s;
-
-// Width of the lip (in mm) on which the board rests
-pcb_overlap=%s;
-
-// PCB holder's wall thickness (in mm)
-// This will be the thickness after the gap
-pcb_holder_perimeter=%s;
-
-// The board can have a (lower) perimeter for added
-// strength/aesthetics.  Perimeter height is above
-// the base, and in mm
-pcb_perimeter_height = %s;
-
-// } End of configurable parameters
-
-// { START : Computed Values
-
-// Height of the tallest component on the top side
-topmost_z=%s;
-
-lip_width = max(pcb_gap+pcb_holder_perimeter, pcb_overlap)*1.2;
-tiny_dimension = 0.001;
-base_z =  pcb_thickness+topmost_z+base_thickness+2*tiny_dimension;
-
-mesh_start_z = pcb_thickness+topmost_z+base_thickness-mesh_line_height;
-'''%(pcb_holder_gap, pcb_holder_overlap, pcb_holder_perimeter, pcb_perimeter_height, topmost_z))
-
 # Allow tweaking per component values from customizer
 # Refs we get can be in any order. Customizer in OpenSCAD opens up all the tabs
 # together. This creates a cluttered user interface. Question is how do we
@@ -623,30 +607,46 @@ ui_refs.sort(reverse=True, key=lambda x:x[1]) # key is the area
 
 for this_ref, area in ui_refs:
     fp_scad.write('/* [Component : %s] */\n'%(this_ref))
-    fp_scad.write('%s_included=true; // [false,true]\n'%(this_ref))
-    fp_scad.write('%s_insertion="%s"; // [top,bottom]\n'%(
+    fp_scad.write('Include_%s_in_Jig=true; // [false,true]\n'%(this_ref))
+    fp_scad.write('Insert_%s_From="%s"; // [top,bottom]\n'%(
         this_ref,
         cfg['TH'][this_ref]['component_shell']['component_insertion'])
     )
-    fp_scad.write('%s_shell_type="%s"; // [wiggle,courtyard]\n'%(
+    fp_scad.write('Shell_Type_For_%s="%s"; // [wiggle,courtyard]\n'%(
         this_ref,
         cfg['TH'][this_ref]['component_shell']['type'])
     )
-    fp_scad.write('%s_shell_thickness=%s;\n'%(
+    fp_scad.write('Shell_Thickness_For_%s=%s;\n'%(
         this_ref,
         cfg['TH'][this_ref]['component_shell']['thickness'])
     )
-    fp_scad.write('%s_shell_gap=%s;\n'%(
+    fp_scad.write('Shell_Gap_For_%s=%s;\n'%(
         this_ref,
         cfg['TH'][this_ref]['component_shell']['gap'])
     )
-    fp_scad.write('%s_shell_clearance_from_pcb=%s;\n'%(
+    fp_scad.write('Shell_Clearance_From_PCB_For_%s=%s;\n'%(
         this_ref,
         cfg['TH'][this_ref]['component_shell']['clearance_from_pcb'])
     )
 
+fp_scad.write('// } End of configurable parameters\n')
+
 fp_scad.write('/* [Hidden] */\n')
 fp_scad.write('$fs = 0.05;\n');
+
+fp_scad.write('''
+// { START : Computed Values
+
+// Height of the tallest component on the top side
+topmost_z=%s;
+
+groove_width = max(PCB_Gap+PCB_Holder_Perimeter, PCB_Overlap)*2.2;
+tiny_dimension = 0.001;
+base_z =  PCB_Thickness+topmost_z+Base_Thickness+2*tiny_dimension;
+
+mesh_start_z = PCB_Thickness+topmost_z+Base_Thickness-Mesh_Line_Height;
+'''%( topmost_z))
+
 
 fp_scad.write('bottom_insertion_z = %s;\n'%(bottom_insertion_z))
 fp_scad.write('// Height of the individual components\n')
@@ -655,7 +655,7 @@ for subshells in all_shells:
     applies_to = ''
     for shell_info in subshells['wiggle']:
         applies_to += ' %s'%(shell_info['model'])
-    fp_scad.write('max_z_%s= (%s_insertion=="bottom")? bottom_insertion_z : %s; //Applies to 3D Model(s):%s\n'%(this_ref,this_ref, subshells['max_z'], applies_to))
+    fp_scad.write('max_z_%s= (Insert_%s_From=="bottom")? bottom_insertion_z : %s; //Applies to 3D Model(s):%s\n'%(this_ref,this_ref, subshells['max_z'], applies_to))
     fp_scad.write('min_z_%s= %s;\n'%(this_ref, subshells['min_z']))
 for keepout_info in smd_keepouts:
     fp_scad.write('max_z_%s= %s; //3D Model: %s\n'%(keepout_info['name'],keepout_info['max_z'], keepout_info['model']))
@@ -815,9 +815,9 @@ pcb_perimeter_short = translate([0,0,sv_pcb_thickness+sv_topmost_z-sv_pcb_perime
 sm_pcb_perimeter_short = module('pcb_perimeter_short', pcb_perimeter_short)
 
 if jig_style_th_soldering:
-    lip_lines = edge_cuts.compute_lips(arc_resolution, pcb_filled_shapes[0], lip_size)
-    #print('lip lines no = ',len(lip_lines))
-    #pprint(lip_lines)
+    groove_lines = edge_cuts.compute_grooves(arc_resolution, pcb_filled_shapes[0], groove_size)
+    #print('groove lines no = ',len(groove_lines))
+    #pprint(groove_lines)
     @exportReturnValueAsModule
     def peri_line(start, end, line_width):
         return solid2.hull() (
@@ -825,23 +825,23 @@ if jig_style_th_soldering:
             circle(d=line_width).translate(end)
         )
 
-    #fp_scad.write('  lip_width = max(pcb_gap+pcb_holder_perimeter, pcb_overlap)*1.2;\n')
+    #fp_scad.write('  groove_width = max(pcb_gap+pcb_holder_perimeter, pcb_overlap)*1.2;\n')
     #fp_scad.write('  tiny_dimension = 0.001;\n')
     #fp_scad.write('  base_z =  pcb_thickness+topmost_z+base_thickness+2*tiny_dimension;\n')
-    sv_lip_width = ScadValue('lip_width')
+    sv_groove_width = ScadValue('groove_width')
     sv_tiny_dimension = ScadValue('tiny_dimension')
     sv_base_z = ScadValue('base_z')
-    s_lip_lines = union()
-    for line in lip_lines:
+    s_groove_lines = union()
+    for line in groove_lines:
         # FIXME: see the -y below? This is ugliness. Aim for consistency
-        s_lip_lines += peri_line(
+        s_groove_lines += peri_line(
                         [line[0][0],-line[0][1]],
                         [line[1][0],-line[1][1]],
-                        sv_lip_width)
-    sm_pcb_support_lips = module('pcb_support_lips',
+                        sv_groove_width)
+    sm_pcb_support_groove = module('pcb_support_groove',
             translate([0,0,-sv_tiny_dimension]) (
                 linear_extrude(sv_base_z) (
-                    s_lip_lines
+                    s_groove_lines
                 )
             )
     )
@@ -855,8 +855,8 @@ fp_scad.write('module mounted_component_perimeters() {\n')
 fp_scad.write('  union() {\n')
 for subshells in all_shells:
     this_ref = subshells['ref']
-    fp_scad.write('  if(%s_included) {\n'%(this_ref))
-    fp_scad.write('  if(%s_shell_type=="courtyard") {\n'%(this_ref))
+    fp_scad.write('  if(Include_%s_in_Jig) {\n'%(this_ref))
+    fp_scad.write('  if(Shell_Type_For_%s=="courtyard") {\n'%(this_ref))
     fp_scad.write('      %s();\n'%(ref2courtyard_perimeter(this_ref)))
     fp_scad.write('} else {\n')
     for shell_info in subshells['wiggle']:
@@ -873,7 +873,7 @@ fp_scad.write('  union() {\n')
 # protruding shells from elsewhere to get into that volume
 for subshells in all_shells:
     this_ref = subshells['ref']
-    fp_scad.write('  if(%s_shell_type=="courtyard") {\n'%(this_ref))
+    fp_scad.write('  if(Shell_Type_For_%s=="courtyard") {\n'%(this_ref))
     fp_scad.write('      %s();\n'%(ref2courtyard_pocket(this_ref)))
     fp_scad.write('} else {\n')
     for shell_info in subshells['wiggle']:
@@ -892,10 +892,14 @@ module complete_model() {
   color("steelblue") {
   difference() {
     union() {
-      intersection() {
-        pcb_support_lips();
-        pcb_holder();
-      };
+      if(Groove == "All Around PCB Edge") {
+          pcb_holder();
+      } else {
+        intersection() {
+          pcb_support_groove();
+          pcb_holder();
+        };
+      }
       pcb_perimeter_short();
       if(Base_Type=="mesh") {
         base_mesh();
@@ -985,12 +989,12 @@ module stackup() {
 
   color("blue")
     translate([sq_x-sq_gap,0,pcb_thickness])
-      linear_extrude(shell_clearance)
+      linear_extrude(Shell_Clearance_From_PCB)
         square(sq_size);
 
   color("red")
-    translate([sq_x-sq_gap,0,pcb_thickness+shell_clearance])
-      linear_extrude(topmost_z-shell_clearance)
+    translate([sq_x-sq_gap,0,pcb_thickness+Shell_Clearance_From_PCB])
+      linear_extrude(topmost_z-Shell_Clearance_From_PCB)
         square(sq_size);
 
   color("white")

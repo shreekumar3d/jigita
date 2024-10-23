@@ -250,27 +250,27 @@ def compute_areas(pcb_filled_shapes):
             tris = tripy.earclip(fs['vertices'])
             fs['area'] = tripy.calculate_total_area(tris)
 
-def append_lip_lines_for_line(lip_lines, lip_size, min_gap, a,b):
+def append_groove_lines_for_line(groove_lines, groove_size, min_gap, a,b):
     # classic distance formula
     len_ab = math.sqrt(math.pow(a[0]-b[0],2)+math.pow(a[1]-b[1],2))
-    if lip_size  >= len_ab-min_gap:
-        lip_lines.append([a,b])
+    if groove_size  >= len_ab-min_gap:
+        groove_lines.append([a,b])
     else:
         # compute a segment on either end
-        frac = (lip_size*0.5)/len_ab
+        frac = (groove_size*0.5)/len_ab
         dx = (b[0]-a[0])*frac
         dy = (b[1]-a[1])*frac
 
-        # half lip length on either side
+        # half groove length on either side
         ax1 = a[0]+dx
         ay1 = a[1]+dy
-        lip_lines.append([a,[ax1,ay1]])
+        groove_lines.append([a,[ax1,ay1]])
         bx1 = b[0]-dx
         by1 = b[1]-dy
-        lip_lines.append([[bx1,by1],b])
+        groove_lines.append([[bx1,by1],b])
 
-def append_lip_lines_for_arc(
-        arc_resolution, lip_lines, center, radius,
+def append_groove_lines_for_arc(
+        arc_resolution, groove_lines, center, radius,
         start_angle, angle, start_pt, end_pt):
     temp_fs = {
         'type' : 'Arc',
@@ -284,46 +284,46 @@ def append_lip_lines_for_arc(
     points = tesellate_arc(arc_resolution, temp_fs)
     points = points + [points[0]]
     for i in range(len(points)-1):
-        lip_lines.append([points[i],points[i+1]])
+        groove_lines.append([points[i],points[i+1]])
 
-# compute_lips works this way -
+# compute_grooves works this way -
 # it basically iterates over every segment
 # (line, arc) in the PCB shape.
 #
-# for lines, lips are created near the start and end
-# points. lip_size is split in half towards each
+# for lines, grooves are created near the start and end
+# points. groove_size is split in half towards each
 # extremity. If the line is not much longer than
-# lip_size, then the entire line is used as a lip
+# groove_size, then the entire line is used as a groove
 #
 # for arcs, things get a bit more interesting.
 # again, the general rule is that every end point must
-# create half lip - so that is the start and end points.
+# create half groove - so that is the start and end points.
 # But the arc also has a mid point. Arcs can get pretty
 # big, and we'd need to support that place as well.
-# So, we consider 2*lip_size as the total lip that will
+# So, we consider 2*groove_size as the total groove that will
 # be generated for an arc. If the arc is not much longer
-# than that, we output the entire arc as a lip.
-# Else, lip_size around the center, half on the start
+# than that, we output the entire arc as a groove.
+# Else, groove_size around the center, half on the start
 # and end points.
 #
-# Finally, circle is 4 times lip, as we consider it as
+# Finally, circle is 4 times groove, as we consider it as
 # having 4 edges.
-def compute_lips(arc_resolution, filled_shape, lip_size):
+def compute_grooves(arc_resolution, filled_shape, groove_size):
     min_gap = 5
     fs = filled_shape
-    lip_lines = []
+    groove_lines = []
     if fs['type'] == 'Circle':
         peri_circle = 2*math.pi*fs['radius']
-        # if the lips will be very small (or none)
+        # if the grooves will be very small (or none)
         # return the full circle
-        if (lip_size*4)  >= peri_circle-(4*min_gap):
+        if (groove_size*4)  >= peri_circle-(4*min_gap):
             points = tesellate_circle(arc_resolution, fs)
             points = points + [points[0]]
             for i in range(len(points)-1):
-                lip_lines.append([points[i],points[i+1]])
+                groove_lines.append([points[i],points[i+1]])
         else:
-            # what fraction in angle terms is a single lip
-            angle = ((lip_size)/peri_circle)*360
+            # what fraction in angle terms is a single groove
+            angle = ((groove_size)/peri_circle)*360
             start_angle = -angle/2
             end_angle = angle/2
             cx, cy = fs['center']
@@ -334,8 +334,8 @@ def compute_lips(arc_resolution, filled_shape, lip_size):
                 arc_start_y = cx + r*math.cos(start_angle*math.pi/180)
                 arc_end_x = cx + r*math.cos(end_angle*math.pi/180)
                 arc_end_y = cx + r*math.cos(end_angle*math.pi/180)
-                append_lip_lines_for_arc(
-                    arc_resolution, lip_lines, fs['center'], r,
+                append_groove_lines_for_arc(
+                    arc_resolution, groove_lines, fs['center'], r,
                     start_angle, angle,
                     [arc_start_x, arc_start_y],
                     [arc_end_x, arc_end_y])
@@ -348,57 +348,57 @@ def compute_lips(arc_resolution, filled_shape, lip_size):
         for i in range(len(verts)-1):
             a = verts[i]
             b = verts[i+1]
-            append_lip_lines_for_line(lip_lines, lip_size, min_gap, a,b)
+            append_groove_lines_for_line(groove_lines, groove_size, min_gap, a,b)
             # classic distance formula
             len_ab = math.sqrt(math.pow(a[0]-b[0],2)+math.pow(a[1]-b[1],2))
-            if lip_size  >= len_ab-min_gap:
-                lip_lines.append([a,b])
+            if groove_size  >= len_ab-min_gap:
+                groove_lines.append([a,b])
             else:
                 # compute a segment on either end
-                frac = (lip_size*0.5)/len_ab
+                frac = (groove_size*0.5)/len_ab
                 dx = (b[0]-a[0])*frac
                 dy = (b[1]-a[1])*frac
 
-                # half lip length on either side
+                # half groove length on either side
                 ax1 = a[0]+dx
                 ay1 = a[1]+dy
-                lip_lines.append([a,[ax1,ay1]])
+                groove_lines.append([a,[ax1,ay1]])
                 bx1 = b[0]-dx
                 by1 = b[1]-dy
-                lip_lines.append([[bx1,by1],b])
+                groove_lines.append([[bx1,by1],b])
     elif fs['type'] == 'Composite':
         for seg in fs['shape']['segments']:
             if seg['type'] == 'Line':
-                append_lip_lines_for_line(lip_lines, lip_size, min_gap, seg['start'],seg['end'])
+                append_groove_lines_for_line(groove_lines, groove_size, min_gap, seg['start'],seg['end'])
             else:
                 # Arc
                 # arc length
                 peri_arc = 2*math.pi*seg['radius']*seg['angle']/360
                 #print(peri_arc)
                 # again, if only small gaps shall result, then just push out the entire arc
-                if lip_size  >= abs(2*peri_arc)-2*min_gap:
-                    append_lip_lines_for_arc(
-                        arc_resolution, lip_lines, seg['center'], seg['radius'],
+                if groove_size  >= abs(2*peri_arc)-2*min_gap:
+                    append_groove_lines_for_arc(
+                        arc_resolution, groove_lines, seg['center'], seg['radius'],
                         seg['angle_start'], seg['angle'],
                         seg['start'], seg['end'])
                 else:
                     #print('arc start_angle=', seg['angle_start'], ' angle=', seg['angle'])
                     # start and end 50-50
-                    theta = (lip_size/(2*abs(peri_arc)))*seg['angle']
+                    theta = (groove_size/(2*abs(peri_arc)))*seg['angle']
                     seg_end_angle = seg['angle_start']+theta
                     #print('sub seg start:',theta, ' start=', seg['angle_start'], ' angle =', theta)
                     pt_x2 = seg['center'][0] + seg['radius']*math.cos(seg_end_angle*math.pi/180)
                     pt_y2 = seg['center'][1] + seg['radius']*math.sin(seg_end_angle*math.pi/180)
-                    append_lip_lines_for_arc(
-                        arc_resolution, lip_lines, seg['center'], seg['radius'],
+                    append_groove_lines_for_arc(
+                        arc_resolution, groove_lines, seg['center'], seg['radius'],
                         seg['angle_start'], theta,
                         seg['start'], [pt_x2, pt_y2])
                     seg_start_angle = seg['angle_start']+seg['angle']-theta
                     #print('sub seg end :',theta, ' start=', seg_start_angle, ' angle = ', theta)
                     pt_x1 = seg['center'][0] + seg['radius']*math.cos(seg_start_angle*math.pi/180)
                     pt_y1 = seg['center'][1] + seg['radius']*math.sin(seg_start_angle*math.pi/180)
-                    append_lip_lines_for_arc(
-                        arc_resolution, lip_lines, seg['center'], seg['radius'],
+                    append_groove_lines_for_arc(
+                        arc_resolution, groove_lines, seg['center'], seg['radius'],
                         seg_start_angle, theta,
                         [pt_x1, pt_y1], seg['end'])
                     seg_start_angle = seg['angle_start']+(seg['angle']/2)-theta
@@ -408,9 +408,9 @@ def compute_lips(arc_resolution, filled_shape, lip_size):
                     pt_y1 = seg['center'][1] + seg['radius']*math.sin(seg_start_angle*math.pi/180)
                     pt_x2 = seg['center'][0] + seg['radius']*math.cos(seg_end_angle*math.pi/180)
                     pt_y2 = seg['center'][1] + seg['radius']*math.sin(seg_end_angle*math.pi/180)
-                    append_lip_lines_for_arc(
-                        arc_resolution, lip_lines, seg['center'], seg['radius'],
+                    append_groove_lines_for_arc(
+                        arc_resolution, groove_lines, seg['center'], seg['radius'],
                         seg_start_angle, 2*theta,
                         [pt_x1, pt_y1], [pt_x2, pt_y2])
         #raise RuntimeError('Composite Unsupported')
-    return lip_lines
+    return groove_lines
