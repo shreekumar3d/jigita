@@ -44,11 +44,6 @@ import tripy
 
 shell_protrude = 1 # shells will come above PCB by this much, so user can enable and see
 
-_k_top_layer = 0
-_k_bottom_layer = 31
-_k_b_courtyard = 47
-_k_f_courtyard = 47
-
 def get_courtyard_polygon(shape):
     # Courtyard Polygon Coordinate System Note:
     #
@@ -109,8 +104,8 @@ def get_ref_info(board):
             'position' : fp.GetPosition(),
             'models' : models_3d,
             'kfp' : fp, # Reference if we need more info later
-            'front_courtyard' : get_courtyard_polygon(fp.GetCourtyard(_k_f_courtyard)),
-            'back_courtyard' : get_courtyard_polygon(fp.GetCourtyard(_k_b_courtyard)),
+            'front_courtyard' : get_courtyard_polygon(fp.GetCourtyard(pcbnew.F_CrtYd)),
+            'back_courtyard' : get_courtyard_polygon(fp.GetCourtyard(pcbnew.B_CrtYd)),
         }
 
         if fp.HasThroughHolePads():

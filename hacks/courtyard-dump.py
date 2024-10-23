@@ -6,14 +6,6 @@ filename = '../test-boards/hello/hello.kicad_pcb'
 if len(sys.argv)==2:
     filename = sys.argv[1]
 board = pcbnew.LoadBoard(filename)
-#help(board)
-#for i in range(128):
-#    print(i, ' -- %s --'%(board.GetLayerName(i)))
-# FIXME: are the layer numbers a standard thing with KiCAD ?
-# These numbers don't match include/layer_ids.h in KiCAD source codes
-# How are the numbers mapped ?
-B_Courtyard = 46
-F_Courtyard = 47
 
 for fp in board.Footprints():
     print('Component = ',fp.GetReference(), ' on layer = ', fp.GetLayer())
@@ -25,8 +17,8 @@ for fp in board.Footprints():
     # Probably useful for specifying keepout areas on the other side, and 
     # get them enforced in DRC.
     for side, shape in [
-            ('front',fp.GetCourtyard(F_Courtyard)),
-            ('back', fp.GetCourtyard(B_Courtyard))]:
+            ('front',fp.GetCourtyard(pcbnew.F_CrtYd)),
+            ('back', fp.GetCourtyard(pcbnew.B_CrtYd))]:
         shapeText = shape.Format(False)
         print(f'  Courtyard side : {side}')
         print('    ', shapeText)
