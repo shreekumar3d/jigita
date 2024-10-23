@@ -385,7 +385,7 @@ fp_scad.write("""
 
 Show_PCB = true; // [true,false]
 
-Show_Component_Holders = true; // [true,false]
+Show_Component_Volumes = true; // [true,false]
 
 Show_SMD_Keepout_Volumes = true; // [true,false]
 
@@ -891,7 +891,7 @@ module preview_helpers() {
     }
   }
   
-  if(Show_Component_Holders) {
+  if(Show_Component_Volumes) {
     color("darkorange", 0.8) {
       %mounted_component_pockets(); // always include, but don't visualize
     }
