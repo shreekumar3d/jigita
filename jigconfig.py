@@ -9,7 +9,7 @@ valid_jig_types = ['TH_soldering', 'component_fitting']
 valid_base_types = ["mesh", "solid"]
 valid_insertions = ["top", "bottom"]
 
-TH_component_shell_value_keys = ["thickness", "gap", "clearance_from_pcb"]
+TH_component_shell_value_keys = ["shell_thickness", "shell_gap", "shell_clearance_from_pcb"]
 SMD_default_value_keys = ['clearance_from_shells', 'gap_from_shells']
 def transfer_default_values(default_cfg, cfg):
     """ transfer default values from default_cfg to cfg """
@@ -47,13 +47,13 @@ def load(configFile, TH_ref_names, SMD_ref_names):
     if jig_type not in valid_jig_types:
         raise ValueError(f"Bad value jig.type={jig_type}. Recognized values are:{valid_jig_types}")
 
-    shell_type = cfg['TH']['component_shell']['type']
+    shell_type = cfg['TH']['component_shell']['shell_type']
     if shell_type not in valid_shell_types:
-        raise ValueError(f"Bad value TH.component_shell.type={shell_type}. Recognized values are:{valid_shell_types}")
+        raise ValueError(f"Bad value TH.component_shell.shell_type={shell_type}. Recognized values are:{valid_shell_types}")
 
-    insertion = cfg['TH']['component_shell']['component_insertion']
+    insertion = cfg['TH']['component_shell']['insertion_direction']
     if insertion not in valid_insertions:
-        raise ValueError(f"Bad value TH.component_shell.component_insertion={insertion}. Recognized values are:{valid_insertions}")
+        raise ValueError(f"Bad value TH.component_shell.insertion_direction={insertion}. Recognized values are:{valid_insertions}")
 
     for key in cfg['TH']['component_shell']:
         if key in default_cfg['TH']['component_shell'].keys():
@@ -71,30 +71,30 @@ def load(configFile, TH_ref_names, SMD_ref_names):
             continue
 
         try:
-            ref_cs_type = cfg['TH'][ref]['component_shell']['type']
+            ref_cs_type = cfg['TH'][ref]['component_shell']['shell_type']
             if ref_cs_type not in valid_shell_types:
                 raise ValueError(
-                    f"Bad value TH.{ref}.component_shell.type={ref_cs_type}. Recognized values are:{valid_shell_types}")
+                    f"Bad value TH.{ref}.component_shell.shell_type={ref_cs_type}. Recognized values are:{valid_shell_types}")
         except KeyError:
-            cfg['TH'][ref]['component_shell']['type'] = shell_type
+            cfg['TH'][ref]['component_shell']['shell_type'] = shell_type
 
         try:
-            ref_cs_insertion = cfg['TH'][ref]['component_shell']['component_insertion']
+            ref_cs_insertion = cfg['TH'][ref]['component_shell']['insertion_direction']
             if ref_cs_insertion not in valid_insertions:
                 raise ValueError(
-                    f"Bad value TH.{ref}.component_shell.component_insertion={ref_cs_insertion}. Recognized values are:{valid_insertions}")
+                    f"Bad value TH.{ref}.component_shell.insertion_direction={ref_cs_insertion}. Recognized values are:{valid_insertions}")
         except KeyError:
-            cfg['TH'][ref]['component_shell']['component_insertion'] = insertion
+            cfg['TH'][ref]['component_shell']['insertion_direction'] = insertion
         
         for other_key in TH_component_shell_value_keys:
             if other_key not in cfg['TH'][ref]['component_shell']:
                 cfg['TH'][ref]['component_shell'][other_key] = cfg['TH']['component_shell'][other_key]
 
-        if cfg['TH'][ref]['component_shell']['component_insertion'] == 'bottom':
+        if cfg['TH'][ref]['component_shell']['insertion_direction'] == 'bottom':
             # Both wiggle and courtyard are compatible with bottom insertion. If not
             # these, we default to wiggle for its usability characteristics
-            if cfg['TH'][ref]['component_shell']['type'] not in ["wiggle", "courtyard"]:
-                cfg['TH'][ref]['component_shell']['type'] = "wiggle"
+            if cfg['TH'][ref]['component_shell']['shell_type'] not in ["wiggle", "courtyard"]:
+                cfg['TH'][ref]['component_shell']['shell_type'] = "wiggle"
 
     for key in cfg['SMD']:
         if key in default_cfg['SMD'].keys():
@@ -244,34 +244,34 @@ refs_process_only_these = [
 #                useful in two cases:
 #                  - components that you mount on the PCB directly, rather
 #                    than in the shell
-#                  - With component_insertion="bottom" (see below), this
+#                  - With insertion_direction="bottom" (see below), this
 #                    gives ample room to push in the component
 #
 # "tight" is not implemented yet, and isn't treated valid right now.
-type = "wiggle"
+shell_type = "wiggle"
 
 # component will typically be inserted from the top side (w.r.t # the PCB, and
 # the jig). However, they can also be inserted from the bottom of the jig.
 # bottom insertion means that base will have a hole to allow the component to
 # be inserted. The shell type is forced to "outline" in this case.
 # valid values : "top" or "bottom"
-component_insertion = "top"
+insertion_direction = "top"
 
 # Shells are basically a skin of plastic around the component, of this
 # minimum thickness along the Z axis.
-thickness = 1.2
+shell_thickness = 1.2
 
 # You a small xy gap for each component to slide into the shell, and it must
 # ideally sit snug without moving. Component sizes have tolerance. So does
 # you 3D. Consider both to set this up.
-gap = 0.1
+shell_gap = 0.1
 
 # If you have SMD components on the board, you may need a gap between the
 # shells and the PCB. The gap ensures SMD components don't touch the shells.
 #
 # Think of this as a vertical "keep-out" distance between the PCB and the
 # shells
-clearance_from_pcb = 1
+shell_clearance_from_pcb = 1
 
 [SMD]
 # Parameters for SMD components
