@@ -380,13 +380,13 @@ except ValueError as err:
     sys.exit(-1)
     
 pcb_thickness = cfg['pcb']['thickness']
-shell_clearance = cfg['TH']['component_shell']['clearance_from_pcb']
-shell_type = cfg['TH']['component_shell']['type']
+shell_clearance = cfg['TH']['component_shell']['shell_clearance_from_pcb']
+shell_type = cfg['TH']['component_shell']['shell_type']
 if shell_type in ['tight']:
     print(f"ERROR: shell_type='{shell_type}' is not implemented yet.", file=sys.stderr)
     sys.exit(-1)
-shell_gap = cfg['TH']['component_shell']['gap']
-shell_thickness = cfg['TH']['component_shell']['thickness']
+shell_gap = cfg['TH']['component_shell']['shell_gap']
+shell_thickness = cfg['TH']['component_shell']['shell_thickness']
 base_is_solid = 0 if cfg['holder']['base']['type']=="mesh" else 1
 
 base_thickness = cfg['holder']['base']['thickness']
@@ -718,23 +718,23 @@ for this_ref, area in ui_refs:
     fp_scad.write('Include_%s_in_Jig=true; // [false,true]\n'%(this_ref))
     fp_scad.write('Insert_%s_From="%s"; // [top,bottom]\n'%(
         this_ref,
-        cfg['TH'][this_ref]['component_shell']['component_insertion'])
+        cfg['TH'][this_ref]['component_shell']['insertion_direction'])
     )
     fp_scad.write('Shell_Type_For_%s="%s"; // [wiggle,fitting,courtyard]\n'%(
         this_ref,
-        cfg['TH'][this_ref]['component_shell']['type'])
+        cfg['TH'][this_ref]['component_shell']['shell_type'])
     )
     fp_scad.write('Shell_Thickness_For_%s=%s;\n'%(
         this_ref,
-        cfg['TH'][this_ref]['component_shell']['thickness'])
+        cfg['TH'][this_ref]['component_shell']['shell_thickness'])
     )
     fp_scad.write('Shell_Gap_For_%s=%s;\n'%(
         this_ref,
-        cfg['TH'][this_ref]['component_shell']['gap'])
+        cfg['TH'][this_ref]['component_shell']['shell_gap'])
     )
     fp_scad.write('Shell_Clearance_From_PCB_For_%s=%s;\n'%(
         this_ref,
-        cfg['TH'][this_ref]['component_shell']['clearance_from_pcb'])
+        cfg['TH'][this_ref]['component_shell']['shell_clearance_from_pcb'])
     )
 
 fp_scad.write('// } End of configurable parameters\n')
