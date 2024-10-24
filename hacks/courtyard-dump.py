@@ -19,9 +19,17 @@ for fp in board.Footprints():
     for side, shape in [
             ('front',fp.GetCourtyard(pcbnew.F_CrtYd)),
             ('back', fp.GetCourtyard(pcbnew.B_CrtYd))]:
-        shapeText = shape.Format(False)
+        result = []
+        for i in range(shape.OutlineCount()):
+            lc = shape.Outline(i)
+            for j in range(lc.PointCount()):
+                pt = lc.CPoint(j)
+                result.append([pcbnew.ToMM(pt.x),pcbnew.ToMM(pt.y)])
+
         print(f'  Courtyard side : {side}')
-        print('    ', shapeText)
+        print('    ', result)
+        #shapeText = shape.Format(False)
+        #print('  ',shapeText)
     # See kicad-dump-edge-cuts.py for how to convert these into
     # points
     #cyrd = fp.GetCourtyard(F_Courtyard) # returns pcbnew.SHAPE_POLY_SET
