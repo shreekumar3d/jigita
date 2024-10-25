@@ -67,8 +67,8 @@ def get_courtyard_polygon(shape):
 def get_ref_info(board):
     mounting_holes = []
     fp_list = board.Footprints()
-    th_info = []
-    smd_info = []
+    ref_map = {}
+    fp_map = {}
     for fp in fp_list:
         ref = fp.GetReference()
         fp_x = units_to_mm(fp.GetX())
@@ -90,8 +90,11 @@ def get_ref_info(board):
                 'rotation' : [mod3d.m_Rotation[0], mod3d.m_Rotation[1], mod3d.m_Rotation[2]]
             })
         fp_rot = fp.GetOrientation().AsDegrees()
+        fields = fp.Fields()
+        footprint = fields[2].GetText() # e.g. Package_QFP:LQFP-128_14x14mm_P0.4mm
         ref_info = {
-            'ref': fp.GetReference(),
+            'is_th' : fp.HasThroughHolePads(),
+            'footprint' : footprint,
             'x' : fp_x,
             'y' : fp_y,
             'orientation' : fp_rot,
@@ -103,20 +106,34 @@ def get_ref_info(board):
             'back_courtyard' : get_courtyard_polygon(fp.GetCourtyard(pcbnew.B_CrtYd)),
         }
 
+        is_mounting_hole = False
         if fp.HasThroughHolePads():
-            th_info.append(ref_info)
             for fn in fp.Fields():
                 if fn.GetText().startswith('MountingHole'):
                     mounting_holes.append(
                         [fp_x, fp_y]
                     )
+                    is_mounting_hole = True
                     break
-        else:
-            smd_info.append(ref_info)
+        ref_map[ref] = ref_info
+
+        # remember that this footprint has this ref
+        if not is_mounting_hole:
+            if footprint in fp_map:
+                fp_map[footprint]['refs'].append(ref)
+            else:
+                fp_map[footprint] = {
+                    'is_th' : fp.HasThroughHolePads(),
+                    'refs' : [ref],
+                    'alias' : None,
+                    'display_name' : None,
+                    'force_smd' : False
+                }
+
 
         #print(fp.Footprint().GetName())
         #pprint(dir(fp.Footprint()))
-    return smd_info, th_info, mounting_holes
+    return ref_map, fp_map, mounting_holes
 
 # generate module names used in oscad
 def ref2outline(ref):
@@ -164,7 +181,8 @@ sv_base_thickness = ScadValue('Base_Thickness')
 sv_mesh_line_width = ScadValue('Mesh_Line_Width')
 sv_mesh_line_height = ScadValue('Mesh_Line_Height')
 sv_mesh_start_z = ScadValue('mesh_start_z')
-
+sv_smd_clearance_from_shells = ScadValue('SMD_Clearance_From_Shells')
+sv_smd_gap_from_shells = ScadValue('SMD_Gap_From_Shells')
 def gen_fitting_pockets(verts, z_bin_size):
     all_z = np.unique(mesh[:,2])
     all_z.sort()
@@ -250,9 +268,9 @@ def gen_fitting_pockets(verts, z_bin_size):
 
 def gen_shell_shape(ref, ident, x, y, rot, min_z, max_z, verts):
     sv_tiny_dimension = ScadValue('tiny_dimension')
-    sv_ref_shell_gap = ScadValue('Shell_Gap_For_%s'%(ref))
-    sv_ref_shell_thickness = ScadValue('Shell_Thickness_For_%s'%(ref))
-    sv_ref_shell_clearance = ScadValue('Shell_Clearance_From_PCB_For_%s'%(ref))
+    sv_ref_shell_gap = ScadValue('Effective_Shell_Gap_For_%s'%(ref))
+    sv_ref_shell_thickness = ScadValue('Effective_Shell_Thickness_For_%s'%(ref))
+    sv_ref_shell_clearance = ScadValue('Effective_Shell_Clearance_From_PCB_For_%s'%(ref))
     sv_ref_max_z = ScadValue('max_z_%s'%(ref))
     sv_ref_min_z = ScadValue('min_z_%s'%(ref))
     # first define the polygon so that we can do offset on it
@@ -306,9 +324,9 @@ def gen_shell_shape(ref, ident, x, y, rot, min_z, max_z, verts):
 def gen_courtyard_shell_shape(ref, courtyard_poly):
     sv_ref_max_z = ScadValue('max_z_%s'%(ref))
     sv_ref_min_z = ScadValue('min_z_%s'%(ref))
-    sv_ref_shell_gap = ScadValue('Shell_Gap_For_%s'%(ref))
-    sv_ref_shell_thickness = ScadValue('Shell_Thickness_For_%s'%(ref))
-    sv_ref_shell_clearance = ScadValue('Shell_Clearance_From_PCB_For_%s'%(ref))
+    sv_ref_shell_gap = ScadValue('Effective_Shell_Gap_For_%s'%(ref))
+    sv_ref_shell_thickness = ScadValue('Effective_Shell_Thickness_For_%s'%(ref))
+    sv_ref_shell_clearance = ScadValue('Effective_Shell_Clearance_From_PCB_For_%s'%(ref))
 
     courtyard_name = ref2courtyard(ref)
     courtyard_map[ref] = module(courtyard_name, polygon(courtyard_poly))
@@ -369,16 +387,14 @@ parser.add_argument("output", help='Output file to generate.')
 args = parser.parse_args()
 
 board = pcbnew.LoadBoard(args.kicad_pcb)
-smd_info, th_info, mounting_holes = get_ref_info(board)
-
+#smd_info, th_info, mounting_holes = get_ref_info(board)
+ref_map, fp_map, mounting_holes = get_ref_info(board)
 try:
-    cfg, config_text = jigconfig.load(args.config,
-                            [compinfo['ref'] for compinfo in th_info],
-                            [compinfo['ref'] for compinfo in smd_info])
+    cfg, config_text, used_th_fp, th_ref_list, smd_ref_list = jigconfig.load(args.config, ref_map, fp_map)
 except ValueError as err:
     print(f"ERROR: {err}", file=sys.stderr)
     sys.exit(-1)
-    
+
 pcb_thickness = cfg['pcb']['thickness']
 shell_clearance = cfg['TH']['component_shell']['shell_clearance_from_pcb']
 shell_type = cfg['TH']['component_shell']['shell_type']
@@ -413,19 +429,6 @@ if jig_type_component_fitting:
 
 mounting_holes += forced_pcb_supports
 
-# Filter by name
-th_info_proc = []
-for comp in th_info:
-    ref = comp['ref']
-    if len(ref_process_only_these)>0:
-        # process_only_these takes precedence
-        if ref not in ref_process_only_these:
-            continue
-    elif len(ref_do_not_process)>0 and ref not in ref_do_not_process:
-        # exclusion is enforced if process_only_these isn't specified
-        continue
-    th_info_proc.append(comp)
-
 # Setup environment for file name expansion
 os.environ["KIPRJMOD"] = os.path.split(args.kicad_pcb)[0]
 path_sys_3dmodels = '/usr/share/kicad/3dmodels'
@@ -434,22 +437,24 @@ for ver in ['', 6,7,8]: # Hmm - would we need more ?
     if env_var_name not in os.environ:
         os.environ[env_var_name] = path_sys_3dmodels
 
-def load_3d_models(l, desc):
+def load_3d_models(ref_list, ref_map, desc):
     fnames = []
-    for comp in l:
+    for ref in ref_list:
+        comp = ref_map[ref]
         for modinfo in comp['models']:
             model_filename = os.path.expandvars(modinfo['model'])
             fnames.append(model_filename)
     # get uniques
     fnames = list(set(fnames))
     print(f'Loading {len(fnames)} 3D models for {desc} components...')
-    for comp in l:
+    for ref in ref_list:
+        comp = ref_map[ref]
         for modinfo in comp['models']:
             model_filename = os.path.expandvars(modinfo['model'])
             modinfo['mesh'] = mesh_ops.load_mesh(model_filename)
 
-load_3d_models(th_info_proc, 'Through Hole')
-load_3d_models(smd_info, 'SMD')
+load_3d_models(th_ref_list, ref_map, 'Through Hole')
+load_3d_models(smd_ref_list, ref_map, 'SMD')
 
 #pprint(th_info)
 
@@ -461,10 +466,13 @@ else:
     oscad_filename = args.output
     fp_scad = open(oscad_filename, 'w')
 
-fp_scad.write('''
+fp_scad.write('''// Customizable Jig Generator
+// In OpenSCAD, use "Description Only" for best user experience
+// understanding the tunable parameters.
+// -----------------------------------------------------
 // Auto generated file by jig-gen, the awesome automatic
 // jig generator for your PCB designs.
-//
+// -----------------------------------------------------
 // Input board file   : %s
 // Configuration file : %s
 //
@@ -486,13 +494,21 @@ fp_scad.write("""
 // openscad magic to do show you the result
 // right away!
 
-/* [Preview Options - No effect on output] */
-
+/* [Preview Options - No effect on STL output] */
+// Show PCB for reference (green)
 Show_PCB = true; // [true,false]
+// Transparency of PCB
+PCB_Transparency = 0.5; //[0.0:1.0]
 
+// Show component volumes (orange)
 Show_Component_Volumes = true; // [true,false]
+// Transparency of component volumes
+Component_Volume_Transparency = 0.2; // [0.0:1.0]
 
+// Show volume reserved to avoid touching SMD parts (red)
 Show_SMD_Keepout_Volumes = true; // [true,false]
+// Transparency of SMD keepout volumes
+SMD_Keepout_Volume_Transparency = 0.4; // [0.0:1.0]
 
 /* [PCB] */
 PCB_Thickness=%s;
@@ -500,7 +516,7 @@ PCB_Thickness=%s;
 /* [Jig] */
 Type_of_Jig = "%s"; // [TH_soldering,component_fitting]
 
-/* [TH Soldering Jig] */
+/* [Through Hole Soldering Jig] */
 
 // Gap between PCB edge and slot on the jig
 PCB_Gap=%s;
@@ -518,26 +534,25 @@ Groove="At PCB Corners: %s mm"; //["At PCB Corners: %s mm", "All Around PCB Edge
 
 /* [Base] */
 
+// Type of Base
 Base_Type = "%s"; // [mesh, solid]
+
+// Thickness of Base
 Base_Thickness = %s;
 
-// Applicable if Base is a Mesh
+// Width of Mesh Lines
 Mesh_Line_Width = %s;
 
-// Applicable if Base is a Mesh
+// Height of Mesh Lines
 Mesh_Line_Height = %s;
 
-/* [Global Defaults - Fixed and Unmodifiable. Customize Next Sections] */
+/* [SMD Keepout] */
 
-Shell_Gap = %s; // [%s:%s]
+// SMD keepout volume extension in Z
+SMD_Clearance_From_Shells=%s;
 
-Shell_Thickness = %s; // [%s:%s]
-
-Shell_Clearance_From_PCB=%s; // [%s:%s]
-
-SMD_Clearance_From_Shells=%s; // [%s:%s]
-
-SMD_Gap_From_Shells=%s; // [%s:%s]
+// SMD keepout volume extension in XY
+SMD_Gap_From_Shells=%s;
 """%(
 pcb_thickness,
 jig_type,
@@ -546,11 +561,8 @@ groove_size, groove_size,
 cfg['holder']['base']['type'],
 base_thickness,
 mesh_line_width, mesh_line_height,
-shell_gap, shell_gap, shell_gap,
-shell_thickness, shell_thickness, shell_thickness,
-shell_clearance, shell_clearance, shell_clearance,
-smd_clearance_from_shells, smd_clearance_from_shells, smd_clearance_from_shells,
-smd_gap_from_shells, smd_gap_from_shells, smd_gap_from_shells
+smd_clearance_from_shells,
+smd_gap_from_shells
 ))
 
 pcb_segments = []
@@ -602,19 +614,19 @@ fp_centers = []
 topmost_z = 0
 
 # For each TH component on the board
-for th in th_info_proc:
-    print('Processing TH :', th['ref'])
+for this_ref in th_ref_list:
+    print('Processing TH :', this_ref)
     # each footprint can have multiple models.
     # each model that is "in contact" with the board will generate
     # a shell
     local_max_z = 0
     local_min_z = float('inf')
-    this_ref = th['ref']
     subshells = {
         'ref' : this_ref,
         'wiggle' : [],
         'courtyard' : None
     }
+    th = ref_map[this_ref]
     for idx, modinfo in enumerate(th['models']):
         mesh = modinfo['mesh']
         if mesh.shape[0]==0:
@@ -666,7 +678,8 @@ for th in th_info_proc:
     topmost_z = max(topmost_z, local_max_z)
 
 smd_keepouts = []
-for smd in smd_info:
+for this_ref in smd_ref_list:
+    smd = ref_map[this_ref]
     #print('Processing SMD :', smd['ref'])
     # each footprint can have multiple models.
     # each model that is "in contact" with the board will generate
@@ -678,13 +691,13 @@ for smd in smd_info:
                   %(modinfo['model']))
             continue
         mesh, min_z, max_z = xform_mesh(mesh, modinfo, smd['orientation'])
-        keepout_ident = '%s_%d'%(smd['ref'],idx)
+        keepout_ident = '%s_%d'%(this_ref,idx)
         gen_keepout_shape(keepout_ident,
             smd['x'], smd['y'], smd['orientation'],
             min_z, max_z, smd['front_courtyard'])
         smd_keepouts.append({
             'name' : keepout_ident,
-            'ref' : smd['ref'],
+            'ref' : this_ref,
             'min_z':min_z,
             'max_z':max_z,
             'model':modinfo['model'],
@@ -713,28 +726,51 @@ for subshells in all_shells:
 ui_refs.sort(reverse=True, key=lambda x:x[1]) # key is the area
 #pprint(ui_refs)
 
+fp_scad.write('/* [Include these components in output STL file] */\n')
 for this_ref, area in ui_refs:
-    fp_scad.write('/* [Component : %s] */\n'%(this_ref))
+    footprint = cfg['TH'][this_ref]['kicad_footprint']
+    dname = fp_map[footprint]['display_name']
+    fp_scad.write('//%s (%s)\n'%(this_ref, dname))
     fp_scad.write('Include_%s_in_Jig=true; // [false,true]\n'%(this_ref))
-    fp_scad.write('Insert_%s_From="%s"; // [top,bottom]\n'%(
-        this_ref,
-        cfg['TH'][this_ref]['component_shell']['insertion_direction'])
-    )
+
+for alias in cfg['footprint']:
+    footprint = cfg['footprint'][alias]
+    fp_scad.write('/* [Footprint: %s] */\n'%(footprint['display_name']))
+    var_prop_rem = [['Shell_Gap', 'shell_gap', 'XY Gap in shell for component insertion'],
+               ['Shell_Thickness', 'shell_thickness', 'Thickness of shell'],
+               ['Shell_Clearance_From_PCB', 'shell_clearance_from_pcb', 'Z distance from start of shell to PCB']]
+    for var, prop, rem in var_prop_rem:
+        fp_scad.write('//%s\n'%(rem))
+        fp_scad.write('%s_For_%s = %s;\n'%(var, alias, footprint[prop]))
+
+for this_ref, area in ui_refs:
+    footprint = cfg['TH'][this_ref]['kicad_footprint']
+    dname = fp_map[footprint]['display_name']
+    fp_scad.write('/* [Component : %s(%s)] */\n'%(this_ref, dname))
+    fp_scad.write('//Type of shell for this component\n')
     fp_scad.write('Shell_Type_For_%s="%s"; // [wiggle,fitting,courtyard]\n'%(
         this_ref,
-        cfg['TH'][this_ref]['component_shell']['shell_type'])
+        cfg['TH'][this_ref]['shell_type'])
     )
-    fp_scad.write('Shell_Thickness_For_%s=%s;\n'%(
+    fp_scad.write('//Insert this component into jig from this side.(Bottom insertion requires wiggle or courtyard shell to work)\n')
+    fp_scad.write('Insert_%s_From="%s"; // [top,bottom]\n'%(
         this_ref,
-        cfg['TH'][this_ref]['component_shell']['shell_thickness'])
+        cfg['TH'][this_ref]['insertion_direction'])
     )
-    fp_scad.write('Shell_Gap_For_%s=%s;\n'%(
+    fp_scad.write('//Delta(+/-) thickness for shell, additional to footprint setting\n')
+    fp_scad.write('Delta_Shell_Thickness_For_%s=%s;\n'%(
         this_ref,
-        cfg['TH'][this_ref]['component_shell']['shell_gap'])
+        cfg['TH'][this_ref]['delta_shell_thickness'])
     )
-    fp_scad.write('Shell_Clearance_From_PCB_For_%s=%s;\n'%(
+    fp_scad.write('//Delta XY gap to allow insertion of this component into its shell\n')
+    fp_scad.write('Delta_Shell_Gap_For_%s=%s;\n'%(
         this_ref,
-        cfg['TH'][this_ref]['component_shell']['shell_clearance_from_pcb'])
+        cfg['TH'][this_ref]['delta_shell_gap'])
+    )
+    fp_scad.write('//Delta Z clearance from the shell to PCB\n')
+    fp_scad.write('Delta_Shell_Clearance_From_PCB_For_%s=%s;\n'%(
+        this_ref,
+        cfg['TH'][this_ref]['delta_shell_clearance_from_pcb'])
     )
 
 fp_scad.write('// } End of configurable parameters\n')
@@ -742,6 +778,14 @@ fp_scad.write('// } End of configurable parameters\n')
 fp_scad.write('/* [Hidden] */\n')
 fp_scad.write('$fs = 0.05;\n');
 
+# Effective values for each ref
+for this_ref, area in ui_refs:
+    footprint = ref_map[this_ref]['footprint']
+    alias = fp_map[footprint]['alias']
+    for this_var in ['Shell_Thickness', 'Shell_Gap', 'Shell_Clearance_From_PCB']:
+        fp_scad.write('Effective_%s_For_%s = %s_For_%s + Delta_%s_For_%s;\n'%(
+            this_var, this_ref, this_var, alias, this_var, this_ref)
+        )
 fp_scad.write('''
 // { START : Computed Values
 
@@ -768,8 +812,8 @@ for subshells in all_shells:
 for keepout_info in smd_keepouts:
     fp_scad.write('max_z_%s= %s; //3D Model: %s\n'%(keepout_info['name'],keepout_info['max_z'], keepout_info['model']))
     ref = keepout_info['ref']
-    fp_scad.write('smd_clearance_from_shells_%s= %s;\n'%(keepout_info['name'], cfg['SMD'][ref]['clearance_from_shells']))
-    fp_scad.write('smd_gap_from_shells_%s= %s;\n'%(keepout_info['name'], cfg['SMD'][ref]['gap_from_shells']))
+    fp_scad.write('smd_clearance_from_shells_%s= SMD_Clearance_From_Shells;\n'%(keepout_info['name']))
+    fp_scad.write('smd_gap_from_shells_%s= SMD_Gap_From_Shells;\n'%(keepout_info['name']))
 fp_scad.write('// } END : Computed Values\n')
 fp_scad.write('\n')
 
@@ -997,19 +1041,19 @@ module preview_helpers() {
   if(Show_PCB) {
     // Show transparent PCB. We use the background modifier, so this
     // won't be in output
-    color("darkgreen", 0.5) {
+    color("darkgreen", 1.0-PCB_Transparency) {
       %pcb();
     }
   }
   
   if(Show_Component_Volumes) {
-    color("darkorange", 0.8) {
+    color("darkorange", 1.0-Component_Volume_Transparency) {
       %mounted_component_pockets(); // always include, but don't visualize
     }
   }
   
   if(Show_SMD_Keepout_Volumes) {
-    color("crimson", 0.6) {
+    color("crimson", 1.0-SMD_Keepout_Volume_Transparency) {
       %mounted_smd_keepouts();
     }
   }

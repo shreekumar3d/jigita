@@ -3,14 +3,20 @@ import sys
 import json
 from copy import deepcopy
 from pprint import pprint
+import string
 
 valid_shell_types = ['wiggle', 'fitting', 'courtyard']
 valid_jig_types = ['TH_soldering', 'component_fitting']
 valid_base_types = ["mesh", "solid"]
 valid_insertions = ["top", "bottom"]
-
+keys_TH_builtin = None
 TH_component_shell_value_keys = ["shell_thickness", "shell_gap", "shell_clearance_from_pcb"]
 SMD_default_value_keys = ['clearance_from_shells', 'gap_from_shells']
+
+TH_ref_params = ['kicad_footprint', 'force_smd',
+'shell_type', 'insertion_direction']
+TH_ref_params2 = ['delta_shell_gap', 'delta_shell_thickness', 'delta_shell_clearance_from_pcb']
+
 def transfer_default_values(default_cfg, cfg):
     """ transfer default values from default_cfg to cfg """
     for key, value in default_cfg.items():
@@ -24,10 +30,44 @@ def transfer_default_values(default_cfg, cfg):
                 # recurse
                 transfer_default_values(default_cfg[key], cfg[key])
 
-def load(configFile, TH_ref_names, SMD_ref_names):
+inheritable_footprint_keys = [ 'shell_type', 'shell_gap', 'shell_thickness',
+    'insertion_direction', 'shell_clearance_from_pcb', 'force_smd' ]
+valid_footprint_keys = ['kicad_footprint', 'display_name'] + inheritable_footprint_keys
+
+_alias_idx = 1
+
+def generate_alias(footprint, avoid_list):
+    global _alias_idx
+    # For now we generate a short unique name
+    # This is used in OpenSCAD variable name
+    # FIXME document this as avoid use of FP<N>, but seriously
+    # this should be minor
+    while True:
+        alias = f"FP{_alias_idx}"
+        _alias_idx += 1
+        if alias not in avoid_list:
+            break
+    return alias
+
+def expand_refs(name_list, ref_map, fp_map):
+    full = []
+    for name in name_list:
+        if name in ref_map:
+            full.append(name)
+        elif name in fp_map.keys():
+            full += fp_map[name]['refs']
+        else:
+            raise ValueError(f"{name} is not a valid ref/footprint name")
+
+    # return uniques
+    return list(set(full))
+
+def load(configFile, ref_map, fp_map):
     """ load configuration file, validate against TH reference names"""
     default_config_text = get_default()
     default_cfg = tomllib.loads(default_config_text)
+
+    keys_TH_builtin = default_cfg['TH'].keys()
 
     if configFile:
         config_text = open(configFile, 'r').read()
@@ -38,7 +78,8 @@ def load(configFile, TH_ref_names, SMD_ref_names):
         cfg = deepcopy(default_cfg)
 
     transfer_default_values(default_cfg, cfg)
-    #pprint(cfg)
+
+    # Do some basic validation
     base_type = cfg['holder']['base']['type']
     if base_type not in valid_base_types:
         raise ValueError(f"Bad value holder.base.type={base_type}. Recognized values are:{valid_base_types}")
@@ -62,62 +103,142 @@ def load(configFile, TH_ref_names, SMD_ref_names):
             continue
         raise ValueError(f"Can't use TH.component_shell.{key}. No such TH component on the board.")
 
-    # Expand component level defaults
-    for ref in TH_ref_names:
-        if ref in default_cfg['TH']['component_shell'].keys():
-            continue
-        if ref not in cfg['TH']:
-            cfg['TH'][ref] = { 'component_shell' : deepcopy(cfg['TH']['component_shell']) }
-            continue
+    # Check that the user doesn't have invalid values in the footprint tree
+    for alias in cfg['footprint']:
+        this_fp = cfg['footprint'][alias]
+        if 'kicad_footprint' not in this_fp:
+            raise ValueError(f"footprint.{alias} needs a kicad_footprint")
+        kfp = this_fp['kicad_footprint']
+        if kfp not in fp_map.keys():
+            raise ValueError(f"Invalid value footprint.{alias}.kicad_footprint={kfp} . No such footprint on the board.")
+        if fp_map[kfp]['alias'] is not None:
+            raise ValueError(f"More than one aliases specified for kicad footprint {kfp}. Please check")
+        if 'display_name' in this_fp:
+            fp_map[kfp]['display_name'] = this_fp['display_name']
+        else:
+            fp_map[kfp]['display_name'] = kfp
+        fp_map[kfp]['alias'] = alias
 
-        try:
-            ref_cs_type = cfg['TH'][ref]['component_shell']['shell_type']
-            if ref_cs_type not in valid_shell_types:
-                raise ValueError(
-                    f"Bad value TH.{ref}.component_shell.shell_type={ref_cs_type}. Recognized values are:{valid_shell_types}")
-        except KeyError:
-            cfg['TH'][ref]['component_shell']['shell_type'] = shell_type
+        if 'force_smd' in this_fp:
+            if not fp_map[kfp]['is_th']:
+                if this_fp['force_smd']:
+                    raise ValueError(f'footprint.{alias}.force_smd is not supported for SMD component')
+            else:
+                fp_map[kfp]['force_smd'] = this_fp['force_smd']
 
-        try:
-            ref_cs_insertion = cfg['TH'][ref]['component_shell']['insertion_direction']
-            if ref_cs_insertion not in valid_insertions:
-                raise ValueError(
-                    f"Bad value TH.{ref}.component_shell.insertion_direction={ref_cs_insertion}. Recognized values are:{valid_insertions}")
-        except KeyError:
-            cfg['TH'][ref]['component_shell']['insertion_direction'] = insertion
-        
-        for other_key in TH_component_shell_value_keys:
-            if other_key not in cfg['TH'][ref]['component_shell']:
-                cfg['TH'][ref]['component_shell'][other_key] = cfg['TH']['component_shell'][other_key]
+        for key in this_fp:
+            if key not in valid_footprint_keys:
+                raise ValueError(f"footprint.{alias}.{key} is not a recognized setting.")
 
-        if cfg['TH'][ref]['component_shell']['insertion_direction'] == 'bottom':
-            # Both wiggle and courtyard are compatible with bottom insertion. If not
-            # these, we default to wiggle for its usability characteristics
-            if cfg['TH'][ref]['component_shell']['shell_type'] not in ["wiggle", "courtyard"]:
-                cfg['TH'][ref]['component_shell']['shell_type'] = "wiggle"
+    # classify into TH/SMD, accounting for force_smd
+    th_fp_list = []
+    smd_fp_list = []
+    smd_ref_list = []
+    for kfp in fp_map.keys():
+        if not fp_map[kfp]['is_th']:
+            smd_fp_list.append(kfp)
+            smd_ref_list += fp_map[kfp]['refs']
+            continue
+        if fp_map[kfp]['force_smd']:
+            smd_fp_list.append(kfp)
+            smd_ref_list += fp_map[kfp]['refs']
+            continue
+        th_fp_list.append(kfp)
 
-    for key in cfg['SMD']:
-        if key in default_cfg['SMD'].keys():
-            continue
-        if key in SMD_ref_names:
-            continue
-        raise ValueError(f"Can't use SMD.{key}. No such SMD component on the board.")
-
-    # Expand component level defaults
-    for ref in SMD_ref_names:
-        if ref in default_cfg['SMD'].keys():
-            continue
-        if ref not in cfg['SMD']:
-            cfg['SMD'][ref] = deepcopy(default_cfg['SMD'])
-            continue
-        # set default values, if not already present
-        for other_key in SMD_default_value_keys:
-            if other_key not in cfg['SMD'][ref]:
-                cfg['SMD'][ref][other_key] = default_cfg['SMD'][other_key]
+    # Propagate default values to all TH footprints
+    for kfp in th_fp_list:
+        if fp_map[kfp]['alias']:
+            alias = fp_map[kfp]['alias']
+            this_fp = cfg['footprint'][alias]
+        else:
+            alias = generate_alias(kfp, cfg['footprint'].keys())
+            fp_map[kfp]['alias'] = alias
+            this_fp = {
+                'kicad_footprint' : kfp,
+                'display_name' : kfp,
+            }
+            cfg['footprint'][alias] = this_fp
+        for ivkey in inheritable_footprint_keys:
+            if ivkey not in this_fp:
+                this_fp[ivkey] = cfg['TH']['component_shell'][ivkey]
 
     #pprint(cfg)
-    return cfg, config_text
-    
+    #pprint(fp_map)
+    # Process TH components
+    # Propagate values from TH footprints to the actual components
+    th_ref_list = []
+    for ref in ref_map:
+        ref_dict = ref_map[ref]
+        footprint = ref_dict['footprint']
+        if footprint not in th_fp_list:
+            continue
+        footprint_alias = fp_map[footprint]['alias']
+        th_ref_list.append(ref)
+        if ref in cfg['TH']:
+            ref_cfg = cfg['TH'][ref]
+            if 'kicad_footprint' in cfg['TH'][ref]:
+                cfg_ref_footprint = cfg['TH'][ref]['kicad_footprint']
+                if cfg_ref_footprint != footprint:
+                    raise ValueError(f"TH.{ref}.kicad_footprint={cfg_ref_footprint} cannot deviate from {footprint} specified in board file!")
+        else:
+            ref_cfg = {
+            }
+            cfg['TH'][ref] = ref_cfg
+        if 'display_name' not in cfg['TH'][ref]:
+                cfg['TH'][ref]['display_name'] = ref
+        for param in TH_ref_params:
+            if param not in cfg['TH'][ref]:
+                cfg['TH'][ref][param] = cfg['footprint'][footprint_alias][param]
+        for param in TH_ref_params2:
+            if param not in cfg['TH'][ref]:
+                cfg['TH'][ref][param] = 0
+
+    if len(cfg['TH']['refs_process_only_these'])>0:
+        rtp_list = expand_refs(cfg['TH']['refs_process_only_these'], ref_map.keys(), fp_map)
+        for rtp in rtp_list:
+            if rtp not in th_ref_list:
+                raise ValueError(f"{rtp} is not a though hole footprint, and cannot be processed (reason: included in refs_process_only_these)")
+        th_ref_list = rtp_list
+    elif len(cfg['TH']['refs_do_not_process'])>0:
+        rtp_x_list = expand_refs(cfg['TH']['refs_do_not_process'], ref_map.keys(), fp_map)
+        for rtp in rtp_x_list:
+            if rtp in th_ref_list:
+                th_ref_list.remove(rtp)
+
+    # trim TH refs from the config tree that are not in list that will be processed
+    for ref in ref_map:
+        if ref not in th_ref_list:
+            if ref in cfg['TH']:
+                cfg['TH'].pop(ref)
+
+    # as a result of this trimming, some TH footprints may not be used at all now.
+    # find 'em
+    proc_th_footprints = []
+    for ref in th_ref_list:
+        proc_th_footprints.append(cfg['TH'][ref]['kicad_footprint'])
+    proc_th_footprints = list(set(proc_th_footprints))
+    # and remove 'em
+    for alias in list(cfg['footprint'].keys()):
+        fp_name = cfg['footprint'][alias]['kicad_footprint']
+        if fp_name not in proc_th_footprints:
+            cfg['footprint'].pop(alias)
+
+    # ensure display names are propagated back to fp_map
+    for alias in list(cfg['footprint'].keys()):
+        kcfp = cfg['footprint'][alias]['kicad_footprint']
+        dname = cfg['footprint'][alias]['display_name']
+        fp_map[kcfp]['display_name'] = dname
+
+    # expand SMD tree with refs
+    for ref in smd_ref_list:
+        if ref in cfg['SMD']:
+            for key, value in enumerate(default_cfg['SMD']):
+                if key not in cfg['SMD'][ref]:
+                    cfg['SMD'][ref][key] = value
+        else:
+            cfg['SMD'][ref] = deepcopy(default_cfg['SMD'])
+    return cfg, config_text, proc_th_footprints, th_ref_list, smd_ref_list
+
 #
 # This is the default configuration for the jig generator tool,
 # and are chosen to be useful defaults that can reliably work
@@ -273,6 +394,9 @@ shell_gap = 0.1
 # shells
 shell_clearance_from_pcb = 1
 
+# Force footprints to SMD
+force_smd = false
+
 [SMD]
 # Parameters for SMD components
 
@@ -285,6 +409,42 @@ clearance_from_shells = 0.5
 # Courtyard is typically well outside the pads, so 0.5 mm is a good enough
 # default. Soldered components will stay well within this.
 gap_from_shells = 0.5
+
+[footprint]
+# Every component on the board has a footprint, which in turn is associated
+# with 3D models, pads, courtyard, etc
+#
+# Shells for each TH component are generated from the footprint. Shell
+# parameters are inherited from TH.component_shell to each footprint type.
+# Kicad footprints have long names, including the library, e.g
+# 'TestPoint:TestPoint_Pad_1.0x1.0mm'. These aren't valid 'identifiers',
+# and the '.' can be troublesome in toml.  In an automatic method, these
+# will need to be transformed to be valid. This will also make them a bit
+# harder to read. E.g. TestPoint__TestPoint_Pad_1p0x1p0mm'
+# Here, we allow aliases to make it easier.  If "pretty names" are given, they
+# will be used. If not, alias will be used. If that too isn't available,
+# then automatically generated names will be used.
+# e.g.
+#
+# [footprint.SinglePinBergHeader] # SinglePinBergHeader is the 'alias'
+#
+# kicad_footprint = 'TestPoint:TestPoint_Pad_1.0x1.0mm'
+# display_name = 'Single Pin Berg Header'
+# shell_type = "fitting"
+# shell_gap = 0.1
+# shell_thickness = 0.1
+# insertion_direction = "top"
+# shell_clearance_from_pcb = 1
+# force_smd = true # some components (typically modules) like Pico are TH by default
+
+# Any values that left unspecified here will derive from TH.component_shell
+#
+# Same properties can then be provided on a per component (ref) level, but
+# as deltas. Thus the final value can be different between components that
+# have the same footprint
+#
+# This scheme is easy to understand, apply overrides, and helps keep a level
+# of consistency across tools (e.g. from the jig generator # to openscad)
 
 [jig]
 #
