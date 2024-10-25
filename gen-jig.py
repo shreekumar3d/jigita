@@ -929,10 +929,12 @@ base_mesh_volume = linear_extrude(sv_base_line_height) (
                            sm_pcb_edge()
                        )
                    )
+sm_base_mesh_volume = module('base_volume', base_mesh_volume)
+
 base_mesh = translate([0,0,sv_mesh_start_z]) (
                 intersection() (
                     mesh_lines,
-                    base_mesh_volume
+                    sm_base_mesh_volume()
                 )
             )
 
@@ -1052,19 +1054,22 @@ fp_scad.write('}\n')
 
 fp_scad.write('module base_griddish() {\n')
 fp_scad.write('  translate([0,0,mesh_start_z]) {\n')
-fp_scad.write('    union() {\n')
+fp_scad.write('    intersection() {\n')
+fp_scad.write('      union() {\n')
 for subshells in all_shells:
     this_ref = subshells['ref']
-    fp_scad.write('      if(Include_%s_in_Jig) {\n'%(this_ref))
+    fp_scad.write('        if(Include_%s_in_Jig) {\n'%(this_ref))
     for shell_info in subshells['wiggle']:
         ref_x, ref_y = shell_info['fp_center']
         h_start = '[pcb_min_x, %s]'%(ref_y)
         h_end = '[pcb_max_x, %s]'%(ref_y)
         v_start = '[%s, pcb_min_y]'%(ref_x)
         v_end = '[%s, pcb_max_y]'%(ref_x)
-        fp_scad.write('        wide_line(%s,%s);\n'%(h_start,h_end))
-        fp_scad.write('        wide_line(%s,%s);\n'%(v_start,v_end))
-    fp_scad.write('      }\n')
+        fp_scad.write('          wide_line(%s,%s);\n'%(h_start,h_end))
+        fp_scad.write('          wide_line(%s,%s);\n'%(v_start,v_end))
+    fp_scad.write('        }\n')
+fp_scad.write('      }\n')
+fp_scad.write('      base_volume();\n')
 fp_scad.write('    }\n')
 fp_scad.write('  }\n')
 fp_scad.write('}\n')
@@ -1130,6 +1135,8 @@ module complete_model_component_fitting() {
       union() {
         if(Base_Type=="mesh") {
           base_mesh();
+        } else if(Base_Type=="griddish") {
+          base_griddish();
         } else {
           base_solid();
         }
