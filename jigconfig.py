@@ -239,6 +239,71 @@ def load(configFile, ref_map, fp_map):
             cfg['SMD'][ref] = deepcopy(default_cfg['SMD'])
     return cfg, config_text, proc_th_footprints, th_ref_list, smd_ref_list
 
+def generate_config(configFile, ref_map, fp_map):
+    cfg, config_text, used_th_fp, th_ref_list, smd_ref_list = load(None, ref_map, fp_map)
+    fp_cfg = open(configFile, 'w')
+    fp_cfg.write(config_text)
+    fp_cfg.write('''
+# ------ You can override above values from here ------
+#
+# You can setup values on a per-footprint, and even per-component basis.
+# All components that use a particular footprint will inherit values from it.
+#
+# Each footprint has to setup at-least one value 'kicad_footprint'
+# It's highly recommended to also assign a user friendly name to
+# 'display_name'
+#
+# The following properties may also be setup
+#
+#   insertion_direction
+#   shell_type
+#   shell_thickness
+#   shell_gap
+#   shell_clearance_from_pcb
+#   force_smd
+#
+# Each component inherits values from the footprint it uses.
+# Numerical values can be tweaked by a delta value (+/-) applied to
+# the footprint properties.
+#
+# It is recommended that you specify a user friendly 'display_name',
+# if possible. The kicad reference designator is the default.
+# 'kicad_footprint' is a possible value, but if specified, this has
+# to match the kicad footprint reference exactly. Any other value is
+# treated as an error
+#
+# The following values can be specified per component
+#
+#   insertion_direction
+#   shell_type
+#   delta_shell_thickness
+#   delta_shell_gap
+#   delta_shell_clearance_from_pcb
+#   force_smd
+#
+# Below, bare-bones configuration for footprints and components
+# are provided.  All components that use a footprint are
+# listed right below the footprint for ease of customization.
+#
+''')
+    for footprint in used_th_fp:
+        fp_cfg.write('#-----------------------------------------------------\n')
+        alias = fp_map[footprint]['alias']
+        fp_cfg.write(f'[footprint.{alias}]\n')
+        fp_cfg.write("kicad_footprint='%s'\n"%(footprint))
+        fp_cfg.write("display_name='%s'\n"%(footprint))
+
+        fp_cfg.write('# components %s\n'%(fp_map[footprint]['refs']))
+        fp_cfg.write('# use footprint %s\n'%(footprint))
+        fp_cfg.write('\n')
+
+        for ref in fp_map[footprint]['refs']:
+            fp_cfg.write(f'[TH.{ref}]\n')
+            fp_cfg.write(f"display_name='%s'\n"%(cfg['TH'][ref]['display_name']))
+            fp_cfg.write(f"#kicad_footprint='%s'\n"%(cfg['TH'][ref]['kicad_footprint']))
+            fp_cfg.write('\n')
+    fp_cfg.close()
+    return
 #
 # This is the default configuration for the jig generator tool,
 # and are chosen to be useful defaults that can reliably work

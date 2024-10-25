@@ -378,17 +378,31 @@ parser.add_argument("--keep-orientation", action='store_true',
                     default=False,
                     help='''Match orientation of the output to KiCAD 3D view.
 The default orients the output for direct printing (i.e. rotated by 180 degrees
-in along the X axis.''')
+along the X axis.)''')
 parser.add_argument("--output-format", default='stl',
                     choices=['stl','oscad'],
                     help='Output file format')
 parser.add_argument("kicad_pcb", help='KiCAD PCB file (.kicad_pcb) to process')
-parser.add_argument("output", help='Output file to generate.')
+parser.add_argument("--output", help='Output file to generate.')
+parser.add_argument("--genconfig",
+                    help='''Generate a default configuration file, given an
+                    input KiCAD PCB. This lists all footprint and components.
+                    User friendly openscad output can be generated, starting
+                    with that as the base''')
 args = parser.parse_args()
 
 board = pcbnew.LoadBoard(args.kicad_pcb)
 #smd_info, th_info, mounting_holes = get_ref_info(board)
 ref_map, fp_map, mounting_holes = get_ref_info(board)
+
+if args.genconfig:
+    jigconfig.generate_config(args.genconfig, ref_map, fp_map)
+    sys.exit(0)
+
+if not args.output:
+    print(f"ERROR: Need an output file", file=sys.stderr)
+    sys.exit(-1)
+
 try:
     cfg, config_text, used_th_fp, th_ref_list, smd_ref_list = jigconfig.load(args.config, ref_map, fp_map)
 except ValueError as err:
