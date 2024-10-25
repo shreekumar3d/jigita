@@ -178,8 +178,8 @@ sv_pcb_gap = ScadValue('PCB_Gap')
 sv_pcb_overlap = ScadValue('PCB_Overlap')
 sv_pcb_perimeter_height = ScadValue('Lower_Perimeter_Height')
 sv_base_thickness = ScadValue('Base_Thickness')
-sv_mesh_line_width = ScadValue('Mesh_Line_Width')
-sv_mesh_line_height = ScadValue('Mesh_Line_Height')
+sv_base_line_width = ScadValue('Base_Line_Width')
+sv_base_line_height = ScadValue('Base_Line_Height')
 sv_mesh_start_z = ScadValue('mesh_start_z')
 sv_smd_clearance_from_shells = ScadValue('SMD_Clearance_From_Shells')
 sv_smd_gap_from_shells = ScadValue('SMD_Gap_From_Shells')
@@ -403,13 +403,12 @@ if shell_type in ['tight']:
     sys.exit(-1)
 shell_gap = cfg['TH']['component_shell']['shell_gap']
 shell_thickness = cfg['TH']['component_shell']['shell_thickness']
-base_is_solid = 0 if cfg['holder']['base']['type']=="mesh" else 1
 
 base_thickness = cfg['holder']['base']['thickness']
 arc_resolution = cfg['pcb']['tesellate_edge_cuts_curve']
 
-mesh_line_width = cfg['holder']['base']['mesh']['line_width']
-mesh_line_height = cfg['holder']['base']['mesh']['line_height']
+base_line_width = cfg['holder']['base']['line_width']
+base_line_height = cfg['holder']['base']['line_height']
 pcb_perimeter_height = cfg['holder']['base']['perimeter_height']
 pcb_holder_gap = cfg['holder']['pcb_gap']
 pcb_holder_overlap = cfg['holder']['pcb_overlap']
@@ -535,16 +534,16 @@ Groove="At PCB Corners: %s mm"; //["At PCB Corners: %s mm", "All Around PCB Edge
 /* [Base] */
 
 // Type of Base
-Base_Type = "%s"; // [mesh, solid]
+Base_Type = "%s"; // [griddish, mesh, solid]
 
 // Thickness of Base
 Base_Thickness = %s;
 
-// Width of Mesh Lines
-Mesh_Line_Width = %s;
+// Width of Lines on Base
+Base_Line_Width = %s;
 
-// Height of Mesh Lines
-Mesh_Line_Height = %s;
+// Height of Lines on Base
+Base_Line_Height = %s;
 
 /* [SMD Keepout] */
 
@@ -560,7 +559,7 @@ pcb_holder_gap, pcb_holder_overlap, pcb_holder_perimeter, pcb_perimeter_height,
 groove_size, groove_size,
 cfg['holder']['base']['type'],
 base_thickness,
-mesh_line_width, mesh_line_height,
+base_line_width, base_line_height,
 smd_clearance_from_shells,
 smd_gap_from_shells
 ))
@@ -665,7 +664,9 @@ for this_ref in th_ref_list:
                 'x' : th['x'],
                 'y' : th['y'],
                 'orientation' : th['orientation'],
-                'hull_verts' : hull_verts})
+                'hull_verts' : hull_verts,
+                'fp_center': [center_x+th['x'],center_y+th['y']]
+            })
             print('  Generating shell %s for ref %s with mesh %s'%(shell_ident, this_ref, modinfo['model']))
             local_max_z = max(local_max_z, max_z)
             local_min_z = min(local_min_z, min_z)
@@ -796,7 +797,7 @@ groove_width = max(PCB_Gap+PCB_Holder_Perimeter, PCB_Overlap)*2.2;
 tiny_dimension = 0.001;
 base_z =  PCB_Thickness+topmost_z+Base_Thickness+2*tiny_dimension;
 
-mesh_start_z = PCB_Thickness+topmost_z+Base_Thickness-Mesh_Line_Height;
+mesh_start_z = PCB_Thickness+topmost_z+Base_Thickness-Base_Line_Height;
 '''%( topmost_z))
 
 
@@ -859,8 +860,8 @@ pcb_bb_corners = [
 @exportReturnValueAsModule
 def wide_line(start, end):
     return solid2.hull()(
-            translate(start)(cylinder(h=sv_mesh_line_height, d=sv_mesh_line_width))+
-            translate(end)(cylinder(h=sv_mesh_line_height, d=sv_mesh_line_width))
+            translate(start)(cylinder(h=sv_base_line_height, d=sv_base_line_width))+
+            translate(end)(cylinder(h=sv_base_line_height, d=sv_base_line_width))
             )
 # Delaunay triangulation will be done on the following points
 # 1. centers of all considered footprints
@@ -909,7 +910,7 @@ else:
         mesh_lines += wide_line(b,c)
         mesh_lines += wide_line(c,a)
 
-base_mesh_volume = linear_extrude(sv_mesh_line_height) (
+base_mesh_volume = linear_extrude(sv_base_line_height) (
                        offset(sv_pcb_holder_perimeter+sv_pcb_gap) (
                            sm_pcb_edge()
                        )
@@ -1035,6 +1036,25 @@ for subshells in all_shells:
 fp_scad.write('  }\n')
 fp_scad.write('}\n')
 
+fp_scad.write('module base_griddish() {\n')
+fp_scad.write('  translate([0,0,mesh_start_z]) {\n')
+fp_scad.write('    union() {\n')
+for subshells in all_shells:
+    this_ref = subshells['ref']
+    fp_scad.write('      if(Include_%s_in_Jig) {\n'%(this_ref))
+    for shell_info in subshells['wiggle']:
+        ref_x, ref_y = shell_info['fp_center']
+        h_start = '[pcb_min_x, %s]'%(ref_y)
+        h_end = '[pcb_max_x, %s]'%(ref_y)
+        v_start = '[%s, pcb_min_y]'%(ref_x)
+        v_end = '[%s, pcb_max_y]'%(ref_x)
+        fp_scad.write('        wide_line(%s,%s);\n'%(h_start,h_end))
+        fp_scad.write('        wide_line(%s,%s);\n'%(v_start,v_end))
+    fp_scad.write('      }\n')
+fp_scad.write('    }\n')
+fp_scad.write('  }\n')
+fp_scad.write('}\n')
+
 fp_scad.write('''
 
 module preview_helpers() {
@@ -1077,6 +1097,8 @@ module complete_model_TH_soldering() {
         pcb_perimeter_short();
         if(Base_Type=="mesh") {
           base_mesh();
+        } else if(Base_Type=="griddish") {
+          base_griddish();
         } else {
           base_solid();
         }

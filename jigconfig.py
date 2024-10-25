@@ -7,7 +7,7 @@ import string
 
 valid_shell_types = ['wiggle', 'fitting', 'courtyard']
 valid_jig_types = ['TH_soldering', 'component_fitting']
-valid_base_types = ["mesh", "solid"]
+valid_base_types = ["griddish", "mesh", "solid"]
 valid_insertions = ["top", "bottom"]
 keys_TH_builtin = None
 TH_component_shell_value_keys = ["shell_thickness", "shell_gap", "shell_clearance_from_pcb"]
@@ -310,8 +310,12 @@ perimeter = 1.6
 # - "mesh". This is a sparse structure built of thick lines. This helps
 #   reduce plastic usage, and can reduce print time. This also improves
 #   visibility of components when they are placed in the jig.
+# - "griddish". A sparse grid like structure made of thick lines. This
+#   gives good support to base of shells, and provides visibility from
+#   bottom of the jig. Probably takes slightly more material than mesh,
+#   but may creates a regular, somewhat 3D printer friendly pattern.
 # - "solid". A flat plate. More space for annotation.
-type = "mesh"
+type = "griddish"
 
 # Thickness of the base. Higher value will improve rigidity in the
 # xy dimension (apart from the grooves)
@@ -323,7 +327,6 @@ thickness = 1
 # Note that this dimension is additional to the base thickness.
 perimeter_height = 2
 
-[holder.base.mesh]
 # Lines of the mesh are generated with this width. Best to use at-least 4
 # times your nozzle thickness, if 3D printing. Thicker lines will use
 # more material and increase printing time.
