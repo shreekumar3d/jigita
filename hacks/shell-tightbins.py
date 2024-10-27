@@ -15,6 +15,7 @@ import pyclipr
 import math
 import pyclipr
 from itertools import cycle
+from stl import mesh #numpy-stl
 
 pc = pyclipr.Clipper()
 pc.scaleFactor = int(1000)
@@ -284,6 +285,21 @@ po = pyclipr.ClipperOffset()
 po.scaleFactor = int(1000)
 po.addPaths(offset_shape, pyclipr.JoinType.Round, pyclipr.EndType.Polygon)
 offset_shape = po.execute(-0.1)
+
+shape_tris = []
+for shape in offset_shape:
+    part_tris = tripy.earclip(shape)
+    for tri in part_tris:
+        this_tri = []
+        for pt in tri:
+            this_tri.append([pt[0],pt[1],0])
+        shape_tris.append(this_tri)
+
+data = np.zeros(len(shape_tris), mesh.Mesh.dtype)
+for idx,f in enumerate(shape_tris):
+    data['vectors'][idx] = np.array([f])
+stl_mesh = mesh.Mesh(data.copy())
+stl_mesh.save('shadow.stl')
 
 # Plot the overall shape - more than 1 colors means the union didn't
 # work
