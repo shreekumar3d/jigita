@@ -256,56 +256,73 @@ while z>0:
 import matplotlib.pyplot as plt
 plt.figure()
 
-# Create an offsetting object
+# Replicated from tripy.py
+def _is_clockwise(polygon):
+    s = 0
+    polygon_count = len(polygon)
+    for i in range(polygon_count):
+        point = polygon[i]
+        point2 = polygon[(i + 1) % polygon_count]
+        s += (point2[0] - point[0]) * (point2[1] + point[1])
+    return s > 0
+
+# At this point, we might get multiple paths - meaning a shape with
+# holes
+#
+# According to https://www.angusj.com/clipper2/Docs/Overview.htm
+# """
+# This means that outer polygon contours will wind anti-clockwise
+# (in Cartesian coordinates), and inner hole contours will wind clockwise.
+# """
+# Holes need to be ignored, as we are interested only in the external
+# (potentially concave) shape
+
+no_holes = []
+for shape in out:
+    if not _is_clockwise(shape):
+        no_holes.append(shape)
+
+# Fill small gaps - these can happen, probably due to numerical
+# precision of floating point. We fix this by applying a small offset
+# which we later reverse
+print('Ofsetting to fill holes...')
 po = pyclipr.ClipperOffset()
 po.scaleFactor = int(1000)
-po.addPaths(out, pyclipr.JoinType.Round, pyclipr.EndType.Polygon)
-# Fill small holes - these can happen, probably due to numerical
-# precision of floating point
+po.addPaths(no_holes, pyclipr.JoinType.Round, pyclipr.EndType.Polygon)
 offset_shape = po.execute(0.1)
 
-# Clipper2 can give more than one shape - I have seen it returning fully
-# enclosed shapes
-if len(offset_shape)>1:
-    print("Unioning in an attempt to cleanup")
-    # At this point, you might get multiple paths consisting one shape!
-    # Union them, triangle by triangle so that there is no escaping !
-    # (famous last words!)
-    pc2 = pyclipr.Clipper()
-    pc2.scaleFactor = int(1000)
-    for shape in offset_shape:
-        part_tris = tripy.earclip(shape)
-        for tri in part_tris:
-            #print(tri)
-            pc2.addPath(tri, pyclipr.Clip)
-        offset_shape = pc2.execute(pyclipr.Union, pyclipr.FillRule.NonZero)
-
-# reverse the offset :D
+print('Reverse offset to retain size...')
+# reverse the offset to get back to the right dimensions :D
 po = pyclipr.ClipperOffset()
 po.scaleFactor = int(1000)
 po.addPaths(offset_shape, pyclipr.JoinType.Round, pyclipr.EndType.Polygon)
 offset_shape = po.execute(-0.1)
 
-shape_tris = []
-for shape in offset_shape:
-    part_tris = tripy.earclip(shape)
-    for tri in part_tris:
-        this_tri = []
-        for pt in tri:
-            this_tri.append([pt[0],pt[1],0])
-        shape_tris.append(this_tri)
+export_stl=False
+if export_stl:
+    # good for debugging, but very slow code!
+    print('Exporting base stl for reference')
+    shape_tris = []
+    for shape in offset_shape:
+        part_tris = tripy.earclip(shape)
+        for tri in part_tris:
+            this_tri = []
+            for pt in tri:
+                this_tri.append([pt[0],pt[1],0])
+            shape_tris.append(this_tri)
 
-data = np.zeros(len(shape_tris), mesh.Mesh.dtype)
-for idx,f in enumerate(shape_tris):
-    data['vectors'][idx] = np.array([f])
-stl_mesh = mesh.Mesh(data.copy())
-stl_mesh.save('shadow.stl')
+    data = np.zeros(len(shape_tris), mesh.Mesh.dtype)
+    for idx,f in enumerate(shape_tris):
+        data['vectors'][idx] = np.array([f])
+    stl_mesh = mesh.Mesh(data.copy())
+    stl_mesh.save('shadow.stl')
 
 # Plot the overall shape - more than 1 colors means the union didn't
 # work
 print('Layers processed = ',proc_iters)
 print('--- Solution has %d shapes---'%(len(offset_shape)))
 cycol = cycle('bgrcmk')
+plt.axis("equal") # maintain aspect ratio
 for shape in offset_shape:
     #pprint(shape)
     plt.fill(shape[:, 0], shape[:, 1],  facecolor=next(cycol))
