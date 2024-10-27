@@ -136,7 +136,7 @@ def do_clip(a, b, z):
 # Find all the unique Zs. Triangles will enter and exit at these points
 z_list = list(set(z_list))
 z_list.sort(reverse = True)
-pprint(z_list)
+print('Number of Zs = ', len(z_list))
 
 z_polys = []
 
@@ -148,6 +148,14 @@ for z_idx, z in enumerate(z_list):
     else:
         next_z = z
 
+debug = False
+
+z = z_list[0]
+z_step = 0.2
+
+#print('All the faces are:')
+#pprint(faces)
+while z>0:
     # Rules
     # z to next_z (not inclusive of next_z) shall be
     # processed in this loop
@@ -171,23 +179,16 @@ for z_idx, z in enumerate(z_list):
         faces.pop(0)
 
     current_faces = current_faces+faces_to_add
-    #print('At start of Z=', z, ' faces are:')
-    #pprint(current_faces)
+    if debug:
+        print('At start of Z=', z, ' faces are:')
+        pprint(current_faces)
     # now process what we have, till the next_z
     # in slices of z_step
-    z_step = 0.1
     proc_z = z
-    if next_z == proc_z:
-        term_z = proc_z-epsilon # force one iteration
-    else:
-        term_z = next_z
-    #print(proc_z, term_z, next_z)
+
     add_polys = []
-    while proc_z > term_z:
-        print('Processing Z = ', proc_z, '(',next_z,')', ' with ', len(current_faces), ' triangles')
-        if len(current_faces)==0:
-            #print('  Early exit from loop, nothing to do')
-            break
+    print('Processing Z = ', proc_z, ' with ', len(current_faces), ' triangles')
+    if len(current_faces)>0:
         proc_iters += 1
         # process each face
         for tri in current_faces:
@@ -214,8 +215,9 @@ for z_idx, z in enumerate(z_list):
             if c[2]>=proc_z:
                 clipped_poly.append(c[0:2])
             else:
-                if b[2]<proc_z:
+                if b[2]<=proc_z:
                     # bc is on the other side, and won't contribute to output
+                    # note b is already included if b[2]=proc_z
                     pass
                 else:
                     # b is in front of z=proc_z
@@ -230,17 +232,21 @@ for z_idx, z in enumerate(z_list):
             # substitute it with a larger one
             add_polys.append(clipped_poly)
         out = pc.execute(pyclipr.Union, pyclipr.FillRule.NonZero)
-        proc_z = max(term_z, proc_z-z_step)
-        #print('Z is now', proc_z)
-        # Remove faces that have lesser Z than current
-        next_faces = copy.copy(current_faces)
-        for idx, val in enumerate(current_faces):
-            if face_min_z(val)>proc_z:
-                next_faces.remove(val)
-                #print('Removing : ', val)
-        current_faces = next_faces
-        #print('  Remaining faces = ',len(current_faces))
-        #pprint(current_faces)
+    proc_z = proc_z - z_step
+    if debug:
+        print('Z is now', proc_z)
+    # Remove faces that have lesser Z than current
+    next_faces = copy.copy(current_faces)
+    for idx, val in enumerate(current_faces):
+        if face_min_z(val)>proc_z:
+            next_faces.remove(val)
+            if debug:
+                print('Removing : ', val)
+    current_faces = next_faces
+    z = proc_z
+    if debug:
+        print('  Remaining faces = ',len(current_faces))
+        pprint(current_faces)
     #print('-- Out of loop')
 #    print('-------------------------')
 #    print(z_idx, z)
