@@ -14,6 +14,7 @@ import copy
 import pyclipr
 import math
 import pyclipr
+from itertools import cycle
 
 pc = pyclipr.Clipper()
 pc.scaleFactor = int(1000)
@@ -33,7 +34,6 @@ nverts = len(attrib.vertices)//3 # attrib.vertices is contiguous x,y,z
 mesh_verts = np.array(attrib.vertices)
 mesh_verts.resize((nverts,3)) # in place change in dims
 print('Vertices = %d'%(nverts))
-
 
 shapes = reader.GetShapes()
 faces = []
@@ -254,10 +254,44 @@ while z>0:
 #    print('-------------------------')
 import matplotlib.pyplot as plt
 plt.figure()
-# Plot the intersection
+
+# Create an offsetting object
+po = pyclipr.ClipperOffset()
+po.scaleFactor = int(1000)
+po.addPaths(out, pyclipr.JoinType.Round, pyclipr.EndType.Polygon)
+# Fill small holes - these can happen, probably due to numerical
+# precision of floating point
+offset_shape = po.execute(0.1)
+
+# Clipper2 can give more than one shape - I have seen it returning fully
+# enclosed shapes
+if len(offset_shape)>1:
+    print("Unioning in an attempt to cleanup")
+    # At this point, you might get multiple paths consisting one shape!
+    # Union them, triangle by triangle so that there is no escaping !
+    # (famous last words!)
+    pc2 = pyclipr.Clipper()
+    pc2.scaleFactor = int(1000)
+    for shape in offset_shape:
+        part_tris = tripy.earclip(shape)
+        for tri in part_tris:
+            #print(tri)
+            pc2.addPath(tri, pyclipr.Clip)
+        offset_shape = pc2.execute(pyclipr.Union, pyclipr.FillRule.NonZero)
+
+# reverse the offset :D
+po = pyclipr.ClipperOffset()
+po.scaleFactor = int(1000)
+po.addPaths(offset_shape, pyclipr.JoinType.Round, pyclipr.EndType.Polygon)
+offset_shape = po.execute(-0.1)
+
+# Plot the overall shape - more than 1 colors means the union didn't
+# work
 print('Layers processed = ',proc_iters)
-print('--- Solution ---')
-for shape in out:
-    pprint(shape)
-    plt.fill(shape[:, 0], shape[:, 1],  facecolor='#75507b')
+print('--- Solution has %d shapes---'%(len(offset_shape)))
+cycol = cycle('bgrcmk')
+for shape in offset_shape:
+    #pprint(shape)
+    plt.fill(shape[:, 0], shape[:, 1],  facecolor=next(cycol))
+    #break
 plt.show()
