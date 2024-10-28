@@ -25,7 +25,7 @@ sys.path.insert(0, '..')
 import tripy
 from solid2_module import module, exportReturnValueAsModule
 
-printable_threshold = 1.0
+printable_threshold = 1.5
 
 # Replicated from tripy.py
 def _is_clockwise(polygon):
@@ -176,8 +176,8 @@ if len(shell_outer)!=1:
     sys.exit(-1)
 
 pcb_clearance = 1.0
-shell_thickness = 1.6
-shell_gap = 0.1
+shell_thickness = 1.2
+shell_gap = 0.15
 # each keepout shell volume cuts in by an additional 'extra_overlap'. Ample space
 # for component to sit
 extra_overlap = 0.1
