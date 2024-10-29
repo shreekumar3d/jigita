@@ -483,7 +483,7 @@ fp_scad.write('''// Customizable Jig Generator
 // In OpenSCAD, use "Description Only" for best user experience
 // understanding the tunable parameters.
 // -----------------------------------------------------
-// Auto generated file by jig-gen, the awesome automatic
+// Auto generated file by jigify, the awesome automatic
 // jig generator for your PCB designs.
 // -----------------------------------------------------
 // Input board file   : %s
@@ -744,8 +744,12 @@ ui_refs.sort(reverse=True, key=lambda x:x[1]) # key is the area
 fp_scad.write('/* [Include these components in output STL file] */\n')
 for this_ref, area in ui_refs:
     footprint = cfg['TH'][this_ref]['kicad_footprint']
-    dname = fp_map[footprint]['display_name']
-    fp_scad.write('//%s (%s)\n'%(this_ref, dname))
+    dname_fp = fp_map[footprint]['display_name']
+    dname_ref = cfg['TH'][this_ref]['display_name']
+    if dname_ref==this_ref:
+        fp_scad.write('//%s (%s)\n'%(dname_fp, this_ref))
+    else:
+        fp_scad.write('//%s ( %s, %s)\n'%(dname_ref, this_ref, dname_fp))
     fp_scad.write('Include_%s_in_Jig=true; // [false,true]\n'%(this_ref))
 
 for alias in cfg['footprint']:
@@ -760,8 +764,12 @@ for alias in cfg['footprint']:
 
 for this_ref, area in ui_refs:
     footprint = cfg['TH'][this_ref]['kicad_footprint']
-    dname = fp_map[footprint]['display_name']
-    fp_scad.write('/* [Component : %s(%s)] */\n'%(this_ref, dname))
+    dname_fp = fp_map[footprint]['display_name']
+    dname_ref = cfg['TH'][this_ref]['display_name']
+    if dname_fp == dname_ref:
+        fp_scad.write('/* [%s (%s)] */\n'%(this_ref, footprint))
+    else:
+        fp_scad.write('/* [%s( %s, %s )] */\n'%(dname_ref, this_ref, footprint))
     fp_scad.write('//Type of shell for this component\n')
     fp_scad.write('Shell_Type_For_%s="%s"; // [wiggle,fitting,courtyard]\n'%(
         this_ref,
