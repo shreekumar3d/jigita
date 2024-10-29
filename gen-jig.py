@@ -18,6 +18,7 @@ import scipy.spatial
 from scipy.spatial.transform import Rotation
 from solid2 import * # SolidPython
 import solid2
+from shapely.geometry import Polygon
 
 # Standard imports
 import argparse
@@ -155,6 +156,27 @@ def ref2courtyard_perimeter(ref):
 def ref2keepout(ref):
     return 'keepout_%s'%(ref)
 
+def expand_small_hole(poly_verts, area=None):
+    if area is None:
+        tris = tripy.earclip(poly_verts)
+        area = tripy.calculate_total_area(tris)
+    printable_threshold = cfg['3dprinter']['min_printable_hole_area']
+    if area < printable_threshold:
+        spoly = Polygon(poly_verts)
+        # search in 0.01 mm offset increments
+        # this helps achieve a good fit with the minimum
+        # Note here we are not considering the gap that will be applied
+        # additionally while generating the shell, so we are guaranteed to
+        # be always higher than the safe limit
+        search_steps = 10
+        for offset in range(search_steps):
+            offset_val = (offset+1)/search_steps
+            offset_poly = spoly.buffer(offset_val)
+            if offset_poly.area >= printable_threshold:
+                print(f'  offset = {offset_val} improved area to {offset_poly.area} from {spoly.area}')
+                poly_verts = offset_poly.exterior.coords
+                break
+    return poly_verts
 mod_map = {}
 wiggle_pocket_map = {}
 fitting_pocket_map = {}
@@ -234,6 +256,8 @@ def gen_fitting_pockets(verts, z_bin_size):
         hull_verts = points_xy[hull.vertices]
         tris = tripy.earclip(hull_verts)
         area = tripy.calculate_total_area(tris)
+
+        hull_verts = expand_small_hole(hull_verts, area)
         if len(hull_bins)>0:
             if area > hull_bins[-1]['area']+1: # heh - looking for some meaningful change :)
                 # start new bin
