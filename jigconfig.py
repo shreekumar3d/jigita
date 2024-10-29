@@ -321,6 +321,10 @@ def get_default():
 #
 # Please see documentation for meaning of "gap", "overlap", and "perimeter"
 #
+[openscad]
+path_to_binary = ''
+use_manifold = true
+
 [3dprinter]
 min_printable_hole_area = 1.5
 

@@ -1225,7 +1225,15 @@ fp_scad.write('''
 fp_scad.close()
 
 if args.output_format == 'stl':
-    cmd = [ 'openscad', '--hardwarnings', '-o', stl_filename, oscad_filename]
+    cmd = []
+    # FIXME - ideally we'll have a config in ~/.config to store things
+    # like paths to binaries etc
+    cfg_scad = cfg['openscad']
+    cmd += [ os.path.expanduser(cfg_scad['binary']),
+             '--hardwarnings' ]
+    if cfg_scad['use_manifold']:
+        cmd += [ '--backend', 'Manifold' ]
+    cmd += [ '-o', stl_filename, oscad_filename ]
     print('Generating output using : %s'%(' '.join(cmd)))
     print('-----------------------------------------')
     retcode = subprocess.call(cmd)
