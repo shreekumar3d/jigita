@@ -320,14 +320,17 @@ def gen_shell_shape(ref, ident, x, y, rot, min_z, max_z, verts):
     min_fitting_z = h_bins[0]['start_z']
     # tiny_dimension ensures overlap across adjacent shells - important for boolean ops
     for this_bin in h_bins:
-        # FIXME: check the area attribute here. If the area is very small, then the offset needs to be
-        # increased to ensure printability. Very small features can't be printed - and this can happen
-        # with things like tip of a single berg header
+        pshape = union()
+        pshape += polygon(this_bin['hull'])
+        # avoid corners using a circle the size of a nozzle
+        # FIXME: parameterize this
+        for pt in this_bin['hull']:
+            pshape += translate([pt[0], pt[1], 0]) ( circle(d=0.4) )
         fitting_pocket += translate([0,0,-sv_tiny_dimension+min_fitting_z+(this_bin['start_z']-min_fitting_z)]) (
                             translate([x,y,sv_pcb_thickness]) (
                                 linear_extrude(this_bin['end_z']-this_bin['start_z']+2*sv_tiny_dimension) (
                                     offset(sv_ref_shell_gap) (
-                                        polygon(this_bin['hull'])
+                                        pshape
                                     )
                                 )
                             )
