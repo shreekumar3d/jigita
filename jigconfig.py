@@ -9,7 +9,7 @@ from pathlib import Path
 
 valid_shell_types = ['wiggle', 'fitting', 'courtyard']
 valid_jig_types = ['TH_soldering', 'component_fitting']
-valid_base_types = ["griddish", "mesh", "solid"]
+valid_base_types = ["x_lines", "y_lines", "griddish", "mesh", "solid"]
 valid_insertions = ["top", "bottom"]
 keys_TH_builtin = None
 TH_component_shell_value_keys = ["shell_thickness", "shell_gap", "shell_clearance_from_pcb"]
@@ -403,6 +403,12 @@ perimeter = 1.6
 #   gives good support to base of shells, and provides visibility from
 #   bottom of the jig. Probably takes slightly more material than mesh,
 #   but may creates a regular, somewhat 3D printer friendly pattern.
+#   griddish is a combination of "x_lines" and "y_lines". Each of those
+#   is sparser
+# - "x_lines". lines along the X axis, connecting each shell to the
+#   frame
+# - "y_lines". lines along the Y axis, connecting each shell to the
+#   frame
 # - "solid". A flat plate. More space for annotation.
 type = "griddish"
 

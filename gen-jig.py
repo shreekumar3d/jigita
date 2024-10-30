@@ -627,7 +627,7 @@ Groove="At PCB Corners: %s mm"; //["At PCB Corners: %s mm", "All Around PCB Edge
 /* [Base] */
 
 // Type of Base
-Base_Type = "%s"; // [griddish, mesh, solid]
+Base_Type = "%s"; // [x_lines, y_lines, griddish, mesh, solid]
 
 // Thickness of Base
 Base_Thickness = %s;
@@ -1132,7 +1132,7 @@ for subshells in all_shells:
 fp_scad.write('  }\n')
 fp_scad.write('}\n')
 
-fp_scad.write('module base_griddish() {\n')
+fp_scad.write('module base_x_lines() {\n')
 fp_scad.write('  translate([0,0,mesh_start_z]) {\n')
 fp_scad.write('    intersection() {\n')
 fp_scad.write('      union() {\n')
@@ -1143,14 +1143,37 @@ for subshells in all_shells:
         ref_x, ref_y = shell_info['fp_center']
         h_start = '[pcb_min_x, %s]'%(ref_y)
         h_end = '[pcb_max_x, %s]'%(ref_y)
+        fp_scad.write('          wide_line(%s,%s);\n'%(h_start,h_end))
+    fp_scad.write('        }\n')
+fp_scad.write('      }\n')
+fp_scad.write('      base_volume();\n')
+fp_scad.write('    }\n')
+fp_scad.write('  }\n')
+fp_scad.write('}\n')
+
+fp_scad.write('module base_y_lines() {\n')
+fp_scad.write('  translate([0,0,mesh_start_z]) {\n')
+fp_scad.write('    intersection() {\n')
+fp_scad.write('      union() {\n')
+for subshells in all_shells:
+    this_ref = subshells['ref']
+    fp_scad.write('        if(Include_%s_in_Jig) {\n'%(this_ref))
+    for shell_info in subshells['wiggle']:
+        ref_x, ref_y = shell_info['fp_center']
         v_start = '[%s, pcb_min_y]'%(ref_x)
         v_end = '[%s, pcb_max_y]'%(ref_x)
-        fp_scad.write('          wide_line(%s,%s);\n'%(h_start,h_end))
         fp_scad.write('          wide_line(%s,%s);\n'%(v_start,v_end))
     fp_scad.write('        }\n')
 fp_scad.write('      }\n')
 fp_scad.write('      base_volume();\n')
 fp_scad.write('    }\n')
+fp_scad.write('  }\n')
+fp_scad.write('}\n')
+
+fp_scad.write('module base_griddish() {\n')
+fp_scad.write('  union() {\n')
+fp_scad.write('    base_x_lines();\n')
+fp_scad.write('    base_y_lines();\n')
 fp_scad.write('  }\n')
 fp_scad.write('}\n')
 
@@ -1198,6 +1221,10 @@ module complete_model_TH_soldering() {
           base_mesh();
         } else if(Base_Type=="griddish") {
           base_griddish();
+        } else if(Base_Type=="x_lines") {
+          base_x_lines();
+        } else if(Base_Type=="y_lines") {
+          base_y_lines();
         } else {
           base_solid();
         }
@@ -1217,6 +1244,10 @@ module complete_model_component_fitting() {
           base_mesh();
         } else if(Base_Type=="griddish") {
           base_griddish();
+        } else if(Base_Type=="x_lines") {
+          base_x_lines();
+        } else if(Base_Type=="y_lines") {
+          base_y_lines();
         } else {
           base_solid();
         }
