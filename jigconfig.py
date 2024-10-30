@@ -4,6 +4,8 @@ import json
 from copy import deepcopy
 from pprint import pprint
 import string
+import appdirs
+from pathlib import Path
 
 valid_shell_types = ['wiggle', 'fitting', 'courtyard']
 valid_jig_types = ['TH_soldering', 'component_fitting']
@@ -17,14 +19,27 @@ TH_ref_params = ['kicad_footprint', 'force_smd',
 'shell_type', 'insertion_direction']
 TH_ref_params2 = ['delta_shell_gap', 'delta_shell_thickness', 'delta_shell_clearance_from_pcb']
 
-def transfer_default_values(default_cfg, cfg):
+_user_cfg = None
+
+def transfer_default_values(default_cfg, cfg, keylist=None, overwrite=False):
     """ transfer default values from default_cfg to cfg """
-    for key, value in default_cfg.items():
+    if keylist is None:
+        keylist = default_cfg.keys()
+
+    for key in keylist:
+        try:
+            value = default_cfg[key]
+        except KeyError:
+            continue
         if type(value) is not dict:
-            if key not in cfg:
+            if overwrite:
+                cfg[key] = deepcopy(value)
+            elif key not in cfg:
                 cfg[key] = deepcopy(value)
         else:
-            if key not in cfg:
+            if overwrite:
+                cfg[key] = deepcopy(value)
+            elif key not in cfg:
                 cfg[key] = deepcopy(value)
             else:
                 # recurse
@@ -64,6 +79,7 @@ def expand_refs(name_list, ref_map, fp_map):
 
 def load(configFile, ref_map, fp_map):
     """ load configuration file, validate against TH reference names"""
+
     default_config_text = get_default()
     default_cfg = tomllib.loads(default_config_text)
 
@@ -77,7 +93,16 @@ def load(configFile, ref_map, fp_map):
         config_text = default_config_text
         cfg = deepcopy(default_cfg)
 
-    transfer_default_values(default_cfg, cfg)
+    user_cfg = get_user_config()
+    if user_cfg:
+        transfer_default_values(user_cfg, default_cfg, keylist = ['openscad', '3dprinter', 'environment'], overwrite=True)
+
+    # merge with user specified config file, and anything in the config file
+    # takes precendence over everything else
+    if configFile:
+        transfer_default_values(default_cfg, cfg)
+    else:
+        cfg = default_cfg
 
     # Do some basic validation
     base_type = cfg['holder']['base']['type']
@@ -304,30 +329,24 @@ def generate_config(configFile, ref_map, fp_map):
             fp_cfg.write('\n')
     fp_cfg.close()
     return
-#
-# This is the default configuration for the jig generator tool,
-# and are chosen to be useful defaults that can reliably work
-# for most users. Naturally, they won't necessarily be optimal
-# for individual setups. With time, we can keep tuned values
-# for specific common cases (e.g. 3D printers, components, etc)
-# in the repository.
-#
-# Keep this well commented, and current.  This will help tool
-# users understand and tune.
-#
-def get_default():
-    return '''
-# All dimensions are specified in millimeters
-#
-# Please see documentation for meaning of "gap", "overlap", and "perimeter"
-#
+
+_inbuilt_user_config = '''
+[environment]
+
 [openscad]
-path_to_binary = ''
-use_manifold = true
+binary = 'openscad'
+use_manifold = false
 
 [3dprinter]
 min_printable_hole_area = 1.5
 
+'''
+
+_inbuilt_config = '''
+# All dimensions are specified in millimeters
+#
+# Please see documentation for meaning of "gap", "overlap", and "perimeter"
+#
 [pcb]
 thickness = 1.6
 tesellate_edge_cuts_curve = 0.1
@@ -548,3 +567,29 @@ type = "TH_soldering"
 # cross check generated models before printing/manufacturing.
 #
 '''
+
+def get_default_user_config():
+    return _inbuilt_user_config
+
+def get_default():
+    return _inbuilt_user_config + _inbuilt_config
+
+def set_user_config(cfg):
+    global _user_cfg
+    _user_cfg = cfg
+
+def get_user_config():
+    global _user_cfg
+    return _user_cfg
+
+def load_user_config(name):
+    cfg_loc = Path(appdirs.user_config_dir(appname=name)) / "config.toml"
+    if not cfg_loc.exists():
+        # generate a default configuration
+         cfg_loc.parent.mkdir(parents=True, exist_ok=True)
+         with open(cfg_loc, 'w') as cfg_fp:
+            cfg_fp.write(get_default_user_config())
+
+    user_config_text = open(cfg_loc, 'r').read()
+    user_config = tomllib.load(open(cfg_loc,'rb'))
+    set_user_config(user_config)

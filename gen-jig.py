@@ -430,11 +430,14 @@ if not args.output:
     print(f"ERROR: Need an output file", file=sys.stderr)
     sys.exit(-1)
 
+jigconfig.load_user_config('jigify')
+
 try:
     cfg, config_text, used_th_fp, th_ref_list, smd_ref_list = jigconfig.load(args.config, ref_map, fp_map)
 except ValueError as err:
     print(f"ERROR: {err}", file=sys.stderr)
     sys.exit(-1)
+#pprint(cfg)
 
 pcb_thickness = cfg['pcb']['thickness']
 shell_clearance = cfg['TH']['component_shell']['shell_clearance_from_pcb']
@@ -470,7 +473,11 @@ if jig_type_component_fitting:
 mounting_holes += forced_pcb_supports
 
 # Setup environment for file name expansion
+# First take from user config
+for env_var_name in cfg['environment']:
+    os.environ[env_var_name] = cfg['environment'][env_var_name]
 os.environ["KIPRJMOD"] = os.path.split(args.kicad_pcb)[0]
+# Now add onto it, this allows overrides from user config
 path_sys_3dmodels = '/usr/share/kicad/3dmodels'
 for ver in ['', 6,7,8]: # Hmm - would we need more ?
     env_var_name = 'KICAD%s_3DMODEL_DIR'%(ver)
