@@ -31,6 +31,7 @@ import json
 import subprocess
 import tempfile
 import re
+import copy
 
 # Local imports
 from jigcommon import *
@@ -205,7 +206,7 @@ sv_base_line_height = ScadValue('Base_Line_Height')
 sv_mesh_start_z = ScadValue('mesh_start_z')
 sv_smd_clearance_from_shells = ScadValue('SMD_Clearance_From_Shells')
 sv_smd_gap_from_shells = ScadValue('SMD_Gap_From_Shells')
-def gen_fitting_pockets(verts, z_bin_size):
+def gen_fitting_pockets(mesh, z_bin_size):
     all_z = np.unique(mesh[:,2])
     all_z.sort()
     # we start working from highest Z (farthest from board)
@@ -290,16 +291,82 @@ def gen_fitting_pockets(verts, z_bin_size):
     # Each bin has start_z, end_z, area, hull and z_list keys
     return hull_bins
 
-def gen_shell_shape(ref, ident, x, y, rot, min_z, max_z, verts):
+def extract_corners_2D(poly_points, anglular_thresh=10.0):
+    """ Input is a 2D polygon. This function extracts "corners"
+        in the polygon.  A corner is basically where two consective
+        line segments have an angle more than the specified threshold """
+
+    # FIXME: implement this - for now lazily return all points!
+    return copy.deepcopy(poly_points)
+
+def gen_shell_shape(ref, ident, x, y, rot, min_z, max_z, mesh):
     sv_tiny_dimension = ScadValue('tiny_dimension')
     sv_ref_shell_gap = ScadValue('Effective_Shell_Gap_For_%s'%(ref))
     sv_ref_shell_thickness = ScadValue('Effective_Shell_Thickness_For_%s'%(ref))
     sv_ref_shell_clearance = ScadValue('Effective_Shell_Clearance_From_PCB_For_%s'%(ref))
     sv_ref_max_z = ScadValue('max_z_%s'%(ref))
     sv_ref_min_z = ScadValue('min_z_%s'%(ref))
-    # first define the polygon so that we can do offset on it
+
+    h_bins = gen_fitting_pockets(mesh, 0.5)
+    for this_bin in h_bins:
+        this_bin['corners'] = extract_corners_2D(this_bin['hull'])
+
+    # compute the fitting pockets
+    fitting_pocket_name = ref2fitting_pocket(ident)
+    fitting_pocket = union()
+    min_fitting_z = h_bins[0]['start_z']
+
+    corners = [ ]
+    c_dia = cfg['3dprinter']['corner_dia']
+
+    # we walk bins from inner (deeper) to outer (shallow)
+    for this_bin in reversed(h_bins):
+        pshape = polygon(this_bin['hull'])
+        if c_dia > 0:
+            # expand corners from previous iterations. these will impact the
+            # "perimeter"
+            for pt in corners:
+                pt['dia'] += sv_ref_shell_gap + sv_ref_shell_thickness
+
+            # include corners from this iteration
+            # essentially, this ensures that the nozzle can't take a
+            # "short cut" at corners, and has to trace a slight circle
+            # due to this, plastic is absolutely avoided at the keepout
+            # volumes with FDM printing
+            bin_corners = []
+            for pt in this_bin['corners']:
+                new_point = { 'dia' : c_dia, 'loc' : pt }
+                bin_corners.append(new_point)
+
+            # union all the corner circles
+            for c in bin_corners:
+                loc = c['loc']
+                pshape += translate([loc[0], loc[1], 0]) ( circle(d=c['dia']) )
+
+            corners = corners + bin_corners
+        # tiny_dimension ensures overlap across adjacent shells - important for boolean ops
+        fitting_pocket += translate([0,0,-sv_tiny_dimension+min_fitting_z+(this_bin['start_z']-min_fitting_z)]) (
+                            translate([x,y,sv_pcb_thickness]) (
+                                linear_extrude(this_bin['end_z']-this_bin['start_z']+2*sv_tiny_dimension) (
+                                    offset(sv_ref_shell_gap) (
+                                        pshape
+                                    )
+                                )
+                            )
+                        )
+    fitting_pocket_map[ident] = module(fitting_pocket_name, fitting_pocket)
+
+    # outer outline will include all the corners circles!
+    # the inner ones will probably (automatically) not contribute to the
+    # external shape
+    corner_fixes = union()
+    for c in corners:
+        loc = c['loc']
+        corner_fixes += translate([loc[0], loc[1], 0]) ( circle(d=c['dia']) )
+
+    # define the polygon so that we can do offset on it
     mod_name = ref2outline(ident)
-    mod_map[ident] = module(mod_name, polygon(verts))
+    mod_map[ident] = module(mod_name, polygon(h_bins[0]['hull'])+corner_fixes)
 
     wiggle_pocket_name = ref2wiggle_pocket(ident)
     wiggle_pocket = translate([x,y,sv_pcb_thickness])(
@@ -312,30 +379,6 @@ def gen_shell_shape(ref, ident, x, y, rot, min_z, max_z, verts):
                 )
              )
     wiggle_pocket_map[ident] = module(wiggle_pocket_name, wiggle_pocket)
-
-    # compute the fitting pockets
-    h_bins = gen_fitting_pockets(verts, 0.5)
-    fitting_pocket_name = ref2fitting_pocket(ident)
-    fitting_pocket = union()
-    min_fitting_z = h_bins[0]['start_z']
-    # tiny_dimension ensures overlap across adjacent shells - important for boolean ops
-    for this_bin in h_bins:
-        pshape = union()
-        pshape += polygon(this_bin['hull'])
-        # avoid corners using a circle the size of a nozzle
-        # FIXME: parameterize this
-        for pt in this_bin['hull']:
-            pshape += translate([pt[0], pt[1], 0]) ( circle(d=0.4) )
-        fitting_pocket += translate([0,0,-sv_tiny_dimension+min_fitting_z+(this_bin['start_z']-min_fitting_z)]) (
-                            translate([x,y,sv_pcb_thickness]) (
-                                linear_extrude(this_bin['end_z']-this_bin['start_z']+2*sv_tiny_dimension) (
-                                    offset(sv_ref_shell_gap) (
-                                        pshape
-                                    )
-                                )
-                            )
-                        )
-    fitting_pocket_map[ident] = module(fitting_pocket_name, fitting_pocket)
 
     perimeter_name = ref2perimeter(ident)
     perimeter_solid = translate([x,y,sv_pcb_thickness+sv_ref_shell_clearance]) (
@@ -355,6 +398,8 @@ def gen_courtyard_shell_shape(ref, courtyard_poly):
     sv_ref_shell_thickness = ScadValue('Effective_Shell_Thickness_For_%s'%(ref))
     sv_ref_shell_clearance = ScadValue('Effective_Shell_Clearance_From_PCB_For_%s'%(ref))
 
+    # a courtyard is a shape with a lot of wiggle room. So we don't do the corner
+    # avoidance that is done in the wiggle/fitting shells
     courtyard_name = ref2courtyard(ref)
     courtyard_map[ref] = module(courtyard_name, polygon(courtyard_poly))
 
@@ -692,18 +737,12 @@ for this_ref in th_ref_list:
             center_x = ((min_x + max_x)/2)
             center_y = ((min_y + max_y)/2)
             fp_centers.append([center_x+th['x'],center_y+th['y']])
-            #for v in combined_xy:
-            #    print(v)
-            # FIXME: how is ==0 possible?
-            mesh_xy = mesh[:,0:2] # get rid of Z coordinates for hull calc
-            hull = scipy.spatial.ConvexHull(mesh_xy)
-            hull_verts = mesh_xy[hull.vertices]
             #print('Hull size = ', len(hull.vertices), ' min Z=', min_z, ' max Z=', max_z)
             #print(hull_verts)
             shell_ident = '%s_%d'%(this_ref,idx)
             gen_shell_shape(this_ref, shell_ident,
                     th['x'], th['y'], th['orientation'],
-                    min_z, max_z, hull_verts)
+                    min_z, max_z, mesh)
             subshells['wiggle'].append({
                 'name':shell_ident,
                 'min_z':min_z,
@@ -712,7 +751,6 @@ for this_ref in th_ref_list:
                 'x' : th['x'],
                 'y' : th['y'],
                 'orientation' : th['orientation'],
-                'hull_verts' : hull_verts,
                 'fp_center': [center_x+th['x'],center_y+th['y']]
             })
             print('  Generating shell %s for ref %s with mesh %s'%(shell_ident, this_ref, modinfo['model']))

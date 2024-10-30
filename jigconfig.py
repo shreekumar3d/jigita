@@ -99,10 +99,7 @@ def load(configFile, ref_map, fp_map):
 
     # merge with user specified config file, and anything in the config file
     # takes precendence over everything else
-    if configFile:
-        transfer_default_values(default_cfg, cfg)
-    else:
-        cfg = default_cfg
+    transfer_default_values(default_cfg, cfg)
 
     # Do some basic validation
     base_type = cfg['holder']['base']['type']
@@ -339,6 +336,7 @@ use_manifold = false
 
 [3dprinter]
 min_printable_hole_area = 1.5
+corner_dia = 0.3
 
 '''
 
