@@ -11,15 +11,6 @@
 #    Without them, the script will fail
 #
 
-# These are all modules you need to have
-import tinyobjloader
-import pcbnew
-import scipy.spatial
-from scipy.spatial.transform import Rotation
-from solid2 import * # SolidPython
-import solid2
-from shapely.geometry import Polygon
-
 # Standard imports
 import argparse
 import os
@@ -40,6 +31,26 @@ import mesh_ops
 from solid2_module import module, exportReturnValueAsModule
 import jigconfig
 import tripy
+
+# These are all modules you need to have
+try:
+    import tinyobjloader
+    import pcbnew
+    import solid2
+    import toml
+    import shapely
+except ImportError as err:
+    print(f'Missing module : {err.name}', file=sys.stderr)
+    print('Please install it using pip, and retry.')
+    sys.exit(1)
+
+import scipy.spatial
+from scipy.spatial.transform import Rotation
+from solid2 import * # SolidPython
+import solid2
+import toml
+from shapely.geometry import Polygon
+
 
 def get_courtyard_polygon(shape):
     # Courtyard Polygon Coordinate System Note:
@@ -444,36 +455,73 @@ def gen_keepout_shape(ref, x, y, rot, min_z, max_z, courtyard_poly):
 # Execution starts here
 #
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--config", help='Use specified configuration options file')
-parser.add_argument("--keep-orientation", action='store_true',
-                    default=False,
-                    help='''Match orientation of the output to KiCAD 3D view.
+parser = argparse.ArgumentParser(
+    description='Create jigs in a jiffy',
+    epilog='Use the examples, Luke!')
+
+group = parser.add_mutually_exclusive_group()
+group.add_argument('--examples', default=False, action='store_true',
+    help='''Shows examples of usage''')
+group.add_argument('-i','--pcb', metavar='FILENAME',
+    help='KiCAD PCB file (.kicad_pcb) to process')
+group.add_argument('--footprint', metavar='SPEC',
+    action='extend', nargs='+', type=str,
+    help='''Generate a shell for specified kicad library footprint(s),
+instead of a PCB. Use --examples for info on SPEC''')
+group.add_argument('--model3d', action='extend', nargs='+', type=str,
+    help='''Generate a shell from 3D model(s).''')
+
+parser.add_argument('--config', metavar='FILENAME.toml',
+    help='Use this configuration options file for various parameters.')
+
+parser.add_argument('--pcb-footprints', type=bool, default=False,
+    help='''Generates one shell per footprint used on the PCB design.''')
+parser.add_argument('-o','--output',
+    help='Output file.')
+parser.add_argument('--output-format', default='stl', choices=['stl','scad'],
+    help='Output file format')
+parser.add_argument('--keep-orientation',
+    action='store_true',
+    default=False,
+    help='''Match orientation of the output to KiCAD 3D view.
 The default orients the output for direct printing (i.e. rotated by 180 degrees
 along the X axis.)''')
-parser.add_argument("--output-format", default='stl',
-                    choices=['stl','oscad'],
-                    help='Output file format')
-parser.add_argument("kicad_pcb", help='KiCAD PCB file (.kicad_pcb) to process')
-parser.add_argument("--output", help='Output file to generate.')
-parser.add_argument("--genconfig",
-                    help='''Generate a default configuration file, given an
-                    input KiCAD PCB. This lists all footprint and components.
-                    User friendly openscad output can be generated, starting
-                    with that as the base''')
+parser.add_argument('--dump-config', metavar='FILENAME.toml',
+    help='''Save a copy of the effective configuration after applying
+    internal defaults, user and config file.''')
+parser.add_argument('--genconfig', metavar='FILENAME.toml',
+    help='''Generate a default configuration file, from an
+    input KiCAD PCB. This lists all footprint and components.
+    User friendly openscad output can be generated, starting
+    with that as the base''')
+
+group = parser.add_mutually_exclusive_group()
+group.add_argument("-v", "--verbose", help='Verbose messages')
+group.add_argument("-q", "--quiet", help='Info messages are suppressed')
 args = parser.parse_args()
 
-board = pcbnew.LoadBoard(args.kicad_pcb)
+if args.examples:
+    print(f"Sorry, examples aren't created yet. Use the source, Luke!", file=sys.stderr)
+    sys.exit(1)
+if args.footprint:
+    print(f"Sorry, the footprint option isn't implemented yet", file=sys.stderr)
+    sys.exit(1)
+
+if args.model3d:
+    print(f"Sorry, the model3d option isn't implemented yet", file=sys.stderr)
+    sys.exit(1)
+
+if not args.pcb:
+    print(f'ERROR: Need a KiCAD PCB to work on. Use -h or --examples for more help', file=sys.stderr)
+    sys.exit(1)
+
+board = pcbnew.LoadBoard(args.pcb)
 #smd_info, th_info, mounting_holes = get_ref_info(board)
 ref_map, fp_map, mounting_holes = get_ref_info(board)
 
 if args.genconfig:
     jigconfig.generate_config(args.genconfig, ref_map, fp_map)
     sys.exit(0)
-
-if not args.output:
-    print(f"ERROR: Need an output file", file=sys.stderr)
-    sys.exit(-1)
 
 jigconfig.load_user_config('jigify')
 
@@ -483,6 +531,14 @@ except ValueError as err:
     print(f"ERROR: {err}", file=sys.stderr)
     sys.exit(-1)
 #pprint(cfg)
+
+if args.dump_config:
+    with open(args.dump_config, 'w') as fp:
+        toml.dump(cfg, fp)
+
+if not args.output:
+    print(f"ERROR: Need an output file", file=sys.stderr)
+    sys.exit(-1)
 
 pcb_thickness = cfg['pcb']['thickness']
 shell_clearance = cfg['TH']['component_shell']['shell_clearance_from_pcb']
@@ -521,7 +577,7 @@ mounting_holes += forced_pcb_supports
 # First take from user config
 for env_var_name in cfg['environment']:
     os.environ[env_var_name] = cfg['environment'][env_var_name]
-os.environ["KIPRJMOD"] = os.path.split(args.kicad_pcb)[0]
+os.environ["KIPRJMOD"] = os.path.split(args.pcb)[0]
 # Now add onto it, this allows overrides from user config
 path_sys_3dmodels = '/usr/share/kicad/3dmodels'
 for ver in ['', 6,7,8]: # Hmm - would we need more ?
@@ -570,7 +626,7 @@ fp_scad.write('''// Customizable Jig Generator
 //
 // Complete configuration file is embedded at the end of this
 // file.
-'''%(args.kicad_pcb,
+'''%(args.pcb,
     '(Tool Default Internal Configuration)' if not args.config else args.config))
 
 # We use OpenSCAD to do the grunt work of building the
