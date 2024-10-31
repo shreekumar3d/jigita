@@ -894,7 +894,7 @@ for this_ref, area in ui_refs:
     footprint = cfg['TH'][this_ref]['kicad_footprint']
     dname_fp = fp_map[footprint]['display_name']
     dname_ref = cfg['TH'][this_ref]['display_name']
-    if dname_fp == dname_ref:
+    if this_ref == dname_ref:
         fp_scad.write('/* [%s (%s)] */\n'%(this_ref, footprint))
     else:
         fp_scad.write('/* [%s( %s, %s )] */\n'%(dname_ref, this_ref, footprint))
