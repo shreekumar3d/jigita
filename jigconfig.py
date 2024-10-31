@@ -467,7 +467,7 @@ refs_process_only_these = [
 #                    gives ample room to push in the component
 #
 # "tight" is not implemented yet, and isn't treated valid right now.
-shell_type = "wiggle"
+shell_type = "fitting"
 
 # component will typically be inserted from the top side (w.r.t # the PCB, and
 # the jig). However, they can also be inserted from the bottom of the jig.
