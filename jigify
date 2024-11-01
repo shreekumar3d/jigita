@@ -32,6 +32,8 @@ import mesh_ops
 import jigconfig
 import tripy
 import gen_scad
+import compute_shells
+import geom_ops
 
 # These are all modules you need to have
 try:
@@ -48,8 +50,6 @@ except ImportError as err:
 import scipy.spatial
 from scipy.spatial.transform import Rotation
 import toml
-from shapely.geometry import Polygon
-
 
 def get_courtyard_polygon(shape):
     # Courtyard Polygon Coordinate System Note:
@@ -165,164 +165,6 @@ def load_3d_models(ref_list, ref_map, desc):
             model_filename = os.path.expandvars(modinfo['model'])
             modinfo['mesh'] = mesh_ops.load_mesh(model_filename, scriptdir, temp_dir)
 
-def expand_small_hole(poly_verts, area=None):
-    if area is None:
-        tris = tripy.earclip(poly_verts)
-        area = tripy.calculate_total_area(tris)
-    printable_threshold = cfg['3dprinter']['min_printable_hole_area']
-    if area < printable_threshold:
-        spoly = Polygon(poly_verts)
-        # search in 0.01 mm offset increments
-        # this helps achieve a good fit with the minimum
-        # Note here we are not considering the gap that will be applied
-        # additionally while generating the shell, so we are guaranteed to
-        # be always higher than the safe limit
-        search_steps = 10
-        for offset in range(search_steps):
-            offset_val = (offset+1)/search_steps
-            offset_poly = spoly.buffer(offset_val)
-            if offset_poly.area >= printable_threshold:
-                print(f'  offset = {offset_val} improved area to {offset_poly.area} from {spoly.area}')
-                poly_verts = offset_poly.exterior.coords
-                break
-    return poly_verts
-
-def gen_fitting_pockets(mesh, z_bin_size):
-    all_z = np.unique(mesh[:,2])
-    all_z.sort()
-    # we start working from highest Z (farthest from board)
-    # and compute the "step-wells", i.e. convex hulls
-    reverse_z = all_z[::-1]
-
-    z_bins = []
-    z_bins.append({
-        "start_z" : reverse_z[0],
-        "z_list" : [],
-        "verts" : None
-    })
-
-    for z_val in reverse_z:
-        # find all the verts at this Z
-        mask = np.isin(element = mesh[:,2], test_elements=z_val)
-        result = mesh[mask]
-
-        # append to existing bin, if we belong to the same bin,
-        # else start a new bin
-        last_z_bin = z_bins[-1]["start_z"]
-        if last_z_bin-z_val < z_bin_size:
-            if z_bins[-1]["verts"] is None:
-                z_bins[-1]["verts"] = result
-            else:
-                z_bins[-1]["verts"] = np.concatenate([z_bins[-1]["verts"], result])
-            z_bins[-1]["z_list"].append(z_val)
-        else:
-            z_bins.append({
-                "start_z" : z_val,
-                "z_list" : [z_val],
-                "verts" : result
-            })
-
-    # Each bin basically represents an area that casts a shadow looking down at Z=0
-    # We can take the convex hull of the area.
-    # Subsequent bins will keep adding to convex hulls from the previous bins
-    # Thus, cumulatively we'll cover every bin, and the largest covex hull will be
-    # at the bottom, allowing the part to slide in.
-
-    prev_bin = None
-    hull_bins = []
-    for this_bin in z_bins:
-        points_xy = this_bin['verts'][:,0:2] # chuck Z
-        if len(hull_bins)>0:
-            points_xy = np.concatenate([points_xy, hull_bins[-1]['hull']])
-        hull = scipy.spatial.ConvexHull(points_xy)
-        hull_verts = points_xy[hull.vertices]
-        tris = tripy.earclip(hull_verts)
-        area = tripy.calculate_total_area(tris)
-
-        hull_verts = expand_small_hole(hull_verts, area)
-        if len(hull_bins)>0:
-            if area > hull_bins[-1]['area']+1: # heh - looking for some meaningful change :)
-                # start new bin
-                hull_bins.append({
-                    'hull' : hull_verts,
-                    'area' : area,
-                    'z_list' : this_bin['z_list']
-                })
-            else:
-                hull_bins[-1]['z_list'] = hull_bins[-1]['z_list']+this_bin['z_list']
-        else:
-            hull_bins.append({
-                'hull' : hull_verts,
-                'area' : area,
-                "z_list" : this_bin["z_list"],
-            })
-
-    # reverse the hull bins, as it represents the right order of
-    # cutting out!
-    hull_bins.reverse()
-
-    for idx, h_bin in enumerate(hull_bins):
-        h_bin['z_list'].sort()
-        if idx==0:
-            h_bin['start_z'] = h_bin['z_list'][0]
-        else:
-            h_bin['start_z'] = hull_bins[idx-1]['z_list'][-1]
-        h_bin['end_z'] = h_bin['z_list'][-1]
-
-    # Each bin has start_z, end_z, area, hull and z_list keys
-    return hull_bins
-
-def veclen(p):
-    return math.sqrt(p[0]*p[0]+p[1]*p[1])
-
-def line2vec(p1, p2):
-    return [p2[0]-p1[0], p2[1]-p1[1]]
-
-def angle2lines(p1,p2,p3): # (p2,p1) and (p2,p3)
-    #print('points = ', p1,p2,p3)
-    vec1 = line2vec(p2, p1)
-    l1 = veclen(vec1)
-    if l1==0.0:
-        return 180
-    vec2 = line2vec(p2, p3)
-    l2 = veclen(vec2)
-    if l2==0.0:
-        return 180
-    vec1 = [v/l1 for v in vec1]
-    vec2 = [v/l2 for v in vec2]
-    dotproduct = vec1[0]*vec2[0]+vec1[1]*vec2[1]
-    return math.acos(dotproduct)*180/math.pi
-
-def extract_corners_2D(poly_points, angular_thresh=10.0):
-    """ Input is a 2D polygon. This function extracts "corners"
-        in the polygon.  A corner is basically where two consective
-        line segments have an angle more than the specified threshold """
-    #print('  extract_corners_2D')
-    xy = [ [pt[0], pt[1]] for pt in poly_points ]
-    pt0 = xy[0]
-    ptN = xy[-1]
-    # NOTE: sometimes last point and first are same ! In that
-    # case no need to replicate start and end points
-    if not (pt0[0] == ptN[0] and pt0[1] == ptN[1]):
-        #print('    extend both sides')
-        xy.insert(0,ptN)
-        xy.append(pt0)
-    #print('    xy=',xy)
-    angles = []
-    result = []
-    # we iterate and get angles between every two consecutive line
-    # segments in the polygon (including the first and the last)
-    # Any angle not close to 180 by angular_thresh is a corner.
-    for idx in range(1,len(xy)-1):
-        # FIXME : probably not the best performing code. Do some
-        # numpy magic ?
-        this_angle = angle2lines(xy[idx-1], xy[idx], xy[idx+1])
-        angles.append(this_angle)
-        if this_angle < (180-angular_thresh):
-            result.append(copy.copy(xy[idx]))
-    #print('    angles=',angles)
-    #print('    corners=', len(result), ' which are', result)
-    return result
 
 #
 # Execution starts here
@@ -560,9 +402,10 @@ for this_ref in th_ref_list:
             #print('Hull size = ', len(hull.vertices), ' min Z=', min_z, ' max Z=', max_z)
             #print(hull_verts)
             shell_ident = '%s_%d'%(this_ref,idx)
-            h_bins = gen_fitting_pockets(mesh, 0.5)
+            printable_threshold = cfg['3dprinter']['min_printable_hole_area']
+            h_bins = compute_shells.fitting_pockets(mesh, 0.5, printable_threshold)
             for this_bin in h_bins:
-                this_bin['corners'] = extract_corners_2D(this_bin['hull'])
+                this_bin['corners'] = geom_ops.extract_corners_2D(this_bin['hull'])
 
             subshells['wiggle'].append({
                 'name':shell_ident,
