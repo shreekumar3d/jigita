@@ -18,7 +18,7 @@ def load_obj_mesh_verts(filename, scale=1.0):
     mesh.resize((nverts,3)) # in place change in dims
     return mesh
 
-def load_mesh(filename):
+def load_mesh(filename, temp_dir=None):
     global mesh_cache
     retval = None
     if filename in mesh_cache:
@@ -28,7 +28,7 @@ def load_mesh(filename):
     if filename.endswith('.obj'):
         retval = load_obj_mesh_verts(filename)
     elif filename.endswith('.step') or filename.endswith('.stp'):
-        with tempfile.NamedTemporaryFile(suffix='.obj') as fp:
+        with tempfile.NamedTemporaryFile(suffix='.obj', dir=temp_dir) as fp:
             #print('Converting STEP file %s to OBJ file %s'%(filename, fp.name))
             retcode = subprocess.call([
                 'freecad.cmd', 'stp2obj.py', filename, fp.name ],
@@ -39,7 +39,7 @@ def load_mesh(filename):
                 raise RuntimeError("Unable to convert STEP file %s to obj"%(filename))
             retval = load_obj_mesh_verts(fp.name)
     elif filename.endswith('.wrl') or filename.endswith('.vrml'):
-        with tempfile.NamedTemporaryFile(suffix='.obj') as fp:
+        with tempfile.NamedTemporaryFile(suffix='.obj', dir=temp_dir) as fp:
             #print('Converting mesh file %s to OBJ file %s'%(filename, fp.name))
             retcode = subprocess.call([
                 'meshlabserver', '-i', filename, '-o', fp.name ],
