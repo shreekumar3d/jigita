@@ -478,8 +478,8 @@ parser.add_argument('--pcb-footprints', type=bool, default=False,
     help='''Generates one shell per footprint used on the PCB design.''')
 parser.add_argument('-o','--output',
     help='Output file.')
-parser.add_argument('--output-format', default='stl', choices=['stl','scad'],
-    help='Output file format')
+parser.add_argument('-f', '--output-format', choices=['stl','scad'],
+    help='Output file format. Default autodect based on output file extension.')
 parser.add_argument('--keep-orientation',
     action='store_true',
     default=False,
@@ -514,6 +514,16 @@ if args.model3d:
 if not args.pcb:
     print(f'ERROR: Need a KiCAD PCB to work on. Use -h or --examples for more help', file=sys.stderr)
     sys.exit(1)
+
+# determine extension
+if not args.output_format:
+    out_split = os.path.splitext(args.output)
+    out_ext = out_split[1] # will be empty string if no extension
+    if out_ext in ['.stl','.scad']:
+        args.output_format = out_ext[1:]
+    if not args.output_format:
+        print(f"Unrecorgnized extension in output filename '{args.output}'", file=sys.stderr)
+        sys.exit(1)
 
 board = pcbnew.LoadBoard(args.pcb)
 #smd_info, th_info, mounting_holes = get_ref_info(board)
@@ -604,8 +614,6 @@ def load_3d_models(ref_list, ref_map, desc):
 
 load_3d_models(th_ref_list, ref_map, 'Through Hole')
 load_3d_models(smd_ref_list, ref_map, 'SMD')
-
-#pprint(th_info)
 
 if args.output_format == 'stl':
     fp_scad = tempfile.NamedTemporaryFile(mode='w', suffix='.scad', delete_on_close=False)
