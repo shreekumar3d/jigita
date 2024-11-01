@@ -71,13 +71,14 @@ def load(board, pcb_segments, pcb_filled_shapes):
             # I didn't find anything, and deduced this rather
             # ugly hack by looking at the kicad C++ source code!
             shape = d.GetPolyShape()
-            shapeText = shape.Format(False)
             poly_points = []
-            for s_pt in re.findall('VECTOR2I\\( [0-9]+, [0-9]+\\)',shapeText):
-                coord_parts = s_pt.split(' ')[1:]
-                x = int(coord_parts[0][:-1])
-                y = int(coord_parts[1][:-1])
-                poly_points.append(kcpt2pt((x,y)))
+            if len(shape.OutlineCount())>1:
+                raise ValueError("can't handle polygon with more than 1 shapes in edge cuts")
+            for i in range(shape.OutlineCount()):
+                lc = shape.Outline(i)
+                for j in range(lc.PointCount()):
+                    pt = lc.CPoint(j)
+                    poly_points.append([pcbnew.ToMM(pt.x),-pcbnew.ToMM(pt.y)])
             ts = {
                 'type' : d.GetShapeStr(),
                 'vertices' :  rect_points

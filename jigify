@@ -56,24 +56,16 @@ def get_courtyard_polygon(shape):
     #
     # KiCAD returned courtyard polygons are in the KiCAD coordinate system. No need to apply
     # offset or rotation. Just negate Y
-
-    # Shree : Grr.. how do I extract the freakin points.
-    # No API for get polygon ? Looks like only set stuff works from Python,
-    # but gets are only in C. Find this hard to believe...
-    # FIXME find out what you don't know!
-    #shape.Format(False) gives a C/C++ source code representation !!
-    #---------
-    #SHAPE_LINE_CHAIN poly;
-    #auto tmp = SHAPE_LINE_CHAIN( { VECTOR2I( 215000000, 105500000), VECTOR2I( 246000000, 88000000), VECTOR2I( 260500000, 118500000)}, true );;
-    #poly.AddOutline(tmp); }
-    #---------
-    shapeText = shape.Format(False)
     verts = []
-    for s_pt in re.findall('VECTOR2I\\( [0-9]+, [0-9]+\\)',shapeText):
-        coord_parts = s_pt.split(' ')[1:]
-        x = units_to_mm(int(coord_parts[0][:-1]))
-        y = -units_to_mm(int(coord_parts[1][:-1]))
-        verts.append([x,y]) # YES, and yikes!
+    # FIXME: can we have more than one outline in the courtyard !?
+    if shape.OutlineCount()>1:
+        raise ValueError("ERROR: can't handle courtyards with more than 1 outlines", file=sys.stderr)
+
+    for i in range(shape.OutlineCount()):
+        lc = shape.Outline(i)
+        for j in range(lc.PointCount()):
+            pt = lc.CPoint(j)
+            verts.append([pcbnew.ToMM(pt.x),-pcbnew.ToMM(pt.y)])
     return verts
 
 def get_ref_info(board):
