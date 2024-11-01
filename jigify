@@ -454,7 +454,6 @@ def gen_keepout_shape(ref, x, y, rot, min_z, max_z, courtyard_poly):
 #
 # Execution starts here
 #
-
 parser = argparse.ArgumentParser(
     description='Create jigs in a jiffy',
     epilog='Use the examples, Luke!')
@@ -597,6 +596,7 @@ for ver in ['', 6,7,8]: # Hmm - would we need more ?
 
 def load_3d_models(ref_list, ref_map, desc):
     temp_dir = os.path.expanduser(os.environ['TMPDIR']) if 'TMPDIR' in os.environ else None
+    scriptdir = os.path.dirname(os.path.realpath(__file__))
     fnames = []
     for ref in ref_list:
         comp = ref_map[ref]
@@ -610,7 +610,7 @@ def load_3d_models(ref_list, ref_map, desc):
         comp = ref_map[ref]
         for modinfo in comp['models']:
             model_filename = os.path.expandvars(modinfo['model'])
-            modinfo['mesh'] = mesh_ops.load_mesh(model_filename, temp_dir)
+            modinfo['mesh'] = mesh_ops.load_mesh(model_filename, scriptdir, temp_dir)
 
 load_3d_models(th_ref_list, ref_map, 'Through Hole')
 load_3d_models(smd_ref_list, ref_map, 'SMD')

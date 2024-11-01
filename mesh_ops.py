@@ -2,6 +2,7 @@ import tinyobjloader
 import numpy as np
 import tempfile
 import subprocess
+import os
 
 mesh_cache = {}
 
@@ -18,7 +19,7 @@ def load_obj_mesh_verts(filename, scale=1.0):
     mesh.resize((nverts,3)) # in place change in dims
     return mesh
 
-def load_mesh(filename, temp_dir=None):
+def load_mesh(filename, scriptdir, temp_dir=None):
     global mesh_cache
     retval = None
     if filename in mesh_cache:
@@ -31,7 +32,9 @@ def load_mesh(filename, temp_dir=None):
         with tempfile.NamedTemporaryFile(suffix='.obj', dir=temp_dir) as fp:
             #print('Converting STEP file %s to OBJ file %s'%(filename, fp.name))
             retcode = subprocess.call([
-                'freecad.cmd', 'stp2obj.py', filename, fp.name ],
+                'freecad.cmd',
+                os.path.join(scriptdir,'stp2obj.py'), #FIXME:generate at runtime?
+                filename, fp.name ],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL
             )
