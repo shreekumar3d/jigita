@@ -397,8 +397,7 @@ for this_ref in th_ref_list:
             printable_threshold = cfg['3dprinter']['min_printable_hole_area']
             h_bins = compute_shells.fitting_pockets(mesh, 0.5, printable_threshold)
             for this_bin in h_bins:
-                this_bin['corners'] = geom_ops.extract_corners_2D(this_bin['hull'])
-
+                this_bin['corners'], this_bin['corner_segments'] = geom_ops.extract_corners_2D(this_bin['hull'])
             subshells['shell'].append({
                 'name':shell_ident,
                 'min_z':min_z,

@@ -3,10 +3,14 @@ import tripy
 import numpy as np
 from solid2 import * # SolidPython
 import solid2
+import jigconfig
+from shapely import LineString, Polygon, Point
+import geom_ops
 
 mod_map = {}
 wiggle_pocket_map = {}
 fitting_pocket_map = {}
+fitting_cuts_map = {}
 perimeter_map = {}
 
 courtyard_map = {}
@@ -42,6 +46,8 @@ def ref2fitting_pocket(ref):
     return 'fitting_pocket_%s'%(ref)
 def ref2perimeter(ref):
     return 'perimeter_%s'%(ref)
+def ref2fitting_cuts(ref):
+    return 'fitting_cuts_%s'%(ref)
 
 def ref2courtyard(ref):
     return 'courtyard_%s'%(ref)
@@ -52,6 +58,13 @@ def ref2courtyard_perimeter(ref):
 
 def ref2keepout(ref):
     return 'keepout_%s'%(ref)
+
+@exportReturnValueAsModule
+def peri_line(start, end, line_width):
+    return solid2.hull() (
+        circle(d=line_width).translate(start),
+        circle(d=line_width).translate(end)
+    )
 
 def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
     sv_tiny_dimension = ScadValue('tiny_dimension')
@@ -66,57 +79,72 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
     fitting_pocket = union()
     min_fitting_z = h_bins[0]['start_z']
 
-    corners = [ ]
-    c_dia = cfg['3dprinter']['corner_dia']
+    encl_poly = Polygon(h_bins[0]['hull'])
+    cut_width = cfg['3dprinter']['corner_cut_width']
+    nozzle_width = cfg['3dprinter']['min_petal_width']
 
-    # we walk bins from inner (deeper) to outer (shallow)
-    for this_bin in reversed(h_bins):
-        pshape = polygon(this_bin['hull'])
-        if c_dia > 0:
-            # expand corners from previous iterations. these will impact the
-            # "perimeter"
-            for pt in corners:
-                pt['dia'] += sv_ref_shell_gap + sv_ref_shell_thickness
+    cut_volume = union()
+    if cut_width>0:
+        for this_bin in h_bins:
+            this_hull = Polygon(this_bin['hull'])
+            cut_shape = union()
+            for segment, tangents_start, tangents_end in this_bin['corner_segments']:
+                corner_pt = segment[0]
+                t1 = tangents_start[0]
+                t2 = tangents_start[1]
+                inner_pt1, walk_vec1, dist1 = geom_ops.find_exterior_pt(this_hull, corner_pt, t1, t2, encl_poly)
 
-            # include corners from this iteration
-            # essentially, this ensures that the nozzle can't take a
-            # "short cut" at corners, and has to trace a slight circle
-            # due to this, plastic is absolutely avoided at the keepout
-            # volumes with FDM printing
-            bin_corners = []
-            for pt in this_bin['corners']:
-                new_point = { 'dia' : c_dia, 'loc' : pt }
-                bin_corners.append(new_point)
+                # now, we have an inner point, a vector, and a distance
+                # we we walk shell_thickness more, we are guaranteed to be out of
+                # the entire shell...
+                cut_start = peri_line(inner_pt1,
+                        [inner_pt1[0]+(dist1+sv_ref_shell_thickness+sv_ref_shell_gap)*walk_vec1[0],
+                        inner_pt1[1]+(dist1+sv_ref_shell_thickness+sv_ref_shell_gap)*walk_vec1[1]],
+                        cut_width)
 
-            # union all the corner circles
-            for c in bin_corners:
-                loc = c['loc']
-                pshape += translate([loc[0], loc[1], 0]) ( circle(d=c['dia']) )
+                # But, if the segment is short, there will be two ugly scoring marks, and small things
+                # to print unnecessarily. So, process the end point also in this case
+                this_seg = LineString(segment)
+                if this_seg.length < nozzle_width:
+                    corner_pt = segment[-1]
+                    t1 = tangents_end[0]
+                    t2 = tangents_end[1]
+                    inner_pt2, walk_vec2, dist2 = geom_ops.find_exterior_pt(this_hull, corner_pt, t1, t2, encl_poly)
+                    cut_end = peri_line(inner_pt2,
+                            [inner_pt2[0]+(dist2+sv_ref_shell_thickness+sv_ref_shell_gap)*walk_vec2[0],
+                             inner_pt2[1]+(dist2+sv_ref_shell_thickness+sv_ref_shell_gap)*walk_vec2[1]],
+                            cut_width)
+                    cut_shape += solid2.hull() (
+                                cut_start + cut_end
+                              )
+                else:
+                    cut_shape += cut_start
+            cut_volume += translate([0,0,-sv_tiny_dimension+min_fitting_z+(this_bin['start_z']-min_fitting_z)]) (
+                                translate([x,y,sv_pcb_thickness]) (
+                                    linear_extrude(this_bin['end_z']-this_bin['start_z']+2*sv_tiny_dimension) (
+                                        cut_shape
+                                    )
+                                )
+                            )
+    fitting_cuts_name = ref2fitting_cuts(ident)
+    fitting_cuts_map[ident] = module(fitting_cuts_name, cut_volume)
 
-            corners = corners + bin_corners
+    for this_bin in h_bins:
         # tiny_dimension ensures overlap across adjacent shells - important for boolean ops
         fitting_pocket += translate([0,0,-sv_tiny_dimension+min_fitting_z+(this_bin['start_z']-min_fitting_z)]) (
                             translate([x,y,sv_pcb_thickness]) (
                                 linear_extrude(this_bin['end_z']-this_bin['start_z']+2*sv_tiny_dimension) (
                                     offset(sv_ref_shell_gap) (
-                                        pshape
+                                        polygon(this_bin['hull'])
                                     )
                                 )
                             )
                         )
     fitting_pocket_map[ident] = module(fitting_pocket_name, fitting_pocket)
 
-    # outer outline will include all the corners circles!
-    # the inner ones will probably (automatically) not contribute to the
-    # external shape
-    corner_fixes = union()
-    for c in corners:
-        loc = c['loc']
-        corner_fixes += translate([loc[0], loc[1], 0]) ( circle(d=c['dia']) )
-
     # define the polygon so that we can do offset on it
     mod_name = ref2outline(ident)
-    mod_map[ident] = module(mod_name, polygon(h_bins[0]['hull'])+corner_fixes)
+    mod_map[ident] = module(mod_name, polygon(h_bins[0]['hull']))
 
     wiggle_pocket_name = ref2wiggle_pocket(ident)
     wiggle_pocket = translate([x,y,sv_pcb_thickness])(
@@ -324,6 +352,7 @@ def gen_configurable_fp_components(
             fp_scad.write('//%s\n'%(rem))
             fp_scad.write('%s_For_%s = %s;\n'%(var, alias, footprint[prop]))
 
+    valid_shell_types = ','.join(jigconfig.valid_shell_types)
     for this_ref, area in ui_refs:
         footprint = cfg['TH'][this_ref]['kicad_footprint']
         dname_fp = fp_map[footprint]['display_name']
@@ -333,9 +362,10 @@ def gen_configurable_fp_components(
         else:
             fp_scad.write('/* [%s( %s, %s )] */\n'%(dname_ref, this_ref, footprint))
         fp_scad.write('//Type of shell for this component\n')
-        fp_scad.write('Shell_Type_For_%s="%s"; // [wiggle,fitting,courtyard]\n'%(
+        fp_scad.write('Shell_Type_For_%s="%s"; // [%s]\n'%(
             this_ref,
-            cfg['TH'][this_ref]['shell_type'])
+            cfg['TH'][this_ref]['shell_type'],
+            valid_shell_types)
         )
         fp_scad.write('//Insert this component into jig from this side.(Bottom insertion requires wiggle or courtyard shell to work)\n')
         fp_scad.write('Insert_%s_From="%s"; // [top,bottom]\n'%(
@@ -550,13 +580,6 @@ def generate_scad(
 
     sm_pcb_perimeter_short = module('pcb_perimeter_short', pcb_perimeter_short)
 
-    @exportReturnValueAsModule
-    def peri_line(start, end, line_width):
-        return solid2.hull() (
-            circle(d=line_width).translate(start),
-            circle(d=line_width).translate(end)
-        )
-
     sv_groove_width = ScadValue('groove_width')
     sv_tiny_dimension = ScadValue('tiny_dimension')
     sv_base_z = ScadValue('base_z')
@@ -585,15 +608,29 @@ def generate_scad(
     for subshells in all_shells:
         this_ref = subshells['ref']
         fp_scad.write('  if(Include_%s_in_Jig) {\n'%(this_ref))
-        fp_scad.write('  if(Shell_Type_For_%s=="courtyard") {\n'%(this_ref))
+        fp_scad.write('    if(Shell_Type_For_%s=="courtyard") {\n'%(this_ref))
         fp_scad.write('      %s();\n'%(ref2courtyard_perimeter(this_ref)))
-        fp_scad.write('} else {\n')
+        fp_scad.write('    } else {\n')
         for shell_info in subshells['shell']:
             this_name = shell_info['name']
-            fp_scad.write('      %s();\n'%(ref2perimeter(this_name)))
-        fp_scad.write('}\n')
-        fp_scad.write('}\n') # included
+            fp_scad.write('    %s();\n'%(ref2perimeter(this_name)))
+        fp_scad.write('    }\n')
+        fp_scad.write('  }\n') # included
     fp_scad.write('  }\n')
+    fp_scad.write('}\n')
+
+    fp_scad.write('module mounted_component_cuts() {\n')
+    fp_scad.write('  union() {\n')
+    for subshells in all_shells:
+        this_ref = subshells['ref']
+        fp_scad.write('    if(Include_%s_in_Jig) {\n'%(this_ref))
+        for shell_info in subshells['shell']:
+            this_name = shell_info['name']
+            fp_scad.write('      if(Shell_Type_For_%s=="fitting") {\n'%(this_ref))
+            fp_scad.write('        %s();\n'%(ref2fitting_cuts(this_name)))
+            fp_scad.write('      }\n')
+        fp_scad.write('    }\n') # included
+    fp_scad.write('  }\n') # union
     fp_scad.write('}\n')
 
     fp_scad.write('module mounted_component_pockets() {\n')
@@ -602,19 +639,17 @@ def generate_scad(
     # protruding shells from elsewhere to get into that volume
     for subshells in all_shells:
         this_ref = subshells['ref']
-        fp_scad.write('  if(Shell_Type_For_%s=="courtyard") {\n'%(this_ref))
+        fp_scad.write('    if(Shell_Type_For_%s=="courtyard") {\n'%(this_ref))
         fp_scad.write('      %s();\n'%(ref2courtyard_pocket(this_ref)))
-        fp_scad.write('} else {\n')
-        fp_scad.write('  if(Shell_Type_For_%s=="wiggle") {\n'%(this_ref))
+        fp_scad.write('    } else if(Shell_Type_For_%s=="wiggle") {\n'%(this_ref))
         for shell_info in subshells['shell']:
             this_name = shell_info['name']
             fp_scad.write('      %s();\n'%(ref2wiggle_pocket(this_name)))
-        fp_scad.write('  } else { // fitting\n')
+        fp_scad.write('    } else { //fitting\n')
         for shell_info in subshells['shell']:
             this_name = shell_info['name']
             fp_scad.write('      %s();\n'%(ref2fitting_pocket(this_name)))
-        fp_scad.write('  }\n')
-        fp_scad.write('}\n')
+        fp_scad.write('    }\n')
     fp_scad.write('  }\n')
     fp_scad.write('}\n')
 
@@ -717,6 +752,7 @@ module complete_model_TH_soldering() {
         mounted_component_perimeters();
       }
       mounted_component_pockets(); // FIXME: fix terminology - "included"
+      mounted_component_cuts();
       mounted_smd_keepouts();
     }
   }
@@ -740,6 +776,7 @@ module complete_model_component_fitting() {
         mounted_component_perimeters();
       }
       mounted_component_pockets(); // FIXME: fix terminology - "included"
+      mounted_component_cuts();
       mounted_smd_keepouts();
     }
   }
