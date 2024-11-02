@@ -369,7 +369,7 @@ for this_ref in th_ref_list:
     local_min_z = float('inf')
     subshells = {
         'ref' : this_ref,
-        'wiggle' : [],
+        'shell' : [],
         'courtyard' : None
     }
     th = ref_map[this_ref]
@@ -399,7 +399,7 @@ for this_ref in th_ref_list:
             for this_bin in h_bins:
                 this_bin['corners'] = geom_ops.extract_corners_2D(this_bin['hull'])
 
-            subshells['wiggle'].append({
+            subshells['shell'].append({
                 'name':shell_ident,
                 'min_z':min_z,
                 'max_z':max_z,

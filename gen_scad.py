@@ -397,7 +397,7 @@ def gen_computed_values(
     for subshells in all_shells:
         this_ref = subshells['ref']
         applies_to = ''
-        for shell_info in subshells['wiggle']:
+        for shell_info in subshells['shell']:
             applies_to += ' %s'%(shell_info['model'])
         fp_scad.write('max_z_%s= (Insert_%s_From=="bottom")? bottom_insertion_z : %s; //Applies to 3D Model(s):%s\n'%(this_ref,this_ref, subshells['max_z'], applies_to))
         fp_scad.write('min_z_%s= %s;\n'%(this_ref, subshells['min_z']))
@@ -450,7 +450,7 @@ def generate_scad(
 
     for subshells in all_shells:
         this_ref = subshells['ref']
-        for shell_info in subshells['wiggle']:
+        for shell_info in subshells['shell']:
             gen_shell_shape(cfg, this_ref, shell_info['name'],
                         shell_info['x'], shell_info['y'], shell_info['orientation'],
                         shell_info['min_z'], shell_info['max_z'], shell_info['mesh'],
@@ -588,7 +588,7 @@ def generate_scad(
         fp_scad.write('  if(Shell_Type_For_%s=="courtyard") {\n'%(this_ref))
         fp_scad.write('      %s();\n'%(ref2courtyard_perimeter(this_ref)))
         fp_scad.write('} else {\n')
-        for shell_info in subshells['wiggle']:
+        for shell_info in subshells['shell']:
             this_name = shell_info['name']
             fp_scad.write('      %s();\n'%(ref2perimeter(this_name)))
         fp_scad.write('}\n')
@@ -606,11 +606,11 @@ def generate_scad(
         fp_scad.write('      %s();\n'%(ref2courtyard_pocket(this_ref)))
         fp_scad.write('} else {\n')
         fp_scad.write('  if(Shell_Type_For_%s=="wiggle") {\n'%(this_ref))
-        for shell_info in subshells['wiggle']:
+        for shell_info in subshells['shell']:
             this_name = shell_info['name']
             fp_scad.write('      %s();\n'%(ref2wiggle_pocket(this_name)))
         fp_scad.write('  } else { // fitting\n')
-        for shell_info in subshells['wiggle']:
+        for shell_info in subshells['shell']:
             this_name = shell_info['name']
             fp_scad.write('      %s();\n'%(ref2fitting_pocket(this_name)))
         fp_scad.write('  }\n')
@@ -625,7 +625,7 @@ def generate_scad(
     for subshells in all_shells:
         this_ref = subshells['ref']
         fp_scad.write('        if(Include_%s_in_Jig) {\n'%(this_ref))
-        for shell_info in subshells['wiggle']:
+        for shell_info in subshells['shell']:
             ref_x, ref_y = shell_info['fp_center']
             h_start = '[pcb_min_x, %s]'%(ref_y)
             h_end = '[pcb_max_x, %s]'%(ref_y)
@@ -644,7 +644,7 @@ def generate_scad(
     for subshells in all_shells:
         this_ref = subshells['ref']
         fp_scad.write('        if(Include_%s_in_Jig) {\n'%(this_ref))
-        for shell_info in subshells['wiggle']:
+        for shell_info in subshells['shell']:
             ref_x, ref_y = shell_info['fp_center']
             v_start = '[%s, pcb_min_y]'%(ref_x)
             v_end = '[%s, pcb_max_y]'%(ref_x)
