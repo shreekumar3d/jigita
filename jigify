@@ -177,7 +177,7 @@ instead of a PCB. Use --examples for info on SPEC''')
 group.add_argument('--model3d', action='extend', nargs='+', type=str,
     help='''Generate a shell from 3D model(s).''')
 
-parser.add_argument('--config', metavar='FILENAME.toml',
+parser.add_argument('-c', '--config', metavar='FILENAME.toml',
     help='Use this configuration options file for various parameters.')
 
 parser.add_argument('--pcb-footprints', type=bool, default=False,
