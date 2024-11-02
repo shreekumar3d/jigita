@@ -690,6 +690,21 @@ def generate_scad(
     fp_scad.write('  }\n')
     fp_scad.write('}\n')
 
+    fp_scad.write('module base_frame_xy_lines() {\n')
+    h_start = '[pcb_min_x, -pcb_min_y]'
+    h_end = '[pcb_max_x, -pcb_min_y]'
+    fp_scad.write('  wide_line(%s,%s);\n'%(h_start,h_end))
+    h_start = '[pcb_min_x, -pcb_max_y]'
+    h_end = '[pcb_max_x, -pcb_max_y]'
+    fp_scad.write('  wide_line(%s,%s);\n'%(h_start,h_end))
+    v_start = '[pcb_min_x, -pcb_min_y]'
+    v_end = '[pcb_min_x, -pcb_max_y]'
+    fp_scad.write('  wide_line(%s,%s);\n'%(v_start,v_end))
+    v_start = '[pcb_max_x, -pcb_min_y]'
+    v_end = '[pcb_max_x, -pcb_max_y]'
+    fp_scad.write('  wide_line(%s,%s);\n'%(v_start,v_end))
+    fp_scad.write('}\n')
+
     fp_scad.write('module base_x_lines() {\n')
     fp_scad.write('  translate([0,0,mesh_start_z]) {\n')
     fp_scad.write('    intersection() {\n')
@@ -703,6 +718,7 @@ def generate_scad(
             h_end = '[pcb_max_x, %s]'%(ref_y)
             fp_scad.write('          wide_line(%s,%s);\n'%(h_start,h_end))
         fp_scad.write('        }\n')
+    fp_scad.write('        base_frame_xy_lines();\n')
     fp_scad.write('      }\n')
     fp_scad.write('      base_volume();\n')
     fp_scad.write('    }\n')
@@ -718,10 +734,11 @@ def generate_scad(
         fp_scad.write('        if(Include_%s_in_Jig) {\n'%(this_ref))
         for shell_info in subshells['shell']:
             ref_x, ref_y = shell_info['fp_center']
-            v_start = '[%s, pcb_min_y]'%(ref_x)
-            v_end = '[%s, pcb_max_y]'%(ref_x)
+            v_start = '[%s, -pcb_min_y]'%(ref_x)
+            v_end = '[%s, -pcb_max_y]'%(ref_x)
             fp_scad.write('          wide_line(%s,%s);\n'%(v_start,v_end))
         fp_scad.write('        }\n')
+    fp_scad.write('        base_frame_xy_lines();\n')
     fp_scad.write('      }\n')
     fp_scad.write('      base_volume();\n')
     fp_scad.write('    }\n')
