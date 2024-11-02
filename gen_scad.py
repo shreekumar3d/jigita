@@ -6,11 +6,13 @@ import solid2
 import jigconfig
 from shapely import LineString, Polygon, Point
 import geom_ops
+from pprint import pprint
 
 mod_map = {}
 wiggle_pocket_map = {}
 fitting_pocket_map = {}
 fitting_cuts_map = {}
+fitting_flower_map = {}
 perimeter_map = {}
 
 courtyard_map = {}
@@ -48,6 +50,8 @@ def ref2perimeter(ref):
     return 'perimeter_%s'%(ref)
 def ref2fitting_cuts(ref):
     return 'fitting_cuts_%s'%(ref)
+def ref2fitting_flower(ref):
+    return 'fitting_flower_%s'%(ref)
 
 def ref2courtyard(ref):
     return 'courtyard_%s'%(ref)
@@ -76,7 +80,6 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
 
     # compute the fitting pockets
     fitting_pocket_name = ref2fitting_pocket(ident)
-    fitting_pocket = union()
     min_fitting_z = h_bins[0]['start_z']
 
     encl_poly = Polygon(h_bins[0]['hull'])
@@ -88,11 +91,13 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
         for this_bin in h_bins:
             this_hull = Polygon(this_bin['hull'])
             cut_shape = union()
+            f_cut_shape = union()
             for segment, tangents_start, tangents_end in this_bin['corner_segments']:
                 corner_pt = segment[0]
                 t1 = tangents_start[0]
                 t2 = tangents_start[1]
-                inner_pt1, walk_vec1, dist1 = geom_ops.find_exterior_pt(this_hull, corner_pt, t1, t2, encl_poly)
+                inner_pt1, outer_pt1, walk_vec1, dist1 = geom_ops.find_exterior_pt(
+                        this_hull, corner_pt, t1, t2, encl_poly)
 
                 # now, we have an inner point, a vector, and a distance
                 # we we walk shell_thickness more, we are guaranteed to be out of
@@ -109,7 +114,8 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
                     corner_pt = segment[-1]
                     t1 = tangents_end[0]
                     t2 = tangents_end[1]
-                    inner_pt2, walk_vec2, dist2 = geom_ops.find_exterior_pt(this_hull, corner_pt, t1, t2, encl_poly)
+                    inner_pt2, outer_pt2, walk_vec2, dist2 = geom_ops.find_exterior_pt(
+                            this_hull, corner_pt, t1, t2, encl_poly)
                     cut_end = peri_line(inner_pt2,
                             [inner_pt2[0]+(dist2+sv_ref_shell_thickness+sv_ref_shell_gap)*walk_vec2[0],
                              inner_pt2[1]+(dist2+sv_ref_shell_thickness+sv_ref_shell_gap)*walk_vec2[1]],
@@ -119,6 +125,7 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
                               )
                 else:
                     cut_shape += cut_start
+
             cut_volume += translate([0,0,-sv_tiny_dimension+min_fitting_z+(this_bin['start_z']-min_fitting_z)]) (
                                 translate([x,y,sv_pcb_thickness]) (
                                     linear_extrude(this_bin['end_z']-this_bin['start_z']+2*sv_tiny_dimension) (
@@ -129,6 +136,30 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
     fitting_cuts_name = ref2fitting_cuts(ident)
     fitting_cuts_map[ident] = module(fitting_cuts_name, cut_volume)
 
+    flower_shell = union()
+    for this_bin in h_bins:
+        if this_bin['start_z']<0:
+            start_z=0
+        else:
+            start_z = this_bin['start_z']
+        flower_shell += translate([0,0,start_z+sv_ref_shell_clearance-sv_tiny_dimension]) (
+                            translate([x,y,sv_pcb_thickness]) (
+                                linear_extrude(sv_topmost_z-start_z-sv_ref_shell_clearance+2*sv_tiny_dimension+sv_base_thickness) (
+                                    difference() (
+                                        offset(sv_ref_shell_gap+sv_ref_shell_thickness) (
+                                            polygon(this_bin['hull'])
+                                        ),
+                                        offset(sv_ref_shell_gap) (
+                                            polygon(this_bin['hull'])
+                                        )
+                                    )
+                                )
+                            )
+                        )
+    fitting_flower_name = ref2fitting_flower(ident)
+    fitting_flower_map[ident] = module(fitting_flower_name, flower_shell)
+
+    fitting_pocket = union()
     for this_bin in h_bins:
         # tiny_dimension ensures overlap across adjacent shells - important for boolean ops
         fitting_pocket += translate([0,0,-sv_tiny_dimension+min_fitting_z+(this_bin['start_z']-min_fitting_z)]) (
@@ -603,17 +634,21 @@ def generate_scad(
     # Hack : ScadValue can't be empty - so passing it a comment!
     fp_scad.write(scad_render(ScadValue('//\n')))
 
-    fp_scad.write('module mounted_component_perimeters() {\n')
+    fp_scad.write('module mounted_component_shells() {\n')
     fp_scad.write('  union() {\n')
     for subshells in all_shells:
         this_ref = subshells['ref']
         fp_scad.write('  if(Include_%s_in_Jig) {\n'%(this_ref))
         fp_scad.write('    if(Shell_Type_For_%s=="courtyard") {\n'%(this_ref))
         fp_scad.write('      %s();\n'%(ref2courtyard_perimeter(this_ref)))
+        fp_scad.write('    } else if(Shell_Type_For_%s=="fitting_flower") {\n'%(this_ref))
+        for shell_info in subshells['shell']:
+            this_name = shell_info['name']
+            fp_scad.write('      %s();\n'%(ref2fitting_flower(this_name)))
         fp_scad.write('    } else {\n')
         for shell_info in subshells['shell']:
             this_name = shell_info['name']
-            fp_scad.write('    %s();\n'%(ref2perimeter(this_name)))
+            fp_scad.write('      %s();\n'%(ref2perimeter(this_name)))
         fp_scad.write('    }\n')
         fp_scad.write('  }\n') # included
     fp_scad.write('  }\n')
@@ -627,6 +662,8 @@ def generate_scad(
         for shell_info in subshells['shell']:
             this_name = shell_info['name']
             fp_scad.write('      if(Shell_Type_For_%s=="fitting") {\n'%(this_ref))
+            fp_scad.write('        %s();\n'%(ref2fitting_cuts(this_name)))
+            fp_scad.write('      } else if(Shell_Type_For_%s=="fitting_flower") {\n'%(this_ref))
             fp_scad.write('        %s();\n'%(ref2fitting_cuts(this_name)))
             fp_scad.write('      }\n')
         fp_scad.write('    }\n') # included
@@ -645,7 +682,7 @@ def generate_scad(
         for shell_info in subshells['shell']:
             this_name = shell_info['name']
             fp_scad.write('      %s();\n'%(ref2wiggle_pocket(this_name)))
-        fp_scad.write('    } else { //fitting\n')
+        fp_scad.write('    } else { //fitting or fitting_flower\n')
         for shell_info in subshells['shell']:
             this_name = shell_info['name']
             fp_scad.write('      %s();\n'%(ref2fitting_pocket(this_name)))
@@ -749,7 +786,7 @@ module complete_model_TH_soldering() {
         } else {
           base_solid();
         }
-        mounted_component_perimeters();
+        mounted_component_shells();
       }
       mounted_component_pockets(); // FIXME: fix terminology - "included"
       mounted_component_cuts();
@@ -773,7 +810,7 @@ module complete_model_component_fitting() {
         } else {
           base_solid();
         }
-        mounted_component_perimeters();
+        mounted_component_shells();
       }
       mounted_component_pockets(); // FIXME: fix terminology - "included"
       mounted_component_cuts();

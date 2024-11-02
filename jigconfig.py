@@ -7,7 +7,7 @@ import string
 import appdirs
 from pathlib import Path
 
-valid_shell_types = ['wiggle', 'fitting', 'courtyard']
+valid_shell_types = ['wiggle', 'fitting', 'fitting_flower', 'courtyard']
 valid_jig_types = ['TH_soldering', 'component_fitting']
 valid_base_types = ["x_lines", "y_lines", "griddish", "mesh", "solid"]
 valid_insertions = ["top", "bottom"]

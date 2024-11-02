@@ -133,23 +133,31 @@ def find_exterior_pt(this_hull, corner_pt, t1, t2, encl_poly):
     # whichever point is inside, the other vector is pointing outside
     if this_hull.contains(Point(tpt1)):
         inner_pt = tpt1
+        outer_pt = tpt2
         walk_vec = t2
     else:
         inner_pt = tpt2
+        outer_pt = tpt1
         walk_vec = t1
 
-    # find the farthest distance such that the resulting point is
-    # outside the entire solid. we do this by taking gingelly steps
-    # until we are out of the polygon.
-    # FIXME: sam-wise had to walk out of the shire out of necessity,
-    # but this walking approach is stupidity. Don't chew the users CPU
-    # Find the right way to compute a point out of the polygon
-    walk_step = 0.1
-    dist = walk_step
-    while True:
-        outer_pt = pt_move(inner_pt, walk_vec, dist)
-        if not encl_poly.contains(Point(outer_pt)):
-            break
-        dist += walk_step
+    if encl_poly is this_hull:
+        # if both are same polygon, then nothing more to be done
+        # we considered points +/- small_dist, so the distance is
+        # 2x
+        dist = 2*small_dist
+    else:
+        # find the farthest distance such that the resulting point is
+        # outside the entire solid. we do this by taking gingelly steps
+        # until we are out of the polygon.
+        # FIXME: sam-wise had to walk out of the shire out of necessity,
+        # but this walking approach is stupidity. Don't chew the users CPU
+        # Find the right way to compute a point out of the polygon
+        walk_step = 0.1
+        dist = walk_step
+        while True:
+            peripheral_pt = pt_move(inner_pt, walk_vec, dist)
+            if not encl_poly.contains(Point(peripheral_pt)):
+                break
+            dist += walk_step
 
-    return inner_pt, walk_vec, dist
+    return inner_pt, outer_pt, walk_vec, dist
