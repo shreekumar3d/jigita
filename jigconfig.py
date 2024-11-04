@@ -337,7 +337,7 @@ use_manifold = false
 [3dprinter]
 min_printable_hole_area = 1.5
 corner_cut_width = 0.4
-min_petal_width = 0.4
+min_petal_length = 0.4
 '''
 
 _inbuilt_config = '''

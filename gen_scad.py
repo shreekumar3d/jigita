@@ -84,7 +84,7 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
 
     encl_poly = Polygon(h_bins[0]['hull'])
     cut_width = cfg['3dprinter']['corner_cut_width']
-    nozzle_width = cfg['3dprinter']['min_petal_width']
+    min_petal_length = cfg['3dprinter']['min_petal_length']
 
     cut_volume = union()
     if cut_width>0:
@@ -110,7 +110,7 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
                 # But, if the segment is short, there will be two ugly scoring marks, and small things
                 # to print unnecessarily. So, process the end point also in this case
                 this_seg = LineString(segment)
-                if this_seg.length < nozzle_width:
+                if this_seg.length < min_petal_length:
                     corner_pt = segment[-1]
                     t1 = tangents_end[0]
                     t2 = tangents_end[1]
