@@ -103,7 +103,7 @@ def expand_refs(name_list, ref_map, fp_map):
     # return uniques
     return list(set(full))
 
-def load(configFile, ref_map, fp_map):
+def load(configFile, ref_map, fp_map, mh_map):
     """ load configuration file, validate against TH reference names"""
 
     default_config_text = get_default()
@@ -248,10 +248,12 @@ def load(configFile, ref_map, fp_map):
                 raise ValueError(f"{rtp} is not a though hole footprint, and cannot be processed (reason: included in refs_process_only_these)")
         th_ref_list = rtp_list
     elif len(cfg['TH']['refs_do_not_process'])>0:
-        rtp_x_list = expand_refs(cfg['TH']['refs_do_not_process'], ref_map.keys(), fp_map)
+        rtp_x_list = expand_refs(cfg['TH']['refs_do_not_process'], list(ref_map.keys())+list(mh_map.keys()), fp_map)
         for rtp in rtp_x_list:
             if rtp in th_ref_list:
                 th_ref_list.remove(rtp)
+            elif rtp in mh_map:
+                mh_map.pop(rtp)
 
     # trim TH refs from the config tree that are not in list that will be processed
     for ref in ref_map:
@@ -460,10 +462,14 @@ line_height = 1.0
 # Parameters for Through Hole processing
 
 refs_do_not_process = [
-  # list of refs that we should ignore
+  # list of refs that we should not include in the output
+  # scad output can have refs that may be optionally toggled
+  # and included/excluded in the STL, we support this via checkboxes
+  # in customizer
 ]
+
 refs_process_only_these = [
-  # list of refs to process
+  # list of refs to include in the output
   # this takes precedence over "do_not_process"
   # this is exclusive with do_not_process
 ]

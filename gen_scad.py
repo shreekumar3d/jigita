@@ -797,8 +797,8 @@ def generate_scad(
     fp_scad.write('  translate([0,0,PCB_Thickness]) {\n')
     fp_scad.write('    linear_extrude(topmost_z+Base_Thickness) {\n')
     for mh_name in mh_map:
-        mh_pos = mh_map[mh_name]['pos']
-        mh_radius = mh_map[mh_name]['radius']
+        mh_pos = [mh_map[mh_name]['x'],mh_map[mh_name]['y']]
+        mh_radius = mh_map[mh_name]['mounting_hole_radius']
         fp_scad.write('      translate([%s,%s,0]) {\n'%(mh_pos[0],mh_pos[1]))
         fp_scad.write('        difference() {\n')
         fp_scad.write('          circle(r=%s);\n'%(mh_radius+cfg['TH']['mounting_hole_shell_thickness']))
@@ -813,8 +813,8 @@ def generate_scad(
     fp_scad.write('  translate([0,0,PCB_Thickness]) {\n')
     fp_scad.write('    linear_extrude(topmost_z+Base_Thickness) {\n')
     for mh_name in mh_map:
-        mh_pos = mh_map[mh_name]['pos']
-        mh_radius = mh_map[mh_name]['radius']
+        mh_pos = [mh_map[mh_name]['x'],mh_map[mh_name]['y']]
+        mh_radius = mh_map[mh_name]['mounting_hole_radius']
         fp_scad.write('      translate([%s,%s,0]) {\n'%(mh_pos[0],mh_pos[1]))
         fp_scad.write('        circle(r=%s);\n'%(mh_radius))
         fp_scad.write('      }\n')
