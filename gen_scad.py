@@ -154,7 +154,7 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
             start_z = openscad_functions.max(this_bin['start_z'], sv_ref_shell_clearance)
         flower_shell += translate([0,0,start_z-sv_tiny_dimension]) (
                             translate([x,y,sv_pcb_thickness]) (
-                                linear_extrude(sv_topmost_z-start_z+2*sv_tiny_dimension+sv_base_thickness) (
+                                linear_extrude(sv_ref_max_z-start_z+2*sv_tiny_dimension) (
                                     difference() (
                                         offset(sv_ref_shell_gap+sv_ref_shell_thickness) (
                                             polygon(this_bin['hull'])
@@ -227,6 +227,15 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
 
     perimeter_map[ident] = module(perimeter_name, perimeter_solid,
                            comment=f"Perimeter for {ident}")
+
+    # Include the base and any extra height required to be made up for the flower shell
+    flower_shell += translate([x,y,sv_pcb_thickness+sv_ref_max_z]) (
+                        linear_extrude(sv_topmost_z-sv_ref_max_z+sv_base_thickness) (
+                            offset(sv_ref_shell_gap+sv_ref_shell_thickness) (
+                                mod_map[ident]()
+                            )
+                        )
+                      )
 
     fitting_flower_name = ref2fitting_flower(ident)
     fitting_flower_map[ident] = module(fitting_flower_name, flower_shell)
