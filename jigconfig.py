@@ -364,6 +364,7 @@ use_manifold = false
 
 [3dprinter]
 min_printable_hole_area = 1.5
+first_layer_height = 0.2
 '''
 
 _inbuilt_config = '''
@@ -620,6 +621,9 @@ gap_from_shells = 0.5
 #   and the base, without creating the holder.
 #
 type = "TH_soldering"
+
+mounting_hole_spacer_end = 0.0
+mounting_hole_jig = false
 
 # NOTE:
 #

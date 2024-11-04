@@ -32,9 +32,9 @@ sv_pcb_holder_perimeter = ScadValue('PCB_Holder_Perimeter')
 sv_pcb_gap = ScadValue('PCB_Gap')
 sv_pcb_overlap = ScadValue('PCB_Overlap')
 sv_pcb_perimeter_height = ScadValue('Lower_Perimeter_Height')
-sv_base_thickness = ScadValue('Base_Thickness')
+sv_base_thickness = ScadValue('c_Base_Thickness')
 sv_base_line_width = ScadValue('Base_Line_Width')
-sv_base_line_height = ScadValue('Base_Line_Height')
+sv_base_line_height = ScadValue('c_Base_Line_Height')
 sv_mesh_start_z = ScadValue('mesh_start_z')
 sv_smd_clearance_from_shells = ScadValue('SMD_Clearance_From_Shells')
 sv_smd_gap_from_shells = ScadValue('SMD_Gap_From_Shells')
@@ -342,6 +342,9 @@ Lower_Perimeter_Height = %s;
 
 Groove="At PCB Corners: %s mm"; //["At PCB Corners: %s mm", "All Around PCB Edge"]
 
+Mounting_Hole_Jig=%s; //[false, true]
+MH_Spacer_End=%s;
+
 /* [Base] */
 
 // Type of Base
@@ -371,6 +374,8 @@ cfg['holder']['pcb_overlap'],
 cfg['holder']['perimeter'],
 cfg['holder']['base']['perimeter_height'],
 cfg['holder']['groove_size'], cfg['holder']['groove_size'],
+"true" if cfg['jig']['mounting_hole_jig'] else "false",
+cfg['jig']['mounting_hole_spacer_end'],
 cfg['holder']['base']['type'],
 cfg['holder']['base']['thickness'],
 cfg['holder']['base']['line_width'],
@@ -463,6 +468,7 @@ def gen_configurable_fp_components(
 
     fp_scad.write('/* [Hidden] */\n')
     fp_scad.write('$fs = 0.05;\n');
+    fp_scad.write('first_layer_height = %s;\n'%(cfg['3dprinter']['first_layer_height']));
 
     # Effective values for each ref
     for this_ref, area in ui_refs:
@@ -489,7 +495,9 @@ def gen_computed_values(
     tiny_dimension = 0.001;
     base_z =  PCB_Thickness+topmost_z+Base_Thickness+2*tiny_dimension;
 
-    mesh_start_z = PCB_Thickness+topmost_z+Base_Thickness-Base_Line_Height;
+    c_Base_Thickness = Mounting_Hole_Jig ? first_layer_height: Base_Thickness;
+    c_Base_Line_Height = Mounting_Hole_Jig ? topmost_z-MH_Spacer_End+first_layer_height+c_Base_Thickness: Base_Line_Height;
+    mesh_start_z = PCB_Thickness+topmost_z+c_Base_Thickness-c_Base_Line_Height;
     '''%(topmost_z))
 
 
@@ -795,7 +803,7 @@ def generate_scad(
 
     fp_scad.write('module mounting_hole_bolt_shells() {\n')
     fp_scad.write('  translate([0,0,PCB_Thickness]) {\n')
-    fp_scad.write('    linear_extrude(topmost_z+Base_Thickness) {\n')
+    fp_scad.write('    linear_extrude(topmost_z+c_Base_Thickness) {\n')
     for mh_name in mh_map:
         mh_pos = [mh_map[mh_name]['x'],mh_map[mh_name]['y']]
         mh_radius = mh_map[mh_name]['mounting_hole_radius']
@@ -811,13 +819,42 @@ def generate_scad(
 
     fp_scad.write('module mounting_hole_keepout_volume() {\n')
     fp_scad.write('  translate([0,0,PCB_Thickness]) {\n')
-    fp_scad.write('    linear_extrude(topmost_z+Base_Thickness) {\n')
+    fp_scad.write('    linear_extrude(topmost_z+c_Base_Thickness) {\n')
     for mh_name in mh_map:
         mh_pos = [mh_map[mh_name]['x'],mh_map[mh_name]['y']]
         mh_radius = mh_map[mh_name]['mounting_hole_radius']
         fp_scad.write('      translate([%s,%s,0]) {\n'%(mh_pos[0],mh_pos[1]))
         fp_scad.write('        circle(r=%s);\n'%(mh_radius))
         fp_scad.write('      }\n')
+    fp_scad.write('    }\n')
+    fp_scad.write('  }\n')
+    fp_scad.write('}\n')
+
+
+    fp_scad.write('module mounting_hole_jig_keepout() {\n')
+    fp_scad.write('  translate([0,0,PCB_Thickness+MH_Spacer_End+tiny_dimension]) {\n')
+    fp_scad.write('    linear_extrude(topmost_z+c_Base_Thickness-MH_Spacer_End-first_layer_height-tiny_dimension) {\n')
+    fp_scad.write('      offset(1000)\n') # Lazy me!
+    fp_scad.write('        pcb_edge();\n')
+    fp_scad.write('    }\n')
+    fp_scad.write('  }\n')
+    fp_scad.write('}\n')
+
+    fp_scad.write('module mounting_hole_jig_spacers() {\n')
+    fp_scad.write('  translate([pcb_max_x+10,-(pcb_min_y+((pcb_max_y-pcb_min_y)*0.5)),PCB_Thickness+MH_Spacer_End+tiny_dimension]) {\n')
+    fp_scad.write('    linear_extrude(topmost_z-MH_Spacer_End) {\n')
+    spacer_offset = 0
+    for mh_name in mh_map:
+        mh_pos = [mh_map[mh_name]['x'],mh_map[mh_name]['y']]
+        mh_radius = mh_map[mh_name]['mounting_hole_radius']
+        mh_outer_radius = mh_radius+cfg['TH']['mounting_hole_shell_thickness']
+        fp_scad.write('      translate([%s,0,0]) {\n'%(spacer_offset))
+        fp_scad.write('        difference() {\n')
+        fp_scad.write('          circle(r=%s);\n'%(mh_outer_radius))
+        fp_scad.write('          circle(r=%s);\n'%(mh_radius))
+        fp_scad.write('        }\n')
+        fp_scad.write('      }\n')
+        spacer_offset += (mh_outer_radius*3)
     fp_scad.write('    }\n')
     fp_scad.write('  }\n')
     fp_scad.write('}\n')
@@ -879,9 +916,11 @@ module complete_model_TH_soldering() {
       mounting_hole_keepout_volume();
       mounted_component_cuts();
       mounted_smd_keepouts();
+      mounting_hole_jig_keepout();
     }
   }
   preview_helpers();
+  mounting_hole_jig_spacers();
 }
 module complete_model_component_fitting() {
   color("steelblue") {
@@ -932,7 +971,7 @@ if(orient_to_print == 1) {
   // This helps interaction with OpenSCAD
   translate([
     -pcb_min_x-0.5*(pcb_max_x-pcb_min_x),
-    pcb_min_y+0.5*(pcb_max_y-pcb_min_y), 0 ]) {
+    -(pcb_min_y+0.5*(pcb_max_y-pcb_min_y)), 0 ]) {
     rotate([180,0,0]) {
         style_of_jig();
     }
