@@ -147,14 +147,11 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
 
     flower_shell = union()
     for this_bin in h_bins:
-        # FIXME: we don't honor ref_shell_clearance here.
-        # honouring ref_shell_clearance in scad requires more
-        # logic to move to openscad. supporting openscad is
-        # getting really painful, what's the upside !?
         if this_bin['start_z']<0:
-            start_z=0
+            start_z= sv_ref_shell_clearance
         else:
-            start_z = this_bin['start_z']
+            # if start_z is closer than clearance, start at clearance
+            start_z = openscad_functions.max(this_bin['start_z'], sv_ref_shell_clearance)
         flower_shell += translate([0,0,start_z-sv_tiny_dimension]) (
                             translate([x,y,sv_pcb_thickness]) (
                                 linear_extrude(sv_topmost_z-start_z+2*sv_tiny_dimension+sv_base_thickness) (
