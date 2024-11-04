@@ -15,6 +15,8 @@ keys_TH_builtin = None
 TH_component_shell_value_keys = [
         "shell_thickness",
         "shell_gap",
+        "shell_wrapper_thickness",
+        "shell_wrapper_height",
         "shell_clearance_from_pcb",
         "corner_cut_width",
         "min_petal_length",
@@ -25,6 +27,8 @@ TH_ref_params = [
         'kicad_footprint',
         'force_smd',
         'shell_type',
+        'shell_wrapper_thickness',
+        'shell_wrapper_height',
         'insertion_direction',
         'corner_cut_width',
         'min_petal_length',
@@ -61,6 +65,8 @@ inheritable_footprint_keys = [
     'shell_type',
     'shell_gap',
     'shell_thickness',
+    'shell_wrapper_thickness',
+    'shell_wrapper_height',
     'insertion_direction',
     'shell_clearance_from_pcb',
     'corner_cut_width',
@@ -523,6 +529,14 @@ corner_cut_width = 0.4
 # berg stick shroud). Petal of this size and lower are entirely treated
 # as corners.
 min_petal_length = 0.4
+
+# Each shell can have a "wrapper"
+# basically - a surrounding shell beyond the external perimeter
+# of a certain thickness and height
+# The height includes the thickness of the base. This can be used to create
+# self supporting shells with a wide base.
+shell_wrapper_thickness = 0.0
+shell_wrapper_height = 0.0
 
 # corners can be "notched" a specific distance or cut right through
 #

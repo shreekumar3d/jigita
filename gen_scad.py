@@ -169,8 +169,6 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
                                 )
                             )
                         )
-    fitting_flower_name = ref2fitting_flower(ident)
-    fitting_flower_map[ident] = module(fitting_flower_name, flower_shell)
 
     fitting_pocket = union()
     for this_bin in h_bins:
@@ -210,8 +208,31 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
                             )
                         )
                       )
+
+    # Add wrapper
+    wrapper_thickness = cfg['TH'][ref]['shell_wrapper_thickness']
+    wrapper_height = cfg['TH'][ref]['shell_wrapper_height']
+    if wrapper_thickness>0 and wrapper_height>0:
+        wrapper = translate([x,y,sv_pcb_thickness+sv_topmost_z+sv_base_thickness-wrapper_height]) (
+                        linear_extrude(wrapper_height) (
+                            difference() (
+                                offset(sv_ref_shell_gap+sv_ref_shell_thickness+wrapper_thickness) (
+                                    mod_map[ident]()
+                                ),
+                                offset(sv_ref_shell_gap+sv_ref_shell_thickness) (
+                                    mod_map[ident]()
+                                )
+                            )
+                        )
+                      )
+        perimeter_solid += wrapper
+        flower_shell += wrapper
+
     perimeter_map[ident] = module(perimeter_name, perimeter_solid,
                            comment=f"Perimeter for {ident}")
+
+    fitting_flower_name = ref2fitting_flower(ident)
+    fitting_flower_map[ident] = module(fitting_flower_name, flower_shell)
 
 def gen_courtyard_shell_shape(ref, courtyard_poly):
     sv_ref_max_z = ScadValue('max_z_%s'%(ref))
