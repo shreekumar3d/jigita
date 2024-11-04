@@ -83,8 +83,9 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
     min_fitting_z = h_bins[0]['start_z']
 
     encl_poly = Polygon(h_bins[0]['hull'])
-    cut_width = cfg['3dprinter']['corner_cut_width']
-    min_petal_length = cfg['3dprinter']['min_petal_length']
+    cut_width = cfg['TH'][ref]['corner_cut_width']
+    cut_depth = cfg['TH'][ref]['corner_cut_depth']
+    min_petal_length = cfg['TH'][ref]['min_petal_length']
 
     cut_volume = union()
     if cut_width>0:
@@ -99,12 +100,16 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
                 inner_pt1, outer_pt1, walk_vec1, dist1 = geom_ops.find_exterior_pt(
                         this_hull, corner_pt, t1, t2, encl_poly)
 
+                if cut_depth != 0:
+                    this_cut_depth = cut_depth
+                else:
+                    this_cut_depth = dist1+sv_ref_shell_thickness+sv_ref_shell_gap
                 # now, we have an inner point, a vector, and a distance
                 # we we walk shell_thickness more, we are guaranteed to be out of
                 # the entire shell...
                 cut_start = peri_line(inner_pt1,
-                        [inner_pt1[0]+(dist1+sv_ref_shell_thickness+sv_ref_shell_gap)*walk_vec1[0],
-                        inner_pt1[1]+(dist1+sv_ref_shell_thickness+sv_ref_shell_gap)*walk_vec1[1]],
+                        [inner_pt1[0]+this_cut_depth*walk_vec1[0],
+                        inner_pt1[1]+this_cut_depth*walk_vec1[1]],
                         cut_width)
 
                 # But, if the segment is short, there will be two ugly scoring marks, and small things
@@ -116,9 +121,13 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
                     t2 = tangents_end[1]
                     inner_pt2, outer_pt2, walk_vec2, dist2 = geom_ops.find_exterior_pt(
                             this_hull, corner_pt, t1, t2, encl_poly)
+                    if cut_depth != 0:
+                        this_cut_depth = cut_depth
+                    else:
+                        this_cut_depth = dist2+sv_ref_shell_thickness+sv_ref_shell_gap
                     cut_end = peri_line(inner_pt2,
-                            [inner_pt2[0]+(dist2+sv_ref_shell_thickness+sv_ref_shell_gap)*walk_vec2[0],
-                             inner_pt2[1]+(dist2+sv_ref_shell_thickness+sv_ref_shell_gap)*walk_vec2[1]],
+                            [inner_pt2[0]+this_cut_depth*walk_vec2[0],
+                             inner_pt2[1]+this_cut_depth*walk_vec2[1]],
                             cut_width)
                     cut_shape += solid2.hull() (
                                 cut_start + cut_end
@@ -126,7 +135,7 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
                 else:
                     cut_shape += cut_start
 
-            cut_volume += translate([0,0,-sv_tiny_dimension+min_fitting_z+(this_bin['start_z']-min_fitting_z)]) (
+            cut_volume += translate([0,0,-sv_tiny_dimension+this_bin['start_z']]) (
                                 translate([x,y,sv_pcb_thickness]) (
                                     linear_extrude(this_bin['end_z']-this_bin['start_z']+2*sv_tiny_dimension) (
                                         cut_shape
@@ -138,13 +147,17 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
 
     flower_shell = union()
     for this_bin in h_bins:
+        # FIXME: we don't honor ref_shell_clearance here.
+        # honouring ref_shell_clearance in scad requires more
+        # logic to move to openscad. supporting openscad is
+        # getting really painful, what's the upside !?
         if this_bin['start_z']<0:
             start_z=0
         else:
             start_z = this_bin['start_z']
-        flower_shell += translate([0,0,start_z+sv_ref_shell_clearance-sv_tiny_dimension]) (
+        flower_shell += translate([0,0,start_z-sv_tiny_dimension]) (
                             translate([x,y,sv_pcb_thickness]) (
-                                linear_extrude(sv_topmost_z-start_z-sv_ref_shell_clearance+2*sv_tiny_dimension+sv_base_thickness) (
+                                linear_extrude(sv_topmost_z-start_z+2*sv_tiny_dimension+sv_base_thickness) (
                                     difference() (
                                         offset(sv_ref_shell_gap+sv_ref_shell_thickness) (
                                             polygon(this_bin['hull'])
@@ -162,7 +175,7 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
     fitting_pocket = union()
     for this_bin in h_bins:
         # tiny_dimension ensures overlap across adjacent shells - important for boolean ops
-        fitting_pocket += translate([0,0,-sv_tiny_dimension+min_fitting_z+(this_bin['start_z']-min_fitting_z)]) (
+        fitting_pocket += translate([0,0,-sv_tiny_dimension+this_bin['start_z']]) (
                             translate([x,y,sv_pcb_thickness]) (
                                 linear_extrude(this_bin['end_z']-this_bin['start_z']+2*sv_tiny_dimension) (
                                     offset(sv_ref_shell_gap) (

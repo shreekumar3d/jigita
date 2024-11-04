@@ -12,11 +12,23 @@ valid_jig_types = ['TH_soldering', 'component_fitting']
 valid_base_types = ["x_lines", "y_lines", "griddish", "mesh", "solid"]
 valid_insertions = ["top", "bottom"]
 keys_TH_builtin = None
-TH_component_shell_value_keys = ["shell_thickness", "shell_gap", "shell_clearance_from_pcb"]
+TH_component_shell_value_keys = [
+        "shell_thickness",
+        "shell_gap",
+        "shell_clearance_from_pcb",
+        "corner_cut_width",
+        "min_petal_length",
+        "corner_cut_depth"]
 SMD_default_value_keys = ['clearance_from_shells', 'gap_from_shells']
 
-TH_ref_params = ['kicad_footprint', 'force_smd',
-'shell_type', 'insertion_direction']
+TH_ref_params = [
+        'kicad_footprint',
+        'force_smd',
+        'shell_type',
+        'insertion_direction',
+        'corner_cut_width',
+        'min_petal_length',
+        'corner_cut_depth']
 TH_ref_params2 = ['delta_shell_gap', 'delta_shell_thickness', 'delta_shell_clearance_from_pcb']
 
 _user_cfg = None
@@ -45,8 +57,16 @@ def transfer_default_values(default_cfg, cfg, keylist=None, overwrite=False):
                 # recurse
                 transfer_default_values(default_cfg[key], cfg[key])
 
-inheritable_footprint_keys = [ 'shell_type', 'shell_gap', 'shell_thickness',
-    'insertion_direction', 'shell_clearance_from_pcb', 'force_smd' ]
+inheritable_footprint_keys = [
+    'shell_type',
+    'shell_gap',
+    'shell_thickness',
+    'insertion_direction',
+    'shell_clearance_from_pcb',
+    'corner_cut_width',
+    'min_petal_length',
+    'corner_cut_depth',
+    'force_smd' ]
 valid_footprint_keys = ['kicad_footprint', 'display_name'] + inheritable_footprint_keys
 
 _alias_idx = 1
@@ -336,8 +356,6 @@ use_manifold = false
 
 [3dprinter]
 min_printable_hole_area = 1.5
-corner_cut_width = 0.4
-min_petal_length = 0.4
 '''
 
 _inbuilt_config = '''
@@ -491,6 +509,30 @@ shell_gap = 0.1
 # Think of this as a vertical "keep-out" distance between the PCB and the
 # shells
 shell_clearance_from_pcb = 1
+
+# For dimensional accuracy, inner corners in the 3d model can be
+# notched or cut out entirely.
+#
+# corner_cut_width is the width of the cut line. For an FDM printer, this
+# should be at-least half the nozzle width, but as much as one nozzle is
+# good too.
+corner_cut_width = 0.4
+
+# the length along consecutive corners is called a "petal". Very small
+# petals add no effective support, and can be trimmed. (e.g. edges of a
+# berg stick shroud). Petal of this size and lower are entirely treated
+# as corners.
+min_petal_length = 0.4
+
+# corners can be "notched" a specific distance or cut right through
+#
+# allowed values are
+# - any positive decimal value will cut in by that amount
+# - 0 will cut all the way till the end of the shell
+#
+# At-least half the nozzle size may be required. I didn't see a useful
+# impact with a value lower than this. Maybe a slicer dependency ?
+corner_cut_depth = 0.2
 
 # Force footprints to SMD
 force_smd = false
