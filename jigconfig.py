@@ -467,6 +467,7 @@ refs_process_only_these = [
   # this takes precedence over "do_not_process"
   # this is exclusive with do_not_process
 ]
+mounting_hole_shell_thickness = 1.2
 
 [TH.component_shell]
 # Around each through hole component (ref), the jig generator creates a "shell"

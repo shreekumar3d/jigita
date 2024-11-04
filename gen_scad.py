@@ -520,6 +520,7 @@ def generate_scad(
         all_shells,
         fp_map,
         ref_map,
+        mh_map,
         smd_keepouts,
         topmost_z, pcb_edge_points,
         dt_centers,
@@ -792,6 +793,34 @@ def generate_scad(
     fp_scad.write('  }\n')
     fp_scad.write('}\n')
 
+    fp_scad.write('module mounting_hole_bolt_shells() {\n')
+    fp_scad.write('  translate([0,0,PCB_Thickness]) {\n')
+    fp_scad.write('    linear_extrude(topmost_z+Base_Thickness) {\n')
+    for mh_name in mh_map:
+        mh_pos = mh_map[mh_name]['pos']
+        mh_radius = mh_map[mh_name]['radius']
+        fp_scad.write('      translate([%s,%s,0]) {\n'%(mh_pos[0],mh_pos[1]))
+        fp_scad.write('        difference() {\n')
+        fp_scad.write('          circle(r=%s);\n'%(mh_radius+cfg['TH']['mounting_hole_shell_thickness']))
+        fp_scad.write('          circle(r=%s);\n'%(mh_radius))
+        fp_scad.write('        }\n')
+        fp_scad.write('      }\n')
+    fp_scad.write('    }\n')
+    fp_scad.write('  }\n')
+    fp_scad.write('}\n')
+
+    fp_scad.write('module mounting_hole_keepout_volume() {\n')
+    fp_scad.write('  translate([0,0,PCB_Thickness]) {\n')
+    fp_scad.write('    linear_extrude(topmost_z+Base_Thickness) {\n')
+    for mh_name in mh_map:
+        mh_pos = mh_map[mh_name]['pos']
+        mh_radius = mh_map[mh_name]['radius']
+        fp_scad.write('      translate([%s,%s,0]) {\n'%(mh_pos[0],mh_pos[1]))
+        fp_scad.write('        circle(r=%s);\n'%(mh_radius))
+        fp_scad.write('      }\n')
+    fp_scad.write('    }\n')
+    fp_scad.write('  }\n')
+    fp_scad.write('}\n')
     fp_scad.write('''
 
 module preview_helpers() {
@@ -844,8 +873,10 @@ module complete_model_TH_soldering() {
           base_solid();
         }
         mounted_component_shells();
+        mounting_hole_bolt_shells();
       }
       mounted_component_pockets(); // FIXME: fix terminology - "included"
+      mounting_hole_keepout_volume();
       mounted_component_cuts();
       mounted_smd_keepouts();
     }
@@ -868,8 +899,10 @@ module complete_model_component_fitting() {
           base_solid();
         }
         mounted_component_shells();
+        mounting_hole_bolt_shells();
       }
       mounted_component_pockets(); // FIXME: fix terminology - "included"
+      mounting_hole_keepout_volume();
       mounted_component_cuts();
       mounted_smd_keepouts();
     }

@@ -69,7 +69,7 @@ def get_courtyard_polygon(shape):
     return verts
 
 def get_ref_info(board):
-    mounting_holes = []
+    mounting_holes = {}
     fp_list = board.Footprints()
     ref_map = {}
     fp_map = {}
@@ -112,11 +112,27 @@ def get_ref_info(board):
 
         is_mounting_hole = False
         if fp.HasThroughHolePads():
+            could_be_mh = False
             for fn in fp.Fields():
                 if fn.GetText().startswith('MountingHole'):
-                    mounting_holes.append(
-                        [fp_x, fp_y]
-                    )
+                    could_be_mh = True
+                    break
+            if could_be_mh:
+                # mounting hole could have multiple pads - corresponding to copper, drill, etc
+                for pad in fp.Pads():
+                    ds = pad.GetDrillSize()
+                    if ds[0]==0 or ds[1]==0: # It could be a pad, not a drill
+                        continue
+                    if pad.GetShape()!=0:
+                        print('WARNING: No support for non-circular mounting holes', file=sys.stderr)
+                        continue
+                    mounting_holes[ref] = {
+                        'pos': [fp_x, fp_y],
+                        'radius' :  units_to_mm(pad.GetBoundingRadius())
+                    }
+                    #print('Mounting hole:', ref,
+                    #      ' loc = %d,%d'%(fp_x, fp_y),
+                    #      ' size=', mounting_holes[ref]['radius'])
                     is_mounting_hole = True
                     break
         ref_map[ref] = ref_info
@@ -233,7 +249,7 @@ if not args.output_format:
 
 board = pcbnew.LoadBoard(args.pcb)
 #smd_info, th_info, mounting_holes = get_ref_info(board)
-ref_map, fp_map, mounting_holes = get_ref_info(board)
+ref_map, fp_map, mh_map = get_ref_info(board)
 
 if args.genconfig:
     jigconfig.generate_config(args.genconfig, ref_map, fp_map)
@@ -247,6 +263,10 @@ except ValueError as err:
     print(f"ERROR: {err}", file=sys.stderr)
     sys.exit(-1)
 #pprint(cfg)
+
+mounting_holes = []
+for name in mh_map.keys():
+    mounting_holes.append(mh_map[name]['pos'])
 
 if args.dump_config:
     with open(args.dump_config, 'w') as fp:
@@ -285,8 +305,6 @@ if jig_type_component_fitting:
     if shell_clearance>0:
         print('INFO: Generating component shells, note shell_clearance=%s will cut into shell.'
             %(shell_clearance))
-
-mounting_holes += forced_pcb_supports
 
 # Setup environment for file name expansion
 # First take from user config
@@ -514,7 +532,7 @@ gen_scad.generate_scad(
     args.keep_orientation,
     all_shells,
     fp_map,
-    ref_map, smd_keepouts, topmost_z,
+    ref_map, mh_map, smd_keepouts, topmost_z,
     pcb_edge_points,
     dt_centers,
     mesh_line_segments, groove_lines,
