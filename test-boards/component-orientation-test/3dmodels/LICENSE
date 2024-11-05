@@ -1,0 +1,10 @@
+Step files in this directory are rotated copies of SSD1306
+models in KiCAD.
+
+Thus they are licensed under the same terms as kicad 3d models:
+
+CC-BY-SA-4.0, with the relevant exception as mentioned in the KiCAD
+Libraries LICENSE file.
+
+For further details, refer the LICENSE file in
+https://gitlab.com/kicad/libraries/kicad-packages3D
