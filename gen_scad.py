@@ -344,6 +344,7 @@ Groove="At PCB Corners: %s mm"; //["At PCB Corners: %s mm", "All Around PCB Edge
 
 Mounting_Hole_Jig=%s; //[false, true]
 MH_Spacer_End=%s;
+MH_Spacer_Start=%s;
 
 /* [Base] */
 
@@ -376,6 +377,7 @@ cfg['holder']['base']['perimeter_height'],
 cfg['holder']['groove_size'], cfg['holder']['groove_size'],
 "true" if cfg['jig']['mounting_hole_jig'] else "false",
 cfg['jig']['mounting_hole_spacer_end'],
+cfg['jig']['mounting_hole_spacer_start'],
 cfg['holder']['base']['type'],
 cfg['holder']['base']['thickness'],
 cfg['holder']['base']['line_width'],
@@ -469,6 +471,7 @@ def gen_configurable_fp_components(
     fp_scad.write('/* [Hidden] */\n')
     fp_scad.write('$fs = 0.05;\n');
     fp_scad.write('first_layer_height = %s;\n'%(cfg['3dprinter']['first_layer_height']));
+    fp_scad.write('layer_height = %s;\n'%(cfg['3dprinter']['layer_height']));
 
     # Effective values for each ref
     for this_ref, area in ui_refs:
@@ -496,7 +499,8 @@ def gen_computed_values(
     base_z =  PCB_Thickness+topmost_z+Base_Thickness+2*tiny_dimension;
 
     c_Base_Thickness = Mounting_Hole_Jig ? first_layer_height: Base_Thickness;
-    c_Base_Line_Height = Mounting_Hole_Jig ? topmost_z-MH_Spacer_End+first_layer_height+c_Base_Thickness: Base_Line_Height;
+    c_MH_Jig_Second_Level_Height = first_layer_height+2*layer_height;
+    c_Base_Line_Height = Mounting_Hole_Jig ? topmost_z-MH_Spacer_End+c_MH_Jig_Second_Level_Height+c_Base_Thickness: Base_Line_Height;
     mesh_start_z = PCB_Thickness+topmost_z+c_Base_Thickness-c_Base_Line_Height;
     '''%(topmost_z))
 
@@ -806,7 +810,8 @@ def generate_scad(
     fp_scad.write('    linear_extrude(topmost_z+c_Base_Thickness) {\n')
     for mh_name in mh_map:
         mh_pos = [mh_map[mh_name]['x'],mh_map[mh_name]['y']]
-        mh_radius = mh_map[mh_name]['mounting_hole_radius']
+        mh_radius = mh_map[mh_name]['mounting_hole_radius'] \
+                    + cfg['TH']['mounting_hole_shell_gap']
         fp_scad.write('      translate([%s,%s,0]) {\n'%(mh_pos[0],mh_pos[1]))
         fp_scad.write('        difference() {\n')
         fp_scad.write('          circle(r=%s);\n'%(mh_radius+cfg['TH']['mounting_hole_shell_thickness']))
@@ -822,7 +827,8 @@ def generate_scad(
     fp_scad.write('    linear_extrude(topmost_z+c_Base_Thickness) {\n')
     for mh_name in mh_map:
         mh_pos = [mh_map[mh_name]['x'],mh_map[mh_name]['y']]
-        mh_radius = mh_map[mh_name]['mounting_hole_radius']
+        mh_radius = mh_map[mh_name]['mounting_hole_radius'] \
+                    + cfg['TH']['mounting_hole_shell_gap']
         fp_scad.write('      translate([%s,%s,0]) {\n'%(mh_pos[0],mh_pos[1]))
         fp_scad.write('        circle(r=%s);\n'%(mh_radius))
         fp_scad.write('      }\n')
@@ -832,8 +838,8 @@ def generate_scad(
 
 
     fp_scad.write('module mounting_hole_jig_keepout() {\n')
-    fp_scad.write('  translate([0,0,PCB_Thickness+MH_Spacer_End+tiny_dimension]) {\n')
-    fp_scad.write('    linear_extrude(topmost_z+c_Base_Thickness-MH_Spacer_End-first_layer_height-tiny_dimension) {\n')
+    fp_scad.write('  translate([0,0,PCB_Thickness+MH_Spacer_End-tiny_dimension]) {\n')
+    fp_scad.write('    linear_extrude(MH_Spacer_Start-MH_Spacer_End+2*tiny_dimension) {\n')
     fp_scad.write('      offset(1000)\n') # Lazy me!
     fp_scad.write('        pcb_edge();\n')
     fp_scad.write('    }\n')
@@ -842,11 +848,12 @@ def generate_scad(
 
     fp_scad.write('module mounting_hole_jig_spacers() {\n')
     fp_scad.write('  translate([pcb_max_x+10,-(pcb_min_y+((pcb_max_y-pcb_min_y)*0.5)),PCB_Thickness+MH_Spacer_End+tiny_dimension]) {\n')
-    fp_scad.write('    linear_extrude(topmost_z-MH_Spacer_End) {\n')
+    fp_scad.write('    linear_extrude(MH_Spacer_Start-MH_Spacer_End) {\n')
     spacer_offset = 0
     for mh_name in mh_map:
         mh_pos = [mh_map[mh_name]['x'],mh_map[mh_name]['y']]
-        mh_radius = mh_map[mh_name]['mounting_hole_radius']
+        mh_radius = mh_map[mh_name]['mounting_hole_radius'] \
+                    + cfg['TH']['mounting_hole_shell_gap']
         mh_outer_radius = mh_radius+cfg['TH']['mounting_hole_shell_thickness']
         fp_scad.write('      translate([%s,0,0]) {\n'%(spacer_offset))
         fp_scad.write('        difference() {\n')
@@ -947,6 +954,7 @@ module complete_model_component_fitting() {
     }
   }
   preview_helpers();
+  mounting_hole_jig_spacers();
 }
 ''')
 

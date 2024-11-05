@@ -524,26 +524,46 @@ groove_lines = edge_cuts.compute_grooves(arc_resolution, pcb_filled_shapes[0], g
 
 if cfg['jig']['mounting_hole_spacer_end']==0:
     #
-    # Find the second highest z
-    #
+    # Find the second highest Z, without looking at values that are
+    # too close to the topmost z. Spacer will run from this Z
+    # to almost the bottom of the second tallest component on the
+    # board, or the second support ring of any component that comes
+    # lower.
     z_second_highest = -1
+    spacer_start = 0
     h2_z_name = ''
+    z_list = []
     #  little margin of error, to compensate for mis-aligned bergs ?
     thresh = topmost_z - 0.2
     for subshells in all_shells:
         this_ref = subshells['ref']
         for shell_info in subshells['shell']:
-            tmz = shell_info['max_z']
-            if tmz < thresh and tmz>z_second_highest:
-                z_second_highest = tmz
-                h2_z_name = this_ref
-            elif tmz >= thresh and tmz < topmost_z:
-                print("WARNING: you have component %s at z=%s that is being ignored as it is too close to top height %s"%(
-                    this_ref, tmz, topmost_z))
+            for this_bin in shell_info['fitting_bins']:
+                for tmz in [ this_bin['end_z'],
+                             this_bin['start_z'] ]:
+                    if tmz < thresh and tmz>z_second_highest:
+                        z_second_highest = tmz
+                        h2_z_name = this_ref
+                    elif tmz >= thresh and tmz < topmost_z:
+                        spacer_start = max(spacer_start, tmz)
+                        print("WARNING: you have component %s at z=%s that is being ignored as it is too close to top height %s"%(
+                            this_ref, tmz, topmost_z))
+                    z_list.append(tmz)
+    # unique
+    z_list = list(set(z_list))
+    z_list.sort()
+    print('Unique Zs are = ', z_list)
+
     mh_spacer_end = z_second_highest + cfg['3dprinter']['first_layer_height']
-    print('Mounting hole spacer ends at Z=%s, component is %s'%(mh_spacer_end, h2_z_name))
-    print('Mounting hole spacer height = %s'%(topmost_z-mh_spacer_end))
     cfg['jig']['mounting_hole_spacer_end'] = mh_spacer_end
+
+    # one extra layer to have at-least one line show up
+    spacer_start -= cfg['3dprinter']['layer_height']
+    if cfg['jig']['mounting_hole_spacer_start'] == 0:
+        cfg['jig']['mounting_hole_spacer_start'] = spacer_start
+
+    print('Mounting hole spacer ends at Z=%s, component is %s'%(mh_spacer_end, h2_z_name))
+    print('Mounting hole spacer start = %s, height= %s'%(spacer_start,spacer_start-mh_spacer_end))
 
 gen_scad.generate_scad(
     fp_scad,

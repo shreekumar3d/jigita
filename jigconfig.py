@@ -363,7 +363,15 @@ binary = 'openscad'
 use_manifold = false
 
 [3dprinter]
+# This is the smallest area your 3d printer
+# can reliably print in square mm
 min_printable_hole_area = 1.5
+
+# Typical layer height of the printer
+layer_height = 0.2
+
+# First layer height is generally different
+# (more than others and typically 0.2)
 first_layer_height = 0.2
 '''
 
@@ -474,7 +482,16 @@ refs_process_only_these = [
   # this takes precedence over "do_not_process"
   # this is exclusive with do_not_process
 ]
+
+# Mounting hole shells have a thickness and a gap
+# Circles typically print smaller, so mind the gap. In general,
+# mounting holes are made slightly larger than the bolt. E.g. It
+# is common to have a 3.2 mm hole for an M3 screw/bolt. This
+# configurable value is provided so that you can smoothly slide
+# it in. You could consider increasing it if you want to have
+# more lateral movement.
 mounting_hole_shell_thickness = 1.2
+mounting_hole_shell_gap = 0.0
 
 [TH.component_shell]
 # Around each through hole component (ref), the jig generator creates a "shell"
@@ -622,8 +639,20 @@ gap_from_shells = 0.5
 #
 type = "TH_soldering"
 
-mounting_hole_spacer_end = 0.0
+# A mounting hole jig can cut the total amount of material
+# required by a significant amount (30-50%). Also, it significant saves
+# on space required to store/ship the jig.
+#
+# This produces a two part jig with spacers. You put the two parts together
+# with the spacers and bolts (e.g.) that go through the mounting holes of your
+# PCB.
 mounting_hole_jig = false
+
+# Spacers start and end at specific Z heights. Whatever you leave
+# zero shall be automatically computed by the tool.
+# Z heights are measured from board top.
+mounting_hole_spacer_end = 0.0
+mounting_hole_spacer_start = 0.0
 
 # NOTE:
 #
