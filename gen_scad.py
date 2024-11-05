@@ -826,8 +826,8 @@ def generate_scad(
         else:
             mh_level = '0'
             mh_height = 'topmost_z+c_Base_Thickness+PCB_Thickness'
-        print(pcb_min_x, pcb_min_y, pcb_max_x, pcb_max_y)
-        print(mh_pos[0], mh_pos[1], mh_level)
+        #print(pcb_min_x, pcb_min_y, pcb_max_x, pcb_max_y)
+        #print(mh_pos[0], mh_pos[1], mh_level)
         fp_scad.write('    translate([%s,%s,%s]) {\n'%(mh_pos[0],mh_pos[1], mh_level))
         fp_scad.write('      linear_extrude(%s) {\n'%(mh_height))
         fp_scad.write('        difference() {\n')
