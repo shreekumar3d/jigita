@@ -476,10 +476,10 @@ for pt in pcb_edge_points:
     pcb_max_y = max(pcb_max_y, pt[1])
 
 pcb_bb_corners = [
-    [pcb_min_x , pcb_min_y],
-    [pcb_min_x , pcb_max_y],
-    [pcb_max_x , pcb_min_y],
-    [pcb_max_x , pcb_max_y]
+    [pcb_min_x , -pcb_min_y],
+    [pcb_min_x , -pcb_max_y],
+    [pcb_max_x , -pcb_min_y],
+    [pcb_max_x , -pcb_max_y]
 ]
 
 # Delaunay triangulation will be done on the following points
@@ -489,7 +489,16 @@ pcb_bb_corners = [
 #    inside the PCB and don't extend all the way to the edge.
 #    If we don't include them, we may end up having a separate
 #    "delaunay island", depending on the exact PCB.
-dt_centers = fp_centers + mounting_holes + pcb_bb_corners
+dt_centers = fp_centers + pcb_bb_corners
+
+# ignore mounting holes outside PCB for mesh calculation
+for pt in mounting_holes:
+    if (pt[0] > pcb_min_x) and (pt[0] < pcb_max_x) or \
+       (pt[1] > pcb_min_y) and (pt[1] < pcb_max_y):
+        dt_centers.append(pt)
+    else:
+        #print(pt, ' is out of PCB')
+        pass
 
 mesh_line_segments = []
 if len(dt_centers)>=4:
