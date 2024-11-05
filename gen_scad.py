@@ -495,7 +495,7 @@ def gen_computed_values(
     topmost_z=%s;
 
     groove_width = max(PCB_Gap+PCB_Holder_Perimeter, PCB_Overlap)*2.2;
-    tiny_dimension = 0.001;
+    tiny_dimension = 0.0001;
     base_z =  PCB_Thickness+topmost_z+Base_Thickness+2*tiny_dimension;
 
     c_Base_Thickness = Mounting_Hole_Jig ? first_layer_height: Base_Thickness;
@@ -866,15 +866,19 @@ def generate_scad(
     fp_scad.write('}\n')
 
     fp_scad.write('module mounting_hole_jig_spacers() {\n')
-    fp_scad.write('  translate([pcb_max_x+10,-(pcb_min_y+((pcb_max_y-pcb_min_y)*0.5)),PCB_Thickness+MH_Spacer_End+tiny_dimension]) {\n')
-    fp_scad.write('    linear_extrude(MH_Spacer_Start-MH_Spacer_End) {\n')
+    # if you use space_offset below (makes spacers outside the frame), use below line
+    #fp_scad.write('  translate([pcb_max_x+10,-(pcb_min_y+((pcb_max_y-pcb_min_y)*0.5)),PCB_Thickness+MH_Spacer_End+2*tiny_dimension]) {\n')
+    # Make spacers where they are supposed to go, but create a tiny gap so that
+    # the objects clearly separate with Slicer option "split to objects"
+    fp_scad.write('  translate([0,0,PCB_Thickness+MH_Spacer_End+2*tiny_dimension]) {\n')
+    fp_scad.write('    linear_extrude(MH_Spacer_Start-MH_Spacer_End-2*tiny_dimension) {\n')
     spacer_offset = 0
     for mh_name in mh_map:
         mh_pos = [mh_map[mh_name]['x'],mh_map[mh_name]['y']]
         mh_radius = mh_map[mh_name]['mounting_hole_radius'] \
                     + cfg['TH']['mounting_hole_shell_gap']
         mh_outer_radius = mh_radius+cfg['TH']['mounting_hole_shell_thickness']
-        fp_scad.write('      translate([%s,0,0]) {\n'%(spacer_offset))
+        fp_scad.write('      translate([%s,%s,0]) {\n'%(mh_pos[0],mh_pos[1]))
         fp_scad.write('        difference() {\n')
         fp_scad.write('          circle(r=%s);\n'%(mh_outer_radius))
         fp_scad.write('          circle(r=%s);\n'%(mh_radius))
