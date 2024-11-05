@@ -549,8 +549,9 @@ def generate_scad(
 // In OpenSCAD, use "Description Only" for best user experience
 // understanding the tunable parameters.
 // -----------------------------------------------------
-// Auto generated file by jigify, the awesome automatic
-// jig generator for your PCB designs.
+// Auto generated file by jigit, the awesome automatic
+// jig generator for your PCB designs. Checkout the project
+// at https://github.com/shreekumar3d/jigit
 // -----------------------------------------------------
 // Input board file   : %s
 // Configuration file : %s

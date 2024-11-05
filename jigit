@@ -254,7 +254,7 @@ if args.genconfig:
     jigconfig.generate_config(args.genconfig, ref_map, fp_map)
     sys.exit(0)
 
-jigconfig.load_user_config('jigify')
+jigconfig.load_user_config('jigit')
 
 try:
     cfg, config_text, used_th_fp, th_ref_list, smd_ref_list = jigconfig.load(args.config, ref_map, fp_map, mh_map)
