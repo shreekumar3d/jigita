@@ -670,6 +670,17 @@ mounting_hole_jig = false
 mounting_hole_spacer_end = 0.0
 mounting_hole_spacer_start = 0.0
 
+# An 'external' bolt is a normal metal bolt/screw that passes
+# of a size appropriate to the mounting hole.  If 'external' bolt
+# is not available, it can be baked into the design
+mounting_hole_bolt_is_external = true
+
+# Spacers can be fused into the design/or remain discrete
+# discrete spacers can be reused/repurposed later. Potentially, they
+# also take up less storage/shipping space, and lesser chances of
+# breakage in storage/shipping
+mounting_hole_spacer_is_fused = true
+
 # NOTE:
 #
 # Many of the parameters here map to OpenSCAD, and can be tuned there.

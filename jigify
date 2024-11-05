@@ -554,7 +554,9 @@ if cfg['jig']['mounting_hole_spacer_end']==0:
     z_list.sort()
     print('Unique Zs are = ', z_list)
 
-    mh_spacer_end = z_second_highest + cfg['3dprinter']['first_layer_height']
+    mh_spacer_end = z_second_highest + \
+                    cfg['3dprinter']['first_layer_height'] + \
+                    cfg['3dprinter']['layer_height']
     cfg['jig']['mounting_hole_spacer_end'] = mh_spacer_end
 
     # one extra layer to have at-least one line show up
@@ -565,6 +567,10 @@ if cfg['jig']['mounting_hole_spacer_end']==0:
     print('Mounting hole spacer ends at Z=%s, component is %s'%(mh_spacer_end, h2_z_name))
     print('Mounting hole spacer start = %s, height= %s'%(spacer_start,spacer_start-mh_spacer_end))
 
+if not cfg['jig']['mounting_hole_bolt_is_external'] and \
+   not cfg['jig']['mounting_hole_spacer_is_fused']:
+    print("ERROR: can't have separate spacer with internal bolt")
+    sys.exit(1)
 gen_scad.generate_scad(
     fp_scad,
     config_text,
