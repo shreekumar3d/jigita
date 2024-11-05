@@ -126,10 +126,10 @@ def get_ref_info(board):
                     if pad.GetShape()!=0:
                         print('WARNING: No support for non-circular mounting holes', file=sys.stderr)
                         continue
-                    ref_info['mounting_hole_radius'] = units_to_mm(pad.GetBoundingRadius())
+                    ref_info['mounting_hole_radius'] = units_to_mm(ds[0])*0.5
                     #print('Mounting hole:', ref,
-                    #      ' loc = %d,%d'%(fp_x, fp_y),
-                    #      ' size=', mounting_holes[ref]['radius'])
+                    #      ' at (%s,%s)'%(fp_x, -fp_y), # show in KiCAD coords
+                    #      ' size=', ref_info['mounting_hole_radius'])
                     is_mounting_hole = True
                     break
         ref_info['is_mounting_hole'] = is_mounting_hole

@@ -287,6 +287,18 @@ def load(configFile, ref_map, fp_map, mh_map):
                     cfg['SMD'][ref][key] = value
         else:
             cfg['SMD'][ref] = deepcopy(default_cfg['SMD'])
+
+    # Add extra mounting holes
+    for idx, hole_info in enumerate(cfg['TH']['extra_mounting_holes']):
+        hx = hole_info[0]
+        hy = hole_info[1]
+        hr = hole_info[2]/2
+        mh_name = 'EMH%s'%(idx+1) # they hates it - zero indexed numbers :D
+        mh_map[mh_name] = {
+                'x' : hx,
+                'y' : -hy, # KiCAD coordinate system
+                'mounting_hole_radius' : hr
+        }
     return cfg, config_text, proc_th_footprints, th_ref_list, smd_ref_list
 
 def generate_config(configFile, ref_map, fp_map):
@@ -491,8 +503,12 @@ refs_process_only_these = [
 # it in. You could consider increasing it if you want to have
 # more lateral movement.
 mounting_hole_shell_thickness = 1.2
-mounting_hole_shell_gap = 0.0
+mounting_hole_shell_gap = 0.1
 
+extra_mounting_holes = [
+    # List of extra mounting holes
+    # [ x, y, diameter ]
+]
 [TH.component_shell]
 # Around each through hole component (ref), the jig generator creates a "shell"
 # that serves as a component holder at its exact location on the board.

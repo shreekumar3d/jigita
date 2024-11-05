@@ -836,6 +836,25 @@ def generate_scad(
     fp_scad.write('  }\n')
     fp_scad.write('}\n')
 
+    fp_scad.write('module base_connect_mounting_hole_lines() {\n')
+    # Here we connect mounting holes to the PCB edge with lines
+    # Find the closest point, draw a line
+    #print(pcb_edge_points)
+    pcb_edge_ls = LineString(pcb_edge_points)
+    fp_scad.write('  translate([0,0,mesh_start_z]) {\n')
+    fp_scad.write('    union() {\n')
+    for mh_name in mh_map:
+        mh_pos = [mh_map[mh_name]['x'],mh_map[mh_name]['y']]
+        #print(mh_pos)
+        nd = pcb_edge_ls.project(Point(mh_pos[0],mh_pos[1]))
+        nearest = pcb_edge_ls.interpolate(nd)
+        l_start = '[%s, %s]'%(mh_pos[0],mh_pos[1])
+        l_end = '[%s, %s]'%(nearest.x, nearest.y)
+        fp_scad.write('      wide_line(%s,%s);\n'%(l_start,l_end))
+    fp_scad.write('     }\n')
+    fp_scad.write('  }\n')
+    fp_scad.write('}\n')
+
 
     fp_scad.write('module mounting_hole_jig_keepout() {\n')
     fp_scad.write('  translate([0,0,PCB_Thickness+MH_Spacer_End-tiny_dimension]) {\n')
@@ -918,6 +937,7 @@ module complete_model_TH_soldering() {
         }
         mounted_component_shells();
         mounting_hole_bolt_shells();
+        base_connect_mounting_hole_lines();
       }
       mounted_component_pockets(); // FIXME: fix terminology - "included"
       mounting_hole_keepout_volume();
@@ -946,6 +966,7 @@ module complete_model_component_fitting() {
         }
         mounted_component_shells();
         mounting_hole_bolt_shells();
+        base_connect_mounting_hole_lines();
       }
       mounted_component_pockets(); // FIXME: fix terminology - "included"
       mounting_hole_keepout_volume();
