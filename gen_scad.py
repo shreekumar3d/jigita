@@ -31,7 +31,7 @@ sv_topmost_z = ScadValue('topmost_z')
 sv_pcb_holder_perimeter = ScadValue('PCB_Holder_Perimeter')
 sv_pcb_gap = ScadValue('PCB_Gap')
 sv_pcb_overlap = ScadValue('PCB_Overlap')
-sv_pcb_perimeter_height = ScadValue('Lower_Perimeter_Height')
+sv_pcb_perimeter_height = ScadValue('c_Lower_Perimeter_Height')
 sv_base_thickness = ScadValue('c_Base_Thickness')
 sv_base_line_width = ScadValue('Base_Line_Width')
 sv_base_line_height = ScadValue('c_Base_Line_Height')
@@ -506,6 +506,7 @@ def gen_computed_values(
     c_Base_Thickness = Mounting_Hole_Jig ? first_layer_height: Base_Thickness;
     c_MH_Jig_Second_Level_Height = first_layer_height+2*layer_height;
     c_Base_Line_Height = Mounting_Hole_Jig ? topmost_z-MH_Spacer_End+c_MH_Jig_Second_Level_Height+c_Base_Thickness: Base_Line_Height;
+    c_Lower_Perimeter_Height = Mounting_Hole_Jig ? c_Base_Line_Height:Lower_Perimeter_Height;
     mesh_start_z = PCB_Thickness+topmost_z+c_Base_Thickness-c_Base_Line_Height;
     '''%(topmost_z))
 
@@ -824,8 +825,8 @@ def generate_scad(
         else:
             mh_level = '0'
             mh_height = 'topmost_z+c_Base_Thickness+PCB_Thickness'
-        print(pcb_min_x, pcb_min_y, pcb_max_x, pcb_max_y)
-        print(mh_pos[0], mh_pos[1], mh_level)
+        #print(pcb_min_x, pcb_min_y, pcb_max_x, pcb_max_y)
+        #print(mh_pos[0], mh_pos[1], mh_level)
         fp_scad.write('    translate([%s,%s,%s]) {\n'%(mh_pos[0],mh_pos[1], mh_level))
         fp_scad.write('      linear_extrude(%s) {\n'%(mh_height))
         fp_scad.write('        difference() {\n')
@@ -973,14 +974,18 @@ module complete_model_TH_soldering() {
         base_connect_mounting_hole_lines();
       }
       mounted_component_pockets(); // FIXME: fix terminology - "included"
-      mounting_hole_keepout_volume();
       mounted_component_cuts();
       mounted_smd_keepouts();
-      mounting_hole_jig_keepout();
+      mounting_hole_keepout_volume();
+      if(Mounting_Hole_Jig) {
+        mounting_hole_jig_keepout();
+      }
     }
   }
   preview_helpers();
-  mounting_hole_jig_spacers();
+  if(Mounting_Hole_Jig) {
+    mounting_hole_jig_spacers();
+  }
 }
 module complete_model_component_fitting() {
   color("steelblue") {
