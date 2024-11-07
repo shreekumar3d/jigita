@@ -20,6 +20,7 @@ TH_component_shell_value_keys = [
         "shell_clearance_from_pcb",
         "corner_cut_width",
         "min_petal_length",
+        "petal_support_length",
         "corner_cut_depth"]
 SMD_default_value_keys = ['clearance_from_shells', 'gap_from_shells']
 
@@ -32,6 +33,7 @@ TH_ref_params = [
         'insertion_direction',
         'corner_cut_width',
         'min_petal_length',
+        "petal_support_length",
         'corner_cut_depth']
 TH_ref_params2 = ['delta_shell_gap', 'delta_shell_thickness', 'delta_shell_clearance_from_pcb']
 
@@ -71,6 +73,7 @@ inheritable_footprint_keys = [
     'shell_clearance_from_pcb',
     'corner_cut_width',
     'min_petal_length',
+     "petal_support_length",
     'corner_cut_depth',
     'force_smd' ]
 valid_footprint_keys = ['kicad_footprint', 'display_name'] + inheritable_footprint_keys
@@ -571,6 +574,10 @@ corner_cut_width = 0.4
 # berg stick shroud). Petal of this size and lower are entirely treated
 # as corners.
 min_petal_length = 0.4
+
+# We don't need very long supports. Longer than this on an edge
+# wil be open for cuts!
+petal_support_length = 3.0
 
 # Each shell can have a "wrapper"
 # basically - a surrounding shell beyond the external perimeter

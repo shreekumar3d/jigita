@@ -152,7 +152,7 @@ def find_exterior_pt(this_hull, corner_pt, t1, t2, encl_poly):
         # FIXME: sam-wise had to walk out of the shire out of necessity,
         # but this walking approach is stupidity. Don't chew the users CPU
         # Find the right way to compute a point out of the polygon
-        walk_step = 0.1
+        walk_step = 0.01
         dist = walk_step
         while True:
             peripheral_pt = pt_move(inner_pt, walk_vec, dist)
@@ -161,3 +161,37 @@ def find_exterior_pt(this_hull, corner_pt, t1, t2, encl_poly):
             dist += walk_step
 
     return inner_pt, outer_pt, walk_vec, dist
+
+def cut_line(line, distance):
+    """ Modified from the example in the shapely manual
+    See 'project' https://shapely.readthedocs.io/en/2.0.3/manual.html
+    Unlike interpolate, that can take a negative distance to
+    mean "from the end", we don't take negatives here!
+    Returns a point, two tangents - each pointing on the opposite
+    sides of the line. Line is a single segment or a LineString
+    """
+    coords = list(line.coords)
+    if (distance <= 0) or (distance>line.length):
+        raise ValueError("distance out of range")
+    line_on_pt = line.interpolate(distance)
+    vec_ls = None
+    for i, p in enumerate(coords):
+        pd = line.project(Point(p))
+        if pd >= distance:
+            # our hit point is in this segment
+            vec_ls = line2vec(coords[i-1],coords[i])
+            break
+
+    if vec_ls is None:
+        raise ValueError("This can't happen")
+
+    l = veclen(vec_ls)
+    if l==0:
+        raise ValueError("Vector length is zero")
+    nvec = [v/l for v in vec_ls]
+    # Tangent reverses x and y
+    tv1 = [nvec[1],nvec[0]]
+    # and revese negates both
+    tv2 = [-tv1[0], -tv1[1]]
+
+    return line_on_pt, tv1, tv2

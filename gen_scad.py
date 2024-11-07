@@ -88,13 +88,14 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
     cut_width = cfg['TH'][ref]['corner_cut_width']
     cut_depth = cfg['TH'][ref]['corner_cut_depth']
     min_petal_length = cfg['TH'][ref]['min_petal_length']
+    support_len = cfg['TH'][ref]['petal_support_length']
 
     cut_volume = union()
     if cut_width>=0:
-        for this_bin in h_bins:
+        for bin_idx, this_bin in enumerate(reversed(h_bins)):
             this_hull = Polygon(this_bin['hull'])
             cut_shape = union()
-            f_cut_shape = union()
+            cut_to_top_shape = union()
             for segment, tangents_start, tangents_end in this_bin['corner_segments']:
                 corner_pt = segment[0]
                 t1 = tangents_start[0]
@@ -136,11 +137,43 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
                               )
                 else:
                     cut_shape += cut_start
+                    # if it's long, let's try cutting a bit
+                    # FIXME what if this is the only single long curve (e.g. circle) ?
+                    # we might be cutting important support points out
+                    if this_seg.length > (support_len*2)+2*cut_width:
+                        #print('Long seg ', this_seg.length)
+                        cs_pt, cs_t1, cs_t2 = geom_ops.cut_line(this_seg, support_len)
+                        ce_pt, ce_t1, ce_t2 = geom_ops.cut_line(this_seg, this_seg.length-support_len)
+                        cs_in_pt, cs_out_pt, cs_walk_vec, cs_dist = geom_ops.find_exterior_pt(
+                            this_hull, [cs_pt.x, cs_pt.y], cs_t1, cs_t2, encl_poly)
+                        ce_in_pt, ce_out_pt, ce_walk_vec, ce_dist = geom_ops.find_exterior_pt(
+                            this_hull, [ce_pt.x, ce_pt.y], ce_t1, ce_t2, encl_poly)
+                        trim_start = peri_line(cs_in_pt,
+                                [cs_in_pt[0]+(cs_dist+sv_ref_shell_thickness+sv_ref_shell_gap)*cs_walk_vec[0],
+                                cs_in_pt[1]+(cs_dist+sv_ref_shell_thickness+sv_ref_shell_gap)*cs_walk_vec[1]],
+                                cut_width)
+                        trim_end = peri_line(ce_in_pt,
+                                [ce_in_pt[0]+(ce_dist+sv_ref_shell_thickness+sv_ref_shell_gap)*ce_walk_vec[0],
+                                ce_in_pt[1]+(ce_dist+sv_ref_shell_thickness+sv_ref_shell_gap)*ce_walk_vec[1]],
+                                cut_width)
+                        # these cut all the way to the top. The cuts aren't exactly aligned across layers, so
+                        # _not_ cutting all the way through can cause hanging bridges.
+                        # FIXME : this will possible not work for all cases. We need some corner sensitivity
+                        # across layers
+                        cut_to_top_shape += solid2.hull() (trim_start + trim_end)
+
 
             cut_volume += translate([0,0,-sv_tiny_dimension+this_bin['start_z']]) (
                                 translate([x,y,sv_pcb_thickness]) (
                                     linear_extrude(this_bin['end_z']-this_bin['start_z']+2*sv_tiny_dimension) (
                                         cut_shape
+                                    )
+                                )
+                            )
+            cut_volume += translate([0,0,-sv_tiny_dimension]) (
+                                translate([x,y,sv_pcb_thickness]) (
+                                    linear_extrude(this_bin['end_z']+2*sv_tiny_dimension) (
+                                        cut_to_top_shape
                                     )
                                 )
                             )
