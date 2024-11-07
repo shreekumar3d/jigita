@@ -245,6 +245,8 @@ def gen_courtyard_shell_shape(ref, courtyard_poly):
     sv_ref_shell_gap = ScadValue('Effective_Shell_Gap_For_%s'%(ref))
     sv_ref_shell_thickness = ScadValue('Effective_Shell_Thickness_For_%s'%(ref))
     sv_ref_shell_clearance = ScadValue('Effective_Shell_Clearance_From_PCB_For_%s'%(ref))
+    sv_ref_wrapper_thickness = ScadValue('Wrapper_Thickness_For_%s'%(ref))
+    sv_ref_wrapper_height = ScadValue('Wrapper_Height_For_%s'%(ref))
 
     # a courtyard is a shape with a lot of wiggle room. So we don't do the corner
     # avoidance that is done in the wiggle/fitting shells
@@ -271,6 +273,21 @@ def gen_courtyard_shell_shape(ref, courtyard_poly):
                             )
                         )
                       )
+    # wrapper
+    wrapper = translate([0,0,sv_pcb_thickness+sv_topmost_z+sv_base_thickness-sv_ref_wrapper_height]) (
+                    linear_extrude(sv_ref_wrapper_height) (
+                        difference() (
+                            offset(sv_ref_shell_gap+sv_ref_shell_thickness+sv_ref_wrapper_thickness) (
+                                courtyard_map[ref]()
+                            ),
+                            offset(sv_ref_shell_gap+sv_ref_shell_thickness) (
+                                courtyard_map[ref]()
+                            )
+                        )
+                    )
+                  )
+    courtyard_perimeter_solid += wrapper
+
     courtyard_perimeter_map[ref] = module(courtyard_perimeter_name, courtyard_perimeter_solid,
                            comment=f"Courtyard Perimeter for {ref}")
 
