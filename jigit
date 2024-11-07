@@ -391,7 +391,8 @@ if args.pcb and args.pcb_footprints:
             for comp_ref in ref_list[1:]:
                 ref_map.pop(comp_ref)
     th_ref_list = final_ref_list
-    print(th_ref_list)
+    print(f"Selected {len(th_ref_list)} unique footprint(s) on the board:",
+          ",".join(th_ref_list))
 
 mounting_holes = []
 for name in mh_map.keys():
