@@ -90,7 +90,7 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
     min_petal_length = cfg['TH'][ref]['min_petal_length']
 
     cut_volume = union()
-    if cut_width>0:
+    if cut_width>=0:
         for this_bin in h_bins:
             this_hull = Polygon(this_bin['hull'])
             cut_shape = union()
