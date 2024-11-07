@@ -46,8 +46,7 @@ from pprint import pprint
 # edges in kicad coordinate system.
 #
 
-def load(board, pcb_segments, pcb_filled_shapes):
-    shapes = [x for x in board.GetDrawings() if x.GetLayer()==pcbnew.Edge_Cuts]
+def expand_drawings(shapes, dwg_segments, dwg_filled_shapes):
     for d in shapes:
         if d.GetShapeStr() == 'Circle':
             ts = {
@@ -55,7 +54,7 @@ def load(board, pcb_segments, pcb_filled_shapes):
                 'center' : kcpt2pt(d.GetCenter()),
                 'radius' : units_to_mm(d.GetRadius()),
             }
-            pcb_filled_shapes.append(ts)
+            dwg_filled_shapes.append(ts)
         elif d.GetShapeStr() == 'Rect':
             rect_points = []
             for corner in d.GetRectCorners():
@@ -65,7 +64,7 @@ def load(board, pcb_segments, pcb_filled_shapes):
                 'type' : d.GetShapeStr(),
                 'vertices' :  rect_points,
             }
-            pcb_filled_shapes.append(ts)
+            dwg_filled_shapes.append(ts)
         elif d.GetShapeStr() == 'Polygon':
             # FIXME: Find the proper KiCAD way to get the points
             # I didn't find anything, and deduced this rather
@@ -83,7 +82,7 @@ def load(board, pcb_segments, pcb_filled_shapes):
                 'type' : d.GetShapeStr(),
                 'vertices' :  rect_points
             }
-            pcb_filled_shapes.append(ts)
+            dwg_filled_shapes.append(ts)
         elif d.GetShapeStr() == 'Arc':
             ts = {
                 'type' : d.GetShapeStr(),
@@ -95,14 +94,18 @@ def load(board, pcb_segments, pcb_filled_shapes):
                 'angle' : d.GetArcAngle().AsDegrees(),
                 'angle_start' : d.GetArcAngleStart().AsDegrees(),
             }
-            pcb_segments.append(ts)
+            dwg_segments.append(ts)
         elif d.GetShapeStr() == 'Line':
             ts = {
                 'type' : d.GetShapeStr(),
                 'start' : kcpt2pt(d.GetStart()),
                 'end' : kcpt2pt(d.GetEnd())
             }
-            pcb_segments.append(ts)
+            dwg_segments.append(ts)
+
+def load(board, pcb_segments, pcb_filled_shapes):
+    shapes = [x for x in board.GetDrawings() if x.GetLayer()==pcbnew.Edge_Cuts]
+    expand_drawings(shapes, pcb_segments, pcb_filled_shapes)
 
 def tess_iters(arc_resolution, r, degrees):
     return int(abs(((2*math.pi*r)/arc_resolution)/(360/degrees)))
@@ -415,3 +418,18 @@ def compute_grooves(arc_resolution, filled_shape, groove_size):
                         [pt_x1, pt_y1], [pt_x2, pt_y2])
         #raise RuntimeError('Composite Unsupported')
     return groove_lines
+
+def compute_largest_filled_shape(dwg_list, arc_resolution):
+    dwg_segments = []
+    dwg_filled_shapes = []
+    seg_shapes = []
+
+    expand_drawings(dwg_list, dwg_segments, dwg_filled_shapes)
+    if not coalesce_segments(dwg_segments, seg_shapes):
+        return []
+    tesellate(arc_resolution, seg_shapes, dwg_filled_shapes)
+    compute_areas(dwg_filled_shapes)
+    if len(dwg_filled_shapes)==0:
+        return []
+    dwg_filled_shapes.sort(key=lambda x:x['area'], reverse=True)
+    return dwg_filled_shapes[0]['vertices']

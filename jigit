@@ -70,7 +70,7 @@ def get_courtyard_polygon(shape):
             verts.append([pcbnew.ToMM(pt.x),-pcbnew.ToMM(pt.y)])
     return verts
 
-def load_footprints(fp_spec_list):
+def load_footprints(fp_spec_list, arc_resolution):
     fp_map = {}
     ref_map = {}
     # FIXME: This idx business can cause obscure bugs with numbering from
@@ -127,9 +127,22 @@ def load_footprints(fp_spec_list):
                 'side' : fp.GetSide(),
                 'models' : models_3d,
                 'kfp' : fp, # Reference if we need more info later
-                'front_courtyard' : get_courtyard_polygon(fp.GetCourtyard(pcbnew.F_CrtYd)),
-                'back_courtyard' : get_courtyard_polygon(fp.GetCourtyard(pcbnew.B_CrtYd)),
             }
+            # FIXME: KiCAD doesn't return courtyard for footprints !?
+            # get_courtyard_polygon(fp.GetCourtyard(pcbnew.F_CrtYd)),
+            # get_courtyard_polygon(fp.GetCourtyard(pcbnew.B_CrtYd)),
+            # so we take this long route - get layer drawings, combine them etc etc!
+            f_crtyd_dwg = []
+            b_crtyd_dwg = []
+            for d in fp.GraphicalItems():
+                if d.GetLayer()==pcbnew.F_CrtYd:
+                    f_crtyd_dwg.append(d)
+                elif d.GetLayer()==pcbnew.B_CrtYd:
+                    b_crtyd_dwg.append(d)
+            f_pts = edge_cuts.compute_largest_filled_shape(f_crtyd_dwg, arc_resolution)
+            b_pts = edge_cuts.compute_largest_filled_shape(b_crtyd_dwg, arc_resolution)
+            ref_info['front_courtyard'] = f_pts
+            ref_info['back_courtyard'] = b_pts
             ref_map[this_alias] = ref_info
             fp_map[fp_complete_name] = {
                 'is_th' : fp.HasThroughHolePads(),
@@ -341,7 +354,9 @@ if args.examples:
 
 if args.footprint:
     try:
-        ref_map, fp_map = load_footprints(args.footprint)
+        # FIXME: how do we decide 1.0 is the tesellation resolution?
+        # sure its good enough for courtyard polys!
+        ref_map, fp_map = load_footprints(args.footprint, 1.0)
     except ValueError as err:
         print(f"ERROR: {err}", file=sys.stderr)
         sys.exit(-1)
