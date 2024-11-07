@@ -24,6 +24,7 @@ import tempfile
 import re
 import copy
 import math
+import pathlib
 
 # Local imports
 from jigcommon import *
@@ -50,6 +51,7 @@ except ImportError as err:
 import scipy.spatial
 from scipy.spatial.transform import Rotation
 import toml
+from pcbnew import PCB_IO_MGR
 
 def get_courtyard_polygon(shape):
     # Courtyard Polygon Coordinate System Note:
@@ -68,9 +70,102 @@ def get_courtyard_polygon(shape):
             verts.append([pcbnew.ToMM(pt.x),-pcbnew.ToMM(pt.y)])
     return verts
 
-def get_ref_info(board):
+def load_footprints(fp_spec_list):
+    fp_map = {}
+    ref_map = {}
+    # FIXME: This idx business can cause obscure bugs with numbering from
+    # jigconfig. Fix the right way!
+    alias_idx = 1
+
+    for this_spec in fp_spec_list:
+        full_spec = this_spec
+        if this_spec.find(':')==-1:
+            full_spec += ':*'
+        fp_lib, fp_name = full_spec.split(':')
+        # if the lib name ends with pretty, it's a full filepath, including an
+        # (optional) directory
+        if not fp_lib.endswith('.pretty'):
+            libpath = os.path.join('/usr/share/kicad/footprints',f"{fp_lib}.pretty")
+            fp_lib_name = fp_lib
+        else:
+            dirname, fname = os.path.split(fp_lib[:-7]) # remove the .pretty
+            fp_lib_name = fname
+            libpath = fp_lib
+
+        src_type = PCB_IO_MGR.GuessPluginTypeFromLibPath(libpath)
+        plugin = PCB_IO_MGR.PluginFind(src_type)
+        if not plugin:
+            raise ValueError(f"No such footprint library: {libpath}")
+        lib_fp_list = plugin.FootprintEnumerate(libpath)
+        none_found = True
+        for name in lib_fp_list:
+            fp = plugin.FootprintLoad(libpath, name)
+            if not pathlib.PurePath(name).match(fp_name):
+                continue
+            fp_complete_name = f"{fp_lib_name}:{name}"
+            if not fp.HasThroughHolePads():
+                print(f"WARNING: {fp_complete_name} is not a through hole component.")
+                continue
+            none_found = False
+            this_alias = 'FP%d'%(alias_idx)
+            models_3d = []
+            for mod3d in fp.Models():
+                models_3d.append({
+                    'model'    : mod3d.m_Filename,
+                    'offset'   : [mod3d.m_Offset[0], mod3d.m_Offset[1], mod3d.m_Offset[2]],
+                    'scale'    : [mod3d.m_Scale[0], mod3d.m_Scale[1], mod3d.m_Scale[2]],
+                    'rotation' : [mod3d.m_Rotation[0], mod3d.m_Rotation[1], mod3d.m_Rotation[2]]
+                })
+            fields = fp.Fields()
+            footprint = fields[2].GetText() # e.g. Package_QFP:LQFP-128_14x14mm_P0.4mm
+            ref_info = {
+                'is_th' : fp.HasThroughHolePads(),
+                'x': 0,
+                'y': 0,
+                'orientation' : 0,
+                'footprint' : fp_complete_name,
+                'side' : fp.GetSide(),
+                'models' : models_3d,
+                'kfp' : fp, # Reference if we need more info later
+                'front_courtyard' : get_courtyard_polygon(fp.GetCourtyard(pcbnew.F_CrtYd)),
+                'back_courtyard' : get_courtyard_polygon(fp.GetCourtyard(pcbnew.B_CrtYd)),
+            }
+            ref_map[this_alias] = ref_info
+            fp_map[fp_complete_name] = {
+                'is_th' : fp.HasThroughHolePads(),
+                'refs' : [ ref_map[this_alias] ],
+                'alias' : this_alias,
+                'footprint' : fp,
+                'display_name' : fp_complete_name,
+                'force_smd' : False,
+                'base_footprint' : fp
+            }
+            alias_idx += 1
+        if none_found:
+            raise ValueError(f"No usable matches for {this_spec}")
+
+    return ref_map, fp_map
+
+def xform_mesh(mesh, modinfo, orientation):
+    mesh_scale = mesh * modinfo['scale']
+    # FIXME: Hrrmph! why should I need to reverse these
+    # angles !?
+    rx = Rotation.from_euler('x', -modinfo['rotation'][0], degrees=True)
+    ry = Rotation.from_euler('y', -modinfo['rotation'][1], degrees=True)
+    rz = Rotation.from_euler('z', -modinfo['rotation'][2], degrees=True)
+    rot_angle=th['orientation'];
+    rz2 = Rotation.from_euler('z', rot_angle, degrees=True)
+    r_xyz = rx*ry*rz
+    mesh_rotated = r_xyz.apply(mesh_scale)
+    mesh2 = mesh_rotated + [modinfo['offset'][0], modinfo['offset'][1], modinfo['offset'][2]]
+    mesh = rz2.apply(mesh2)
+    min_z = min(mesh[:,2])
+    max_z = max(mesh[:,2])
+    return mesh, min_z, max_z
+
+
+def get_ref_info(fp_list, unity_xform):
     mounting_holes = {}
-    fp_list = board.Footprints()
     ref_map = {}
     fp_map = {}
     for fp in fp_list:
@@ -99,9 +194,6 @@ def get_ref_info(board):
         ref_info = {
             'is_th' : fp.HasThroughHolePads(),
             'footprint' : footprint,
-            'x' : fp_x,
-            'y' : fp_y,
-            'orientation' : fp_rot,
             'side' : fp.GetSide(),
             'position' : fp.GetPosition(),
             'models' : models_3d,
@@ -109,6 +201,9 @@ def get_ref_info(board):
             'front_courtyard' : get_courtyard_polygon(fp.GetCourtyard(pcbnew.F_CrtYd)),
             'back_courtyard' : get_courtyard_polygon(fp.GetCourtyard(pcbnew.B_CrtYd)),
         }
+        ref_info['x'] = fp_x if not unity_xform else 0
+        ref_info['y'] = fp_y if not unity_xform else 0
+        ref_info['orientation'] = fp_rot if not unity_xform else 0
 
         is_mounting_hole = False
         if fp.HasThroughHolePads():
@@ -180,7 +275,7 @@ parser = argparse.ArgumentParser(
     description='Create jigs in a jiffy',
     epilog='Use the examples, Luke!')
 
-group = parser.add_mutually_exclusive_group()
+group = parser.add_mutually_exclusive_group(required=True)
 group.add_argument('--examples', default=False, action='store_true',
     help='''Shows examples of usage''')
 group.add_argument('-i','--pcb', metavar='FILENAME',
@@ -192,11 +287,17 @@ instead of a PCB. Use --examples for info on SPEC''')
 group.add_argument('--model3d', action='extend', nargs='+', type=str,
     help='''Generate a shell from 3D model(s).''')
 
+parser.add_argument('--pcb-footprints', action='store_true', default=False,
+    help='''Generates one shell per footprint used on the PCB design
+            given through --pcb.''')
+parser.add_argument('--arrange', default='x', choices=['x','y'],
+    help='''Arrange shells in this direction. Works with --footprint,
+            --model3d and --pcb-footprints''')
+parser.add_argument('--gap', metavar='DISTANCE', type=float,
+    help='''Gap between shells. Applies with --arrange''')
 parser.add_argument('-c', '--config', metavar='FILENAME.toml',
     help='Use this configuration options file for various parameters.')
 
-parser.add_argument('--pcb-footprints', type=bool, default=False,
-    help='''Generates one shell per footprint used on the PCB design.''')
 parser.add_argument('-o','--output',
     help='Output file.')
 parser.add_argument('-f', '--output-format', choices=['stl','scad'],
@@ -221,23 +322,37 @@ group.add_argument("-v", "--verbose", help='Verbose messages')
 group.add_argument("-q", "--quiet", help='Info messages are suppressed')
 args = parser.parse_args()
 
+# Validate command line parameter requirements
+if args.pcb_footprints and not args.pcb:
+    print(f"--pcb-footprints requires --pcb", file=sys.stderr)
+    sys.exit(1)
+
+if args.gap:
+    if not (args.pcb_footprints or args.footprint or args.model3d):
+        print("--gap requires at-least one of --pcb-footprints, --footprint or --model3d")
+        sys.exit(1)
+else:
+    # FIXME - can this come from elsewhere - like a config ?
+    args.gap = 10.0
+
 if args.examples:
     print(f"Sorry, examples aren't created yet. Use the source, Luke!", file=sys.stderr)
     sys.exit(1)
+
 if args.footprint:
-    print(f"Sorry, the footprint option isn't implemented yet", file=sys.stderr)
-    sys.exit(1)
+    try:
+        ref_map, fp_map = load_footprints(args.footprint)
+    except ValueError as err:
+        print(f"ERROR: {err}", file=sys.stderr)
+        sys.exit(-1)
+    mh_map = {}
 
 if args.model3d:
     print(f"Sorry, the model3d option isn't implemented yet", file=sys.stderr)
     sys.exit(1)
 
-if not args.pcb:
-    print(f'ERROR: Need a KiCAD PCB to work on. Use -h or --examples for more help', file=sys.stderr)
-    sys.exit(1)
-
 # determine extension
-if not args.output_format:
+if args.output and not args.output_format:
     out_split = os.path.splitext(args.output)
     out_ext = out_split[1] # will be empty string if no extension
     if out_ext in ['.stl','.scad']:
@@ -246,12 +361,13 @@ if not args.output_format:
         print(f"Unrecorgnized extension in output filename '{args.output}'", file=sys.stderr)
         sys.exit(1)
 
-board = pcbnew.LoadBoard(args.pcb)
-#smd_info, th_info, mounting_holes = get_ref_info(board)
-ref_map, fp_map, mh_map = get_ref_info(board)
+if args.pcb:
+    board = pcbnew.LoadBoard(args.pcb)
+    ref_map, fp_map, mh_map = get_ref_info(board.Footprints(), args.pcb_footprints)
 
 if args.genconfig:
     jigconfig.generate_config(args.genconfig, ref_map, fp_map)
+    print(f'Generated : %{args.genconfig}')
     sys.exit(0)
 
 jigconfig.load_user_config('jigit')
@@ -262,6 +378,20 @@ except ValueError as err:
     print(f"ERROR: {err}", file=sys.stderr)
     sys.exit(-1)
 #pprint(cfg)
+
+if args.pcb and args.pcb_footprints:
+    # trim th_ref_list. Keep only one component per footprint
+    final_ref_list = []
+    for key in fp_map:
+        if fp_map[key]['is_th'] and not fp_map[key]['force_smd']:
+            ref_list = fp_map[key]['refs']
+            retain_ref = ref_list[0]
+            final_ref_list.append(retain_ref)
+            # remove the rest
+            for comp_ref in ref_list[1:]:
+                ref_map.pop(comp_ref)
+    th_ref_list = final_ref_list
+    print(th_ref_list)
 
 mounting_holes = []
 for name in mh_map.keys():
@@ -274,6 +404,11 @@ if args.dump_config:
 if not args.output:
     print(f"ERROR: Need an output file", file=sys.stderr)
     sys.exit(-1)
+
+if args.pcb:
+    do_pcb_proc = True if not args.pcb_footprints else False
+else:
+    do_pcb_proc = False
 
 pcb_thickness = cfg['pcb']['thickness']
 shell_clearance = cfg['TH']['component_shell']['shell_clearance_from_pcb']
@@ -305,11 +440,13 @@ if jig_type_component_fitting:
         print('INFO: Generating component shells, note shell_clearance=%s will cut into shell.'
             %(shell_clearance))
 
+
 # Setup environment for file name expansion
 # First take from user config
 for env_var_name in cfg['environment']:
     os.environ[env_var_name] = cfg['environment'][env_var_name]
-os.environ["KIPRJMOD"] = os.path.split(args.pcb)[0]
+if args.pcb:
+    os.environ["KIPRJMOD"] = os.path.split(args.pcb)[0]
 # Now add onto it, this allows overrides from user config
 path_sys_3dmodels = '/usr/share/kicad/3dmodels'
 for ver in ['', 6,7,8]: # Hmm - would we need more ?
@@ -332,45 +469,29 @@ pcb_segments = []
 pcb_filled_shapes = []
 seg_shapes = []
 
-edge_cuts.load(board, pcb_segments, pcb_filled_shapes)
 
-seg_shapes = []
-if not edge_cuts.coalesce_segments(pcb_segments, seg_shapes):
-    print('ERROR: Please check the edge cuts layer in KiCAD.')
-    print('ERROR: There are incomplete outlines. DRC or 3D View should help')
-    print('ERROR: diagnose the issue')
-    sys.exit(-1)
+if do_pcb_proc:
+    edge_cuts.load(board, pcb_segments, pcb_filled_shapes)
 
-edge_cuts.tesellate(arc_resolution, seg_shapes, pcb_filled_shapes)
-edge_cuts.compute_areas(pcb_filled_shapes)
+    if not edge_cuts.coalesce_segments(pcb_segments, seg_shapes):
+        print('ERROR: Please check the edge cuts layer in KiCAD.')
+        print('ERROR: There are incomplete outlines. DRC or 3D View should help')
+        print('ERROR: diagnose the issue')
+        sys.exit(-1)
 
-if len(pcb_filled_shapes) == 0:
-    print('ERROR: At-least one filled shape is needed in Edge.Cuts layer')
-    print('Please check and validate board file.')
-    sys.exit(-1)
+    edge_cuts.tesellate(arc_resolution, seg_shapes, pcb_filled_shapes)
+    edge_cuts.compute_areas(pcb_filled_shapes)
 
-# Find the largest filled area. This is assumed to be the actual
-# PCB outline
-pcb_filled_shapes.sort(key=lambda x:x['area'], reverse=True)
-# And hence these are the vertices
-pcb_edge_points = pcb_filled_shapes[0]['vertices']
+    if len(pcb_filled_shapes) == 0:
+        print('ERROR: At-least one filled shape is needed in Edge.Cuts layer')
+        print('Please check and validate board file.')
+        sys.exit(-1)
 
-def xform_mesh(mesh, modinfo, orientation):
-    mesh_scale = mesh * modinfo['scale']
-    # FIXME: Hrrmph! why should I need to reverse these
-    # angles !?
-    rx = Rotation.from_euler('x', -modinfo['rotation'][0], degrees=True)
-    ry = Rotation.from_euler('y', -modinfo['rotation'][1], degrees=True)
-    rz = Rotation.from_euler('z', -modinfo['rotation'][2], degrees=True)
-    rot_angle=th['orientation'];
-    rz2 = Rotation.from_euler('z', rot_angle, degrees=True)
-    r_xyz = rx*ry*rz
-    mesh_rotated = r_xyz.apply(mesh_scale)
-    mesh2 = mesh_rotated + [modinfo['offset'][0], modinfo['offset'][1], modinfo['offset'][2]]
-    mesh = rz2.apply(mesh2)
-    min_z = min(mesh[:,2])
-    max_z = max(mesh[:,2])
-    return mesh, min_z, max_z
+    # Find the largest filled area. This is assumed to be the actual
+    # PCB outline
+    pcb_filled_shapes.sort(key=lambda x:x['area'], reverse=True)
+    # And hence these are the vertices
+    pcb_edge_points = pcb_filled_shapes[0]['vertices']
 
 all_shells = []
 fp_centers = []
@@ -415,18 +536,20 @@ for this_ref in th_ref_list:
             h_bins = compute_shells.fitting_pockets(mesh, 0.5, printable_threshold)
             for this_bin in h_bins:
                 this_bin['corners'], this_bin['corner_segments'] = geom_ops.extract_corners_2D(this_bin['hull'])
-            subshells['shell'].append({
+
+            this_subshell = {
                 'name':shell_ident,
                 'min_z':min_z,
                 'max_z':max_z,
                 'model':modinfo['model'],
-                'x' : th['x'],
-                'y' : th['y'],
-                'orientation' : th['orientation'],
                 'mesh' : mesh,
                 'fp_center': [center_x+th['x'],center_y+th['y']],
                 'fitting_bins' : h_bins
-            })
+            }
+            this_subshell['x'] = th['x'] if not args.pcb_footprints else 0
+            this_subshell['y'] = th['x'] if not args.pcb_footprints else 0
+            this_subshell['orientation'] = th['orientation'] if not args.pcb_footprints else 0
+            subshells['shell'].append(this_subshell)
             print('  Generating shell %s for ref %s with mesh %s'%(shell_ident, this_ref, modinfo['model']))
             local_max_z = max(local_max_z, max_z)
             local_min_z = min(local_min_z, min_z)
@@ -437,101 +560,103 @@ for this_ref in th_ref_list:
         all_shells.append(subshells)
     topmost_z = max(topmost_z, local_max_z)
 
-smd_keepouts = []
-for this_ref in smd_ref_list:
-    smd = ref_map[this_ref]
-    #print('Processing SMD :', smd['ref'])
-    # each footprint can have multiple models.
-    # each model that is "in contact" with the board will generate
-    # a shell
-    for idx, modinfo in enumerate(smd['models']):
-        mesh = modinfo['mesh']
-        if mesh.shape[0]==0:
-            print('  WARNING: Mesh %s is empty on import. Watch out for intended side effects. SKIPPING!'
-                  %(modinfo['model']))
-            continue
-        mesh, min_z, max_z = xform_mesh(mesh, modinfo, smd['orientation'])
-        keepout_ident = '%s_%d'%(this_ref,idx)
-        smd_keepouts.append({
-            'name' : keepout_ident,
-            'ref' : this_ref,
-            'min_z':min_z,
-            'max_z':max_z,
-            'model':modinfo['model'],
-            'x' : smd['x'],
-            'y' : smd['y'],
-            'orientation' : smd['orientation'],
-            'front_courtyard' : smd['front_courtyard']
-        })
-        topmost_z = max(topmost_z, max_z)
+if do_pcb_proc:
+    smd_keepouts = []
+    for this_ref in smd_ref_list:
+        smd = ref_map[this_ref]
+        #print('Processing SMD :', smd['ref'])
+        # each footprint can have multiple models.
+        # each model that is "in contact" with the board will generate
+        # a shell
+        for idx, modinfo in enumerate(smd['models']):
+            mesh = modinfo['mesh']
+            if mesh.shape[0]==0:
+                print('  WARNING: Mesh %s is empty on import. Watch out for intended side effects. SKIPPING!'
+                      %(modinfo['model']))
+                continue
+            mesh, min_z, max_z = xform_mesh(mesh, modinfo, smd['orientation'])
+            keepout_ident = '%s_%d'%(this_ref,idx)
+            smd_keepouts.append({
+                'name' : keepout_ident,
+                'ref' : this_ref,
+                'min_z':min_z,
+                'max_z':max_z,
+                'model':modinfo['model'],
+                'x' : smd['x'],
+                'y' : smd['y'],
+                'orientation' : smd['orientation'],
+                'front_courtyard' : smd['front_courtyard']
+            })
+            topmost_z = max(topmost_z, max_z)
 
-# Compute bounding box of PCB
-# FIXME: make this min, max code less verbose
-pcb_min_x = pcb_max_x = pcb_edge_points[0][0]
-pcb_min_y = pcb_max_y = pcb_edge_points[0][1]
-for pt in pcb_edge_points:
-    pcb_min_x = min(pcb_min_x, pt[0])
-    pcb_max_x = max(pcb_max_x, pt[0])
-    pcb_min_y = min(pcb_min_y, pt[1])
-    pcb_max_y = max(pcb_max_y, pt[1])
+if do_pcb_proc:
+    # Compute bounding box of PCB
+    # FIXME: make this min, max code less verbose
+    pcb_min_x = pcb_max_x = pcb_edge_points[0][0]
+    pcb_min_y = pcb_max_y = pcb_edge_points[0][1]
+    for pt in pcb_edge_points:
+        pcb_min_x = min(pcb_min_x, pt[0])
+        pcb_max_x = max(pcb_max_x, pt[0])
+        pcb_min_y = min(pcb_min_y, pt[1])
+        pcb_max_y = max(pcb_max_y, pt[1])
 
-pcb_bb_corners = [
-    [pcb_min_x , -pcb_min_y],
-    [pcb_min_x , -pcb_max_y],
-    [pcb_max_x , -pcb_min_y],
-    [pcb_max_x , -pcb_max_y]
-]
+    pcb_bb_corners = [
+        [pcb_min_x , -pcb_min_y],
+        [pcb_min_x , -pcb_max_y],
+        [pcb_max_x , -pcb_min_y],
+        [pcb_max_x , -pcb_max_y]
+    ]
 
-# Delaunay triangulation will be done on the following points
-# 1. centers of all considered footprints
-# 2. mounting holes
-# 3. bounding box corners of PCB edge. mounting holes are
-#    inside the PCB and don't extend all the way to the edge.
-#    If we don't include them, we may end up having a separate
-#    "delaunay island", depending on the exact PCB.
-dt_centers = fp_centers + pcb_bb_corners
+    # Delaunay triangulation will be done on the following points
+    # 1. centers of all considered footprints
+    # 2. mounting holes
+    # 3. bounding box corners of PCB edge. mounting holes are
+    #    inside the PCB and don't extend all the way to the edge.
+    #    If we don't include them, we may end up having a separate
+    #    "delaunay island", depending on the exact PCB.
+    dt_centers = fp_centers + pcb_bb_corners
 
-# ignore mounting holes outside PCB for mesh calculation
-for pt in mounting_holes:
-    if (pt[0] > pcb_min_x) and (pt[0] < pcb_max_x) or \
-       (pt[1] > pcb_min_y) and (pt[1] < pcb_max_y):
-        dt_centers.append(pt)
+    # ignore mounting holes outside PCB for mesh calculation
+    for pt in mounting_holes:
+        if (pt[0] > pcb_min_x) and (pt[0] < pcb_max_x) or \
+           (pt[1] > pcb_min_y) and (pt[1] < pcb_max_y):
+            dt_centers.append(pt)
+        else:
+            #print(pt, ' is out of PCB')
+            pass
+
+    mesh_line_segments = []
+    if len(dt_centers)>=4:
+        mesh_comment = 'delaunay triangulated mesh'
+        d_verts = np.array(dt_centers)
+        d_tris = scipy.spatial.Delaunay(d_verts)
+        for tri in d_tris.simplices:
+            # tri is a,b,c
+            av = d_verts[tri[0]]
+            a = [av[0], av[1]]
+            bv = d_verts[tri[1]]
+            b = [bv[0], bv[1]]
+            cv = d_verts[tri[2]]
+            c = [cv[0], cv[1]]
+            mesh_line_segments.append([a,b])
+            mesh_line_segments.append([b,c])
+            mesh_line_segments.append([c,a])
     else:
-        #print(pt, ' is out of PCB')
-        pass
+        if len(dt_centers)>1:
+            av = dt_centers[0]
+            a = [av[0],av[1]]
+            bv = dt_centers[1]
+            b = [bv[0],bv[1]]
+            mesh_line_segments.append([a,b])
+        if len(dt_centers)==3:
+            cv = dt_centers[2]
+            c = [cv[0],cv[1]]
+            mesh_line_segments.append([b,c])
+            mesh_line_segments.append([c,a])
 
-mesh_line_segments = []
-if len(dt_centers)>=4:
-    mesh_comment = 'delaunay triangulated mesh'
-    d_verts = np.array(dt_centers)
-    d_tris = scipy.spatial.Delaunay(d_verts)
-    for tri in d_tris.simplices:
-        # tri is a,b,c
-        av = d_verts[tri[0]]
-        a = [av[0], av[1]]
-        bv = d_verts[tri[1]]
-        b = [bv[0], bv[1]]
-        cv = d_verts[tri[2]]
-        c = [cv[0], cv[1]]
-        mesh_line_segments.append([a,b])
-        mesh_line_segments.append([b,c])
-        mesh_line_segments.append([c,a])
-else:
-    if len(dt_centers)>1:
-        av = dt_centers[0]
-        a = [av[0],av[1]]
-        bv = dt_centers[1]
-        b = [bv[0],bv[1]]
-        mesh_line_segments.append([a,b])
-    if len(dt_centers)==3:
-        cv = dt_centers[2]
-        c = [cv[0],cv[1]]
-        mesh_line_segments.append([b,c])
-        mesh_line_segments.append([c,a])
+    groove_lines = edge_cuts.compute_grooves(arc_resolution, pcb_filled_shapes[0], groove_size)
 
-groove_lines = edge_cuts.compute_grooves(arc_resolution, pcb_filled_shapes[0], groove_size)
-
-if cfg['jig']['mounting_hole_spacer_end']==0:
+if do_pcb_proc and cfg['jig']['mounting_hole_spacer_end']==0:
     #
     # Find the second highest Z, without looking at values that are
     # too close to the topmost z. Spacer will run from this Z
@@ -580,21 +705,38 @@ if not cfg['jig']['mounting_hole_bolt_is_external'] and \
    not cfg['jig']['mounting_hole_spacer_is_fused']:
     print("ERROR: can't have separate spacer with internal bolt")
     sys.exit(1)
-gen_scad.generate_scad(
-    fp_scad,
-    config_text,
-    cfg,
-    args.pcb,
-    args.config,
-    args.keep_orientation,
-    all_shells,
-    fp_map,
-    ref_map, mh_map, smd_keepouts, topmost_z,
-    pcb_edge_points,
-    dt_centers,
-    mesh_line_segments, groove_lines,
-    pcb_min_x, pcb_max_x, pcb_min_y, pcb_max_y)
 
+if do_pcb_proc:
+    gen_scad.generate_jig(
+        fp_scad,
+        config_text,
+        cfg,
+        args.pcb,
+        args.config,
+        args.keep_orientation,
+        all_shells,
+        fp_map,
+        ref_map, mh_map, smd_keepouts, topmost_z,
+        pcb_edge_points,
+        dt_centers,
+        mesh_line_segments, groove_lines,
+        pcb_min_x, pcb_max_x, pcb_min_y, pcb_max_y)
+
+elif args.footprint or args.pcb_footprints:
+    gen_scad.generate_footprints(
+        fp_scad,
+        config_text,
+        cfg,
+        args.config,
+        args.keep_orientation,
+        args.arrange,
+        args.gap,
+        all_shells,
+        fp_map,
+        ref_map,
+        topmost_z)
+
+# Done with the file
 fp_scad.close()
 
 if args.output_format == 'stl':

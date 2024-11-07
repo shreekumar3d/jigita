@@ -75,6 +75,8 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
     sv_ref_shell_gap = ScadValue('Effective_Shell_Gap_For_%s'%(ref))
     sv_ref_shell_thickness = ScadValue('Effective_Shell_Thickness_For_%s'%(ref))
     sv_ref_shell_clearance = ScadValue('Effective_Shell_Clearance_From_PCB_For_%s'%(ref))
+    sv_ref_wrapper_thickness = ScadValue('Wrapper_Thickness_For_%s'%(ref))
+    sv_ref_wrapper_height = ScadValue('Wrapper_Height_For_%s'%(ref))
     sv_ref_max_z = ScadValue('max_z_%s'%(ref))
     sv_ref_min_z = ScadValue('min_z_%s'%(ref))
 
@@ -207,23 +209,20 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
                       )
 
     # Add wrapper
-    wrapper_thickness = cfg['TH'][ref]['shell_wrapper_thickness']
-    wrapper_height = cfg['TH'][ref]['shell_wrapper_height']
-    if wrapper_thickness>0 and wrapper_height>0:
-        wrapper = translate([x,y,sv_pcb_thickness+sv_topmost_z+sv_base_thickness-wrapper_height]) (
-                        linear_extrude(wrapper_height) (
-                            difference() (
-                                offset(sv_ref_shell_gap+sv_ref_shell_thickness+wrapper_thickness) (
-                                    mod_map[ident]()
-                                ),
-                                offset(sv_ref_shell_gap+sv_ref_shell_thickness) (
-                                    mod_map[ident]()
-                                )
+    wrapper = translate([x,y,sv_pcb_thickness+sv_topmost_z+sv_base_thickness-sv_ref_wrapper_height]) (
+                    linear_extrude(sv_ref_wrapper_height) (
+                        difference() (
+                            offset(sv_ref_shell_gap+sv_ref_shell_thickness+sv_ref_wrapper_thickness) (
+                                mod_map[ident]()
+                            ),
+                            offset(sv_ref_shell_gap+sv_ref_shell_thickness) (
+                                mod_map[ident]()
                             )
                         )
-                      )
-        perimeter_solid += wrapper
-        flower_shell += wrapper
+                    )
+                  )
+    perimeter_solid += wrapper
+    flower_shell += wrapper
 
     perimeter_map[ident] = module(perimeter_name, perimeter_solid,
                            comment=f"Perimeter for {ident}")
@@ -395,7 +394,8 @@ def gen_configurable_fp_components(
         cfg,
         all_shells,
         fp_map,
-        ref_map):
+        ref_map,
+        topmost_z):
     # Allow tweaking per component values from customizer
     # Refs we get can be in any order. Customizer in OpenSCAD opens up all the tabs
     # together. This creates a cluttered user interface. Question is how do we
@@ -469,6 +469,17 @@ def gen_configurable_fp_components(
             this_ref,
             cfg['TH'][this_ref]['delta_shell_clearance_from_pcb'])
         )
+        fp_scad.write('//Wrapper thickness\n')
+        fp_scad.write('Wrapper_Thickness_For_%s=%s; // [0:0.1:10.0]\n'%(
+            this_ref,
+            cfg['TH'][this_ref]['shell_wrapper_thickness'])
+        )
+        fp_scad.write('//Wrapper height\n')
+        fp_scad.write('Wrapper_Height_For_%s=%s; // [0:0.1:%s]\n'%(
+            this_ref,
+            cfg['TH'][this_ref]['shell_wrapper_height'],
+            topmost_z) # FIXME: this needs to take shell shell clearance into account
+        )
 
     fp_scad.write('// } End of configurable parameters\n')
 
@@ -486,30 +497,34 @@ def gen_configurable_fp_components(
                 this_var, this_ref, this_var, alias, this_var, this_ref)
             )
 
+def gen_computed_values_jig(fp_scad):
+    fp_scad.write('''
+groove_width = max(PCB_Gap+PCB_Holder_Perimeter, PCB_Overlap)*2.2;
+tiny_dimension = 0.0001;
+base_z =  PCB_Thickness+topmost_z+Base_Thickness+2*tiny_dimension;
+
+c_Spacer_Is_Fused = Bolt_Is_External ? Spacer_Is_Fused : true; // can't have separate bolt with internal bolt
+c_Base_Thickness = Mounting_Hole_Jig ? first_layer_height: Base_Thickness;
+c_MH_Jig_Second_Level_Height = first_layer_height+2*layer_height;
+c_Base_Line_Height = Mounting_Hole_Jig ? topmost_z-MH_Spacer_End+c_MH_Jig_Second_Level_Height+c_Base_Thickness: Base_Line_Height;
+c_Lower_Perimeter_Height = Mounting_Hole_Jig ? c_Base_Line_Height:Lower_Perimeter_Height;
+mesh_start_z = PCB_Thickness+topmost_z+c_Base_Thickness-c_Base_Line_Height;
+''')
+
+def gen_fixed_values_hidden(
+        fp_scad,
+        topmost_z):
+    fp_scad.write('''
+// Height of the tallest component on the top side
+topmost_z=%s;
+    '''%(topmost_z))
+
 def gen_computed_values(
         fp_scad,
         all_shells,
         smd_keepouts,
         topmost_z,
         bottom_insertion_z):
-    fp_scad.write('''
-    // { START : Computed Values
-
-    // Height of the tallest component on the top side
-    topmost_z=%s;
-
-    groove_width = max(PCB_Gap+PCB_Holder_Perimeter, PCB_Overlap)*2.2;
-    tiny_dimension = 0.0001;
-    base_z =  PCB_Thickness+topmost_z+Base_Thickness+2*tiny_dimension;
-
-    c_Spacer_Is_Fused = Bolt_Is_External ? Spacer_Is_Fused : true; // can't have separate bolt with internal bolt
-    c_Base_Thickness = Mounting_Hole_Jig ? first_layer_height: Base_Thickness;
-    c_MH_Jig_Second_Level_Height = first_layer_height+2*layer_height;
-    c_Base_Line_Height = Mounting_Hole_Jig ? topmost_z-MH_Spacer_End+c_MH_Jig_Second_Level_Height+c_Base_Thickness: Base_Line_Height;
-    c_Lower_Perimeter_Height = Mounting_Hole_Jig ? c_Base_Line_Height:Lower_Perimeter_Height;
-    mesh_start_z = PCB_Thickness+topmost_z+c_Base_Thickness-c_Base_Line_Height;
-    '''%(topmost_z))
-
 
     fp_scad.write('bottom_insertion_z = %s;\n'%(bottom_insertion_z))
     fp_scad.write('// Height of the individual components\n')
@@ -520,15 +535,87 @@ def gen_computed_values(
             applies_to += ' %s'%(shell_info['model'])
         fp_scad.write('max_z_%s= (Insert_%s_From=="bottom")? bottom_insertion_z : %s; //Applies to 3D Model(s):%s\n'%(this_ref,this_ref, subshells['max_z'], applies_to))
         fp_scad.write('min_z_%s= %s;\n'%(this_ref, subshells['min_z']))
-    for keepout_info in smd_keepouts:
-        fp_scad.write('max_z_%s= %s; //3D Model: %s\n'%(keepout_info['name'],keepout_info['max_z'], keepout_info['model']))
-        ref = keepout_info['ref']
-        fp_scad.write('smd_clearance_from_shells_%s= SMD_Clearance_From_Shells;\n'%(keepout_info['name']))
-        fp_scad.write('smd_gap_from_shells_%s= SMD_Gap_From_Shells;\n'%(keepout_info['name']))
+    if smd_keepouts:
+        for keepout_info in smd_keepouts:
+            fp_scad.write('max_z_%s= %s; //3D Model: %s\n'%(keepout_info['name'],keepout_info['max_z'], keepout_info['model']))
+            ref = keepout_info['ref']
+            fp_scad.write('smd_clearance_from_shells_%s= SMD_Clearance_From_Shells;\n'%(keepout_info['name']))
+            fp_scad.write('smd_gap_from_shells_%s= SMD_Gap_From_Shells;\n'%(keepout_info['name']))
     fp_scad.write('// } END : Computed Values\n')
     fp_scad.write('\n')
 
-def generate_scad(
+def gen_included_component_shells(fp_scad, all_shells):
+    fp_scad.write('module mounted_component_shells() {\n')
+    fp_scad.write('  union() {\n')
+    for subshells in all_shells:
+        this_ref = subshells['ref']
+        if 'shell_pos_x' in subshells:
+            fp_scad.write('  translate([%s,%s,0]) {\n'%(subshells['shell_pos_x'], subshells['shell_pos_y']))
+        fp_scad.write('  if(Include_%s_in_Jig) {\n'%(this_ref))
+        fp_scad.write('    if(Shell_Type_For_%s=="courtyard") {\n'%(this_ref))
+        fp_scad.write('      %s();\n'%(ref2courtyard_perimeter(this_ref)))
+        fp_scad.write('    } else if(Shell_Type_For_%s=="fitting_flower") {\n'%(this_ref))
+        for shell_info in subshells['shell']:
+            this_name = shell_info['name']
+            fp_scad.write('      %s();\n'%(ref2fitting_flower(this_name)))
+        fp_scad.write('    } else {\n')
+        for shell_info in subshells['shell']:
+            this_name = shell_info['name']
+            fp_scad.write('      %s();\n'%(ref2perimeter(this_name)))
+        fp_scad.write('    }\n')
+        fp_scad.write('  }\n') # included
+        if 'shell_pos_x' in subshells:
+            fp_scad.write('  }')
+    fp_scad.write('  }\n')
+    fp_scad.write('}\n')
+
+def gen_included_component_cuts(fp_scad, all_shells):
+    fp_scad.write('module mounted_component_cuts() {\n')
+    fp_scad.write('  union() {\n')
+    for subshells in all_shells:
+        this_ref = subshells['ref']
+        if 'shell_pos_x' in subshells:
+            fp_scad.write('  translate([%s,%s,0]) {\n'%(subshells['shell_pos_x'], subshells['shell_pos_y']))
+        fp_scad.write('    if(Include_%s_in_Jig) {\n'%(this_ref))
+        for shell_info in subshells['shell']:
+            this_name = shell_info['name']
+            fp_scad.write('      if(Shell_Type_For_%s=="fitting") {\n'%(this_ref))
+            fp_scad.write('        %s();\n'%(ref2fitting_cuts(this_name)))
+            fp_scad.write('      } else if(Shell_Type_For_%s=="fitting_flower") {\n'%(this_ref))
+            fp_scad.write('        %s();\n'%(ref2fitting_cuts(this_name)))
+            fp_scad.write('      }\n')
+        fp_scad.write('    }\n') # included
+        if 'shell_pos_x' in subshells:
+            fp_scad.write('  }')
+    fp_scad.write('  }\n') # union
+    fp_scad.write('}\n')
+
+def gen_included_component_pockets(fp_scad, all_shells):
+    fp_scad.write('module mounted_component_pockets() {\n')
+    fp_scad.write('  union() {\n')
+    # NOTE: pockets are always included, unlike shells. This is to prevent
+    # protruding shells from elsewhere to get into that volume
+    for subshells in all_shells:
+        this_ref = subshells['ref']
+        if 'shell_pos_x' in subshells:
+            fp_scad.write('  translate([%s,%s,0]) {\n'%(subshells['shell_pos_x'], subshells['shell_pos_y']))
+        fp_scad.write('    if(Shell_Type_For_%s=="courtyard") {\n'%(this_ref))
+        fp_scad.write('      %s();\n'%(ref2courtyard_pocket(this_ref)))
+        fp_scad.write('    } else if(Shell_Type_For_%s=="wiggle") {\n'%(this_ref))
+        for shell_info in subshells['shell']:
+            this_name = shell_info['name']
+            fp_scad.write('      %s();\n'%(ref2wiggle_pocket(this_name)))
+        fp_scad.write('    } else { //fitting or fitting_flower\n')
+        for shell_info in subshells['shell']:
+            this_name = shell_info['name']
+            fp_scad.write('      %s();\n'%(ref2fitting_pocket(this_name)))
+        fp_scad.write('    }\n')
+        if 'shell_pos_x' in subshells:
+            fp_scad.write('  }')
+    fp_scad.write('  }\n')
+    fp_scad.write('}\n')
+
+def generate_jig(
         fp_scad,
         config_text,
         cfg,
@@ -563,10 +650,12 @@ def generate_scad(
 
     gen_params_generic(fp_scad, cfg)
 
-    gen_configurable_fp_components(fp_scad, cfg, all_shells, fp_map, ref_map)
+    gen_configurable_fp_components(fp_scad, cfg, all_shells, fp_map, ref_map, topmost_z)
+
+    gen_fixed_values_hidden(fp_scad, topmost_z)
+    gen_computed_values_jig(fp_scad)
 
     bottom_insertion_z = topmost_z + 2*cfg['holder']['base']['thickness']
-
     gen_computed_values(fp_scad, all_shells, smd_keepouts, topmost_z, bottom_insertion_z)
 
     for subshells in all_shells:
@@ -694,61 +783,9 @@ def generate_scad(
     # Hack : ScadValue can't be empty - so passing it a comment!
     fp_scad.write(scad_render(ScadValue('//\n')))
 
-    fp_scad.write('module mounted_component_shells() {\n')
-    fp_scad.write('  union() {\n')
-    for subshells in all_shells:
-        this_ref = subshells['ref']
-        fp_scad.write('  if(Include_%s_in_Jig) {\n'%(this_ref))
-        fp_scad.write('    if(Shell_Type_For_%s=="courtyard") {\n'%(this_ref))
-        fp_scad.write('      %s();\n'%(ref2courtyard_perimeter(this_ref)))
-        fp_scad.write('    } else if(Shell_Type_For_%s=="fitting_flower") {\n'%(this_ref))
-        for shell_info in subshells['shell']:
-            this_name = shell_info['name']
-            fp_scad.write('      %s();\n'%(ref2fitting_flower(this_name)))
-        fp_scad.write('    } else {\n')
-        for shell_info in subshells['shell']:
-            this_name = shell_info['name']
-            fp_scad.write('      %s();\n'%(ref2perimeter(this_name)))
-        fp_scad.write('    }\n')
-        fp_scad.write('  }\n') # included
-    fp_scad.write('  }\n')
-    fp_scad.write('}\n')
-
-    fp_scad.write('module mounted_component_cuts() {\n')
-    fp_scad.write('  union() {\n')
-    for subshells in all_shells:
-        this_ref = subshells['ref']
-        fp_scad.write('    if(Include_%s_in_Jig) {\n'%(this_ref))
-        for shell_info in subshells['shell']:
-            this_name = shell_info['name']
-            fp_scad.write('      if(Shell_Type_For_%s=="fitting") {\n'%(this_ref))
-            fp_scad.write('        %s();\n'%(ref2fitting_cuts(this_name)))
-            fp_scad.write('      } else if(Shell_Type_For_%s=="fitting_flower") {\n'%(this_ref))
-            fp_scad.write('        %s();\n'%(ref2fitting_cuts(this_name)))
-            fp_scad.write('      }\n')
-        fp_scad.write('    }\n') # included
-    fp_scad.write('  }\n') # union
-    fp_scad.write('}\n')
-
-    fp_scad.write('module mounted_component_pockets() {\n')
-    fp_scad.write('  union() {\n')
-    # NOTE: pockets are always included, unlike shells. This is to prevent
-    # protruding shells from elsewhere to get into that volume
-    for subshells in all_shells:
-        this_ref = subshells['ref']
-        fp_scad.write('    if(Shell_Type_For_%s=="courtyard") {\n'%(this_ref))
-        fp_scad.write('      %s();\n'%(ref2courtyard_pocket(this_ref)))
-        fp_scad.write('    } else if(Shell_Type_For_%s=="wiggle") {\n'%(this_ref))
-        for shell_info in subshells['shell']:
-            this_name = shell_info['name']
-            fp_scad.write('      %s();\n'%(ref2wiggle_pocket(this_name)))
-        fp_scad.write('    } else { //fitting or fitting_flower\n')
-        for shell_info in subshells['shell']:
-            this_name = shell_info['name']
-            fp_scad.write('      %s();\n'%(ref2fitting_pocket(this_name)))
-        fp_scad.write('    }\n')
-    fp_scad.write('  }\n')
-    fp_scad.write('}\n')
+    gen_included_component_shells(fp_scad, all_shells)
+    gen_included_component_cuts(fp_scad, all_shells)
+    gen_included_component_pockets(fp_scad, all_shells)
 
     fp_scad.write('module base_frame_xy_lines() {\n')
     h_start = '[pcb_min_x, pcb_min_y]'
@@ -1055,3 +1092,186 @@ if(orient_to_print == 1) {
 */
 '''%(config_text))
 
+def gen_configurable_ref_components(
+        fp_scad,
+        cfg,
+        all_shells,
+        fp_map,
+        ref_map,
+        topmost_z):
+    """ This function is different from gen_configurable_fp_components in
+        one major aspect. It doesn't use the "delta" mechanism to compute the final
+        values. """
+    ui_refs = []
+    for subshells in all_shells:
+        this_ref = subshells['ref']
+        ui_refs.append(this_ref)
+
+    fp_scad.write('/* [Include these footprints in output STL file] */\n')
+    for this_ref in ui_refs:
+        fp_name = cfg['TH'][this_ref]['kicad_footprint']
+        #alias = fp_map[fp_name]['alias']
+        fp_scad.write('//%s\n'%(fp_name))
+        fp_scad.write('Include_%s_in_Jig=true; // [false,true]\n'%(this_ref))
+
+    valid_shell_types = ','.join(jigconfig.valid_shell_types)
+    for this_ref in ui_refs:
+        fp_name = cfg['TH'][this_ref]['kicad_footprint']
+        alias = fp_map[fp_name]['alias']
+        footprint = cfg['footprint'][alias]
+        fp_scad.write('/* [Footprint: %s] */\n'%(fp_name))
+        var_prop_rem = [['Shell_Gap', 'shell_gap', 'XY Gap in shell for component insertion'],
+                   ['Shell_Thickness', 'shell_thickness', 'Thickness of shell'],
+                   ['Shell_Clearance_From_PCB', 'shell_clearance_from_pcb', 'Z distance from start of shell to PCB']]
+        for var, prop, rem in var_prop_rem:
+            fp_scad.write('//%s\n'%(rem))
+            fp_scad.write('Effective_%s_For_%s = %s;\n'%(var, this_ref, footprint[prop]))
+
+        fp_scad.write('//Type of shell for this footprint\n')
+        fp_scad.write('Shell_Type_For_%s="%s"; // [%s]\n'%(
+            this_ref,
+            cfg['TH'][this_ref]['shell_type'],
+            valid_shell_types)
+        )
+        fp_scad.write('//Insert this component into jig from this side.(Bottom insertion requires wiggle or courtyard shell to work)\n')
+        fp_scad.write('Insert_%s_From="%s"; // [top,bottom]\n'%(
+            this_ref,
+            cfg['TH'][this_ref]['insertion_direction'])
+        )
+        fp_scad.write('//Wrapper thickness\n')
+        fp_scad.write('Wrapper_Thickness_For_%s=%s; // [0:0.1:10.0]\n'%(
+            this_ref,
+            cfg['TH'][this_ref]['shell_wrapper_thickness'])
+        )
+        fp_scad.write('//Wrapper height\n')
+        fp_scad.write('Wrapper_Height_For_%s=%s; // [0:0.1:%s]\n'%(
+            this_ref,
+            cfg['TH'][this_ref]['shell_wrapper_height'],
+            topmost_z)
+        )
+
+
+def generate_footprints(
+        fp_scad,
+        config_text,
+        cfg,
+        config_file,
+        keep_orientation,
+        arrange_dir,
+        arrange_gap,
+        all_shells,
+        fp_map,
+        ref_map,
+        topmost_z):
+    fp_scad.write('''// Customizable Jig Generator
+// In OpenSCAD, use "Description Only" for best user experience
+// understanding the tunable parameters.
+// -----------------------------------------------------
+// Auto generated file by jigit, the awesome automatic
+// jig generator for your PCB designs. Checkout the project
+// at https://github.com/shreekumar3d/jigit
+// -----------------------------------------------------
+// Configuration file : %s
+//
+// Complete configuration file is embedded at the end of this
+// file.
+'''%('(Tool Default Internal Configuration)' if not config_file else config_file))
+    fp_scad.write('//Thickness(height) of base\n')
+    fp_scad.write('Base_Thickness = %s; // [0.0:0.2:1.0]\n'%(cfg['holder']['base']['thickness']))
+    gen_configurable_ref_components(fp_scad, cfg, all_shells, fp_map, ref_map, topmost_z)
+
+    fp_scad.write('/* [Hidden] */\n')
+    bottom_insertion_z = topmost_z + 2*cfg['holder']['base']['thickness']
+    gen_fixed_values_hidden(fp_scad, topmost_z)
+
+    gen_computed_values(fp_scad, all_shells, None, topmost_z, bottom_insertion_z)
+    fp_scad.write('tiny_dimension = 0.0001;\n')
+    fp_scad.write('PCB_Thickness = 0;\n')
+    fp_scad.write('c_Base_Thickness = Base_Thickness;\n')
+
+    span = {}
+    bottom_insertion_z = topmost_z
+    x_span_sum = 0
+    y_span_sum = 0
+    for subshells in all_shells:
+        this_ref = subshells['ref']
+        min_x = float('inf')
+        min_y = float('inf')
+        max_x = float('-inf')
+        max_y = float('-inf')
+        for shell_info in subshells['shell']:
+            # all subshells in a ref are in the same coordinate space
+            # so we can cumulatively do min, max
+            min_x = min(np.min(shell_info['mesh'][:,0]), min_x)
+            max_x = max(np.max(shell_info['mesh'][:,0]), max_x)
+            min_y = min(np.min(shell_info['mesh'][:,1]), min_y)
+            max_y = max(np.max(shell_info['mesh'][:,1]), max_y)
+            gen_shell_shape(cfg, this_ref, shell_info['name'],
+                        shell_info['x'], shell_info['y'], shell_info['orientation'],
+                        shell_info['min_z'], shell_info['max_z'], shell_info['mesh'],
+                        shell_info['fitting_bins'])
+        gen_courtyard_shell_shape(this_ref, subshells['front_courtyard'])
+
+        x_span = max_x - min_x
+        y_span = max_y - min_y
+        subshells['x_span'] = x_span
+        subshells['y_span'] = y_span
+        subshells['x_min'] = min_x
+        subshells['y_min'] = min_y
+        subshells['x_max'] = max_x
+        subshells['y_max'] = max_y
+        x_span_sum += x_span
+        y_span_sum += y_span
+        span[this_ref] = {x_span, y_span}
+
+    num_steps = len(all_shells)-1
+    if num_steps==0:
+        cur_x = cur_y = 0
+    else:
+        if arrange_dir == 'x':
+            x_span_sum += (num_steps)*arrange_gap
+            cur_x = -x_span_sum/2
+            cur_y = 0
+        else:
+            y_span_sum += (num_steps)*arrange_gap
+            cur_x = 0
+            cur_y = -y_span_sum/2
+
+    # Write out entire SolidPython generated scad, including the modules
+    # Hack : ScadValue can't be empty - so passing it a comment!
+    fp_scad.write(scad_render(ScadValue('//\n')))
+
+    for subshells in all_shells:
+        this_ref = subshells['ref']
+        # Note: x_min and y_min are likely to be negative
+        if arrange_dir == 'x':
+            subshells['shell_pos_x'] = cur_x+subshells['x_span']+subshells['x_min']
+            subshells['shell_pos_y'] = subshells['y_span']*0.5-subshells['y_max']
+        elif arrange_dir == 'y':
+            subshells['shell_pos_x'] = subshells['x_span']*0.5+subshells['x_min']
+            subshells['shell_pos_y'] = cur_y+subshells['y_span']-subshells['y_max']
+        if arrange_dir == 'x':
+            cur_x += subshells['x_span']+arrange_gap
+        elif arrange_dir == 'y':
+            cur_y += subshells['y_span']+arrange_gap
+
+    gen_included_component_shells(fp_scad, all_shells)
+    gen_included_component_cuts(fp_scad, all_shells)
+    gen_included_component_pockets(fp_scad, all_shells)
+
+    fp_scad.write('module all_models() {\n')
+    fp_scad.write('  difference() {\n')
+    fp_scad.write('    mounted_component_shells();\n')
+    fp_scad.write('    union() {\n')
+    fp_scad.write('      mounted_component_cuts();\n')
+    fp_scad.write('      mounted_component_pockets();\n')
+    fp_scad.write('    }\n')
+    fp_scad.write('  }\n')
+    fp_scad.write('}\n')
+
+    fp_scad.write('orient_to_print=%d;\n'%(not keep_orientation))
+    fp_scad.write('if(orient_to_print == 1) {\n')
+    fp_scad.write('  rotate([180,0,0]) all_models();\n')
+    fp_scad.write('} else {\n')
+    fp_scad.write('  all_models();\n')
+    fp_scad.write('}\n')

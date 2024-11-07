@@ -195,7 +195,8 @@ def load(configFile, ref_map, fp_map, mh_map):
 
     # Propagate default values to all TH footprints
     for kfp in th_fp_list:
-        if fp_map[kfp]['alias']:
+        # we may not have the alias structure set due to footprint mode
+        if fp_map[kfp]['alias'] and (fp_map[kfp]['alias'] in cfg['footprint']):
             alias = fp_map[kfp]['alias']
             this_fp = cfg['footprint'][alias]
         else:
@@ -210,8 +211,8 @@ def load(configFile, ref_map, fp_map, mh_map):
             if ivkey not in this_fp:
                 this_fp[ivkey] = cfg['TH']['component_shell'][ivkey]
 
-    #pprint(cfg)
     #pprint(fp_map)
+    #print('th_fp=',th_fp_list)
     # Process TH components
     # Propagate values from TH footprints to the actual components
     th_ref_list = []
