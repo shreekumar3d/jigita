@@ -462,7 +462,7 @@ type = "griddish"
 
 # Thickness of the base. Higher value will improve rigidity in the
 # xy dimension (apart from the grooves)
-thickness = 1
+thickness = 0.4
 
 # A "perimeter" can be added on top of the base. This also improves the
 # rigidity of the structure.

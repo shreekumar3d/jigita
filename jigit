@@ -547,13 +547,25 @@ for this_ref in th_ref_list:
                 'fp_center': [center_x+th['x'],center_y+th['y']],
                 'fitting_bins' : h_bins
             }
-            this_subshell['x'] = th['x'] if not args.pcb_footprints else 0
-            this_subshell['y'] = th['x'] if not args.pcb_footprints else 0
-            this_subshell['orientation'] = th['orientation'] if not args.pcb_footprints else 0
+            this_subshell['x'] = th['x']
+            this_subshell['y'] = th['y']
+            this_subshell['orientation'] = th['orientation']
             subshells['shell'].append(this_subshell)
             print('  Generating shell %s for ref %s with mesh %s'%(shell_ident, this_ref, modinfo['model']))
             local_max_z = max(local_max_z, max_z)
             local_min_z = min(local_min_z, min_z)
+    if len(subshells['shell'])>1:
+        all_hulls = None
+        for ss in subshells['shell']:
+            # first bin is the biggest one
+            this_hull = ss['fitting_bins'][0]['hull']
+            if all_hulls is None:
+                all_hulls = np.copy(this_hull)
+            else:
+                all_hulls = np.concatenate((this_hull, all_hulls), axis=0)
+        hull = scipy.spatial.ConvexHull(all_hulls)
+        hull_verts = all_hulls[hull.vertices]
+        subshells['combined_hull'] = hull_verts
     if local_max_z > 0: # Means we found a mesh
         subshells['max_z'] = local_max_z
         subshells['min_z'] = local_min_z

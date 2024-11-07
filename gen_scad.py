@@ -551,6 +551,26 @@ def gen_included_component_shells(fp_scad, all_shells):
         this_ref = subshells['ref']
         if 'shell_pos_x' in subshells:
             fp_scad.write('  translate([%s,%s,0]) {\n'%(subshells['shell_pos_x'], subshells['shell_pos_y']))
+            if 'combined_hull' in subshells:
+                combined_poly = subshells['combined_hull']
+                fp_scad.write('    translate([0,0,PCB_Thickness+topmost_z]) {\n')
+                fp_scad.write('      linear_extrude(c_Base_Thickness)\n')
+                fp_scad.write('       polygon(points=[\n')
+                for pt in combined_poly:
+                    fp_scad.write('         [%s,%s],\n'%(pt[0],pt[1]))
+                fp_scad.write('       ]);\n')
+                fp_scad.write('    }\n')
+                # almost duplicate code FIXME
+                fp_scad.write('    translate([0,0,PCB_Thickness+topmost_z+c_Base_Thickness-Wrapper_Height_For_%s]) {\n'%(this_ref))
+                fp_scad.write('      linear_extrude(Wrapper_Height_For_%s) {\n'%(this_ref))
+                fp_scad.write('        offset(Wrapper_Thickness_For_%s) {\n'%(this_ref))
+                fp_scad.write('          polygon(points=[\n')
+                for pt in combined_poly:
+                    fp_scad.write('           [%s,%s],\n'%(pt[0],pt[1]))
+                fp_scad.write('         ]);\n')
+                fp_scad.write('        }\n')
+                fp_scad.write('      }\n')
+                fp_scad.write('    }\n')
         fp_scad.write('  if(Include_%s_in_Jig) {\n'%(this_ref))
         fp_scad.write('    if(Shell_Type_For_%s=="courtyard") {\n'%(this_ref))
         fp_scad.write('      %s();\n'%(ref2courtyard_perimeter(this_ref)))
@@ -565,7 +585,7 @@ def gen_included_component_shells(fp_scad, all_shells):
         fp_scad.write('    }\n')
         fp_scad.write('  }\n') # included
         if 'shell_pos_x' in subshells:
-            fp_scad.write('  }')
+            fp_scad.write('  }\n')
     fp_scad.write('  }\n')
     fp_scad.write('}\n')
 
