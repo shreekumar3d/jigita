@@ -9,7 +9,7 @@ from pathlib import Path
 
 valid_shell_types = ['wiggle', 'fitting', 'fitting_flower', 'courtyard']
 valid_jig_types = ['TH_soldering', 'component_fitting']
-valid_base_types = ["x_lines", "y_lines", "griddish", "mesh", "solid"]
+valid_base_types = ["x_lines", "y_lines", "griddish", "mesh", "minmesh", "solid"]
 valid_insertions = ["top", "bottom"]
 keys_TH_builtin = None
 TH_component_shell_value_keys = [
@@ -454,6 +454,10 @@ perimeter = 1.6
 # - "mesh". This is a sparse structure built of thick lines. This helps
 #   reduce plastic usage, and can reduce print time. This also improves
 #   visibility of components when they are placed in the jig.
+# - "minmesh". A minimal mesh just about holding everything together.
+#   This should be sufficient if your components are on the edges. This
+#   draws a single path between all the component centers and mounting
+#   holes, and connects that line to the external outline.
 # - "griddish". A sparse grid like structure made of thick lines. This
 #   gives good support to base of shells, and provides visibility from
 #   bottom of the jig. Probably takes slightly more material than mesh,

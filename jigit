@@ -44,6 +44,7 @@ try:
     import toml
     import shapely
     import rectpack
+    import python_tsp
 except ImportError as err:
     print(f'Missing module : {err.name}', file=sys.stderr)
     print('Please install it using pip, and retry.')
@@ -53,6 +54,9 @@ import scipy.spatial
 from scipy.spatial.transform import Rotation
 import toml
 from pcbnew import PCB_IO_MGR
+from python_tsp.distances import euclidean_distance_matrix
+from python_tsp.heuristics import solve_tsp_local_search, solve_tsp_simulated_annealing
+from shapely import LineString, Polygon, Point
 
 def get_courtyard_polygon(shape):
     # Courtyard Polygon Coordinate System Note:
@@ -509,6 +513,11 @@ if do_pcb_proc:
     pcb_filled_shapes.sort(key=lambda x:x['area'], reverse=True)
     # And hence these are the vertices
     pcb_edge_points = pcb_filled_shapes[0]['vertices']
+    # Fix Y immediately - don't let the disease spread :)
+    # FIXME I really need some coordinated way of setting up the coordinate
+    # system
+    for pt in pcb_edge_points:
+        pt[1] = -pt[1]
 
 all_shells = []
 fp_centers = []
@@ -630,29 +639,32 @@ if do_pcb_proc:
         pcb_max_y = max(pcb_max_y, pt[1])
 
     pcb_bb_corners = [
-        [pcb_min_x , -pcb_min_y],
-        [pcb_min_x , -pcb_max_y],
-        [pcb_max_x , -pcb_min_y],
-        [pcb_max_x , -pcb_max_y]
+        [pcb_min_x , pcb_min_y],
+        [pcb_min_x , pcb_max_y],
+        [pcb_max_x , pcb_min_y],
+        [pcb_max_x , pcb_max_y]
     ]
 
     # Delaunay triangulation will be done on the following points
     # 1. centers of all considered footprints
     # 2. mounting holes
-    # 3. bounding box corners of PCB edge. mounting holes are
+    # 3. representative corner points of PCB edge. mounting holes are
     #    inside the PCB and don't extend all the way to the edge.
     #    If we don't include them, we may end up having a separate
-    #    "delaunay island", depending on the exact PCB.
-    dt_centers = fp_centers + pcb_bb_corners
+    #    "delaunay island", depending on the exact PCB shape
+    pcb_edge_simple_points = edge_cuts.get_representative_verts(pcb_filled_shapes[0])
+    for pt in pcb_edge_simple_points:
+        pt[1] = -pt[1]
+    dt_centers = pcb_edge_simple_points + fp_centers
 
+    pcb_edge_poly = Polygon(pcb_edge_points)
     # ignore mounting holes outside PCB for mesh calculation
     for pt in mounting_holes:
-        if (pt[0] > pcb_min_x) and (pt[0] < pcb_max_x) or \
-           (pt[1] > pcb_min_y) and (pt[1] < pcb_max_y):
+        if pcb_edge_poly.contains(Point(pt[0],pt[1])):
             dt_centers.append(pt)
         else:
-            #print(pt, ' is out of PCB')
-            pass
+            print('NOTE: Mounting hole at ', pt,
+                  ' is out of PCB - will not be considered for mesh and minmesh')
 
     mesh_line_segments = []
     if len(dt_centers)>=4:
@@ -682,6 +694,36 @@ if do_pcb_proc:
             c = [cv[0],cv[1]]
             mesh_line_segments.append([b,c])
             mesh_line_segments.append([c,a])
+
+    minmesh_line_segments = []
+    if len(dt_centers)>2:
+        # FIXME: should we not do minmesh if there are very large number of points !?
+        # CPU could just hang if given large number of points... Of course, that can
+        # generally happen if there are bugs in the program - typically we wouldn't
+        # expect even 100 points to go for Travelling Salesman
+        print('Computing minmesh nodes=%d...'%(len(dt_centers)))
+        distance_matrix = euclidean_distance_matrix(np.array(dt_centers), np.array(dt_centers))
+        all_nodes = np.array(dt_centers)
+
+        # NOTE: starting point of the travelling salesman problem will be a point
+        # on the edge of the PCB, due to the way dt_centers is setup...
+
+        # Using method from TSP docs https://github.com/fillipe-gsm/python-tsp
+        # """
+        # Finally, if you don't feel like fine-tunning the solvers for each problem,
+        # a rule of thumb that worked relatively well for me is to run the SA with
+        # a 2-opt and follow it by a LS with PS3 or PS6, like
+        # """
+        # Yeah, sure I don't like fine tuning the travelling salesman right now.
+        # Will take this up later. FIXME
+        #
+        permutation, distance = solve_tsp_simulated_annealing(distance_matrix)
+        permutation2, distance2 = solve_tsp_local_search(
+            distance_matrix, x0=permutation, perturbation_scheme="ps3"
+        )
+        minmesh_path = all_nodes[permutation2].tolist()
+    else:
+        minmesh_path = dt_centers
 
     groove_lines = edge_cuts.compute_grooves(arc_resolution, pcb_filled_shapes[0], groove_size)
 
@@ -749,7 +791,7 @@ try:
             ref_map, mh_map, smd_keepouts, topmost_z,
             pcb_edge_points,
             dt_centers,
-            mesh_line_segments, groove_lines,
+            mesh_line_segments, minmesh_path, groove_lines,
             pcb_min_x, pcb_max_x, pcb_min_y, pcb_max_y)
 
     elif args.footprint or args.pcb_footprints:

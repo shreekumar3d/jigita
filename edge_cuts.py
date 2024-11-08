@@ -8,6 +8,7 @@ from jigcommon import *
 # Standard packages
 import math
 from pprint import pprint
+import copy
 
 # This file contains functionality related to processing
 # the 'Edge Cuts' layer of a KiCAD PCB file.
@@ -115,7 +116,10 @@ def tesellate_circle(arc_resolution, seg):
     verts = []
     cx, cy = seg['center']
     r = seg['radius']
-    iters = tess_iters(arc_resolution, r, 360)
+    if type(arc_resolution) is str: # FIXME YIKES, but else we'd have to replicate code?
+        iters = int(arc_resolution)
+    else:
+        iters = tess_iters(arc_resolution, r, 360)
     for i in range(iters):
         angle = (i/iters)*circle_angle
         x = cx + r * math.cos(angle)
@@ -433,3 +437,18 @@ def compute_largest_filled_shape(dwg_list, arc_resolution):
         return []
     dwg_filled_shapes.sort(key=lambda x:x['area'], reverse=True)
     return dwg_filled_shapes[0]['vertices']
+
+def get_representative_verts(filled_shape):
+    if filled_shape['type'] == 'Circle':
+        return tesellate_circle('8', filled_shape)
+    if filled_shape['type'] != 'Composite':
+        return copy.deepcopy(filled_shape['vertices'])
+    verts = []
+    segments = filled_shape['shape']['segments']
+    verts.append(copy.deepcopy(segments[0]['start']))
+    for seg in segments[1:]:
+        verts.append(copy.deepcopy(seg['start']))
+        if seg['type'] == 'Arc':
+            verts.append(copy.deepcopy(seg['mid']))
+    verts.append(copy.deepcopy(segments[-1]['end']))
+    return verts

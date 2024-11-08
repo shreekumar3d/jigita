@@ -4,7 +4,7 @@ import numpy as np
 from solid2 import * # SolidPython
 import solid2
 import jigconfig
-from shapely import LineString, Polygon, Point
+from shapely import LineString, Polygon, Point, LinearRing
 import geom_ops
 from pprint import pprint
 import rectpack
@@ -416,7 +416,7 @@ Bolt_Is_External = %s;
 /* [Base] */
 
 // Type of Base
-Base_Type = "%s"; // [x_lines, y_lines, griddish, mesh, solid]
+Base_Type = "%s"; // [x_lines, y_lines, griddish, minmesh, mesh, solid]
 
 // Thickness of Base
 Base_Thickness = %s;
@@ -716,6 +716,7 @@ def generate_jig(
         topmost_z, pcb_edge_points,
         dt_centers,
         mesh_line_segments,
+        minmesh_path,
         groove_lines,
         pcb_min_x, pcb_max_x, pcb_min_y, pcb_max_y):
     fp_scad.write('''// Customizable Jig Generator
@@ -759,7 +760,6 @@ def generate_jig(
             keepout['min_z'], keepout['max_z'], keepout['front_courtyard'])
     # Write out the PCB edge
     pcb_edge_points = np.array(pcb_edge_points)
-    pcb_edge_points[:,1] *= -1.0 # Negate all Ys to fix coordinate system
     sm_pcb_edge = module('pcb_edge', polygon(pcb_edge_points))
     sm_pcb = module('pcb', linear_extrude(sv_pcb_thickness) (sm_pcb_edge()))
 
@@ -790,6 +790,19 @@ def generate_jig(
     for start, end in mesh_line_segments:
         mesh_lines += wide_line(start, end)
 
+    minmesh_lines = union()
+    if len(minmesh_path)>0:
+        for start, end in zip(minmesh_path, minmesh_path[1:]):
+            minmesh_lines += wide_line(start, end)
+        # close the path
+        minmesh_lines += wide_line(minmesh_path[0], minmesh_path[-1])
+        # connect every point to the edge
+        pcb_edge_ls = LineString(pcb_edge_points)
+        for pt in minmesh_path:
+            nd = pcb_edge_ls.project(Point(pt[0],pt[1]))
+            nearest = pcb_edge_ls.interpolate(nd)
+            minmesh_lines += wide_line(pt, [nearest.x,nearest.y])
+
     base_mesh_volume = linear_extrude(sv_base_line_height) (
                            offset(sv_pcb_holder_perimeter+sv_pcb_gap) (
                                sm_pcb_edge()
@@ -805,6 +818,15 @@ def generate_jig(
                 )
 
     sm_base_mesh = module('base_mesh', base_mesh())
+
+    base_minmesh = translate([0,0,sv_mesh_start_z]) (
+                    intersection() (
+                        minmesh_lines,
+                        sm_base_mesh_volume()
+                    )
+                )
+
+    sm_base_minmesh = module('base_minmesh', base_minmesh())
 
     pcb_holder = linear_extrude(sv_topmost_z+sv_pcb_thickness+sv_base_thickness) (
             difference()(
@@ -851,10 +873,9 @@ def generate_jig(
     sv_base_z = ScadValue('base_z')
     s_groove_lines = union()
     for line in groove_lines:
-        # FIXME: see the -y below? This is ugliness. Aim for consistency
         s_groove_lines += peri_line(
-                        [line[0][0],-line[0][1]],
-                        [line[1][0],-line[1][1]],
+                        [line[0][0], line[0][1]],
+                        [line[1][0], line[1][1]],
                         sv_groove_width)
     sm_pcb_support_groove = module('pcb_support_groove',
             translate([0,0,-sv_tiny_dimension]) (
@@ -979,15 +1000,14 @@ def generate_jig(
     fp_scad.write('module base_connect_mounting_hole_lines() {\n')
     # Here we connect mounting holes to the PCB edge with lines
     # Find the closest point, draw a line
-    #print(pcb_edge_points)
-    pcb_edge_ls = LineString(pcb_edge_points)
+    pcb_edge_ls = LinearRing(pcb_edge_points)
     fp_scad.write('  translate([0,0,mesh_start_z]) {\n')
     fp_scad.write('    union() {\n')
     for mh_name in mh_map:
         mh_pos = [mh_map[mh_name]['x'],mh_map[mh_name]['y']]
-        #print(mh_pos)
         nd = pcb_edge_ls.project(Point(mh_pos[0],mh_pos[1]))
         nearest = pcb_edge_ls.interpolate(nd)
+        #print('Mounting hole ', mh_pos, ' connected to ', nearest, ' distance =', nd)
         l_start = '[%s, %s]'%(mh_pos[0],mh_pos[1])
         l_end = '[%s, %s]'%(nearest.x, nearest.y)
         fp_scad.write('      wide_line(%s,%s);\n'%(l_start,l_end))
@@ -1084,6 +1104,8 @@ module complete_model_TH_soldering() {
         pcb_perimeter_short();
         if(Base_Type=="mesh") {
           base_mesh();
+        } else if(Base_Type=="minmesh") {
+          base_minmesh();
         } else if(Base_Type=="griddish") {
           base_griddish();
         } else if(Base_Type=="x_lines") {
@@ -1117,6 +1139,8 @@ module complete_model_component_fitting() {
       union() {
         if(Base_Type=="mesh") {
           base_mesh();
+        } else if(Base_Type=="minmesh") {
+          base_minmesh();
         } else if(Base_Type=="griddish") {
           base_griddish();
         } else if(Base_Type=="x_lines") {
