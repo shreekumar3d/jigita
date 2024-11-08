@@ -163,16 +163,29 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
                         cut_to_top_shape += solid2.hull() (trim_start + trim_end)
 
 
-            cut_volume += translate([0,0,-sv_tiny_dimension+this_bin['start_z']]) (
+            # Cut volumes must not cut into mesh lines. If that happens, then we
+            # could end up "island" shells that are unconnected to the rest of the
+            # print. If mesh_line_height is 0, then the best way to avoid islands
+            # is by having base_thickness > 0. FIXME this could be an intelligent
+            # automatic choice made this this tool
+            avoid_mesh_lines_z = openscad_functions.max(sv_base_line_height-sv_base_thickness, 0)
+
+            cut_volume += translate([0,0,
+                                     -sv_tiny_dimension+this_bin['start_z']
+                                     -avoid_mesh_lines_z]) (
                                 translate([x,y,sv_pcb_thickness]) (
-                                    linear_extrude(this_bin['end_z']-this_bin['start_z']+2*sv_tiny_dimension) (
+                                    linear_extrude(this_bin['end_z'] -
+                                                   this_bin['start_z'] +
+                                                   2*sv_tiny_dimension) (
                                         cut_shape
                                     )
                                 )
                             )
-            cut_volume += translate([0,0,-sv_tiny_dimension]) (
+            cut_volume += translate([0,0,
+                                     -sv_tiny_dimension-avoid_mesh_lines_z]) (
                                 translate([x,y,sv_pcb_thickness]) (
-                                    linear_extrude(this_bin['end_z']+2*sv_tiny_dimension) (
+                                    linear_extrude(this_bin['end_z'] +
+                                                   2*sv_tiny_dimension) (
                                         cut_to_top_shape
                                     )
                                 )
