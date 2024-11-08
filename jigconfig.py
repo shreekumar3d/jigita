@@ -389,6 +389,10 @@ layer_height = 0.2
 # First layer height is generally different
 # (more than others and typically 0.2)
 first_layer_height = 0.2
+
+# x dim and y dim are in centimeters (not mm)
+bed_x_dim = 25
+bed_y_dim = 20
 '''
 
 _inbuilt_config = '''

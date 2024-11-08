@@ -43,6 +43,7 @@ try:
     import solid2
     import toml
     import shapely
+    import rectpack
 except ImportError as err:
     print(f'Missing module : {err.name}', file=sys.stderr)
     print('Please install it using pip, and retry.')
@@ -303,7 +304,7 @@ group.add_argument('--model3d', action='extend', nargs='+', type=str,
 parser.add_argument('--pcb-footprints', action='store_true', default=False,
     help='''Generates one shell per footprint used on the PCB design
             given through --pcb.''')
-parser.add_argument('--arrange', default='x', choices=['x','y'],
+parser.add_argument('--arrange', default='xy', choices=['x','y','xy'],
     help='''Arrange shells in this direction. Works with --footprint,
             --model3d and --pcb-footprints''')
 parser.add_argument('--gap', metavar='DISTANCE', type=float,
@@ -734,35 +735,39 @@ if not cfg['jig']['mounting_hole_bolt_is_external'] and \
     print("ERROR: can't have separate spacer with internal bolt")
     sys.exit(1)
 
-if do_pcb_proc:
-    gen_scad.generate_jig(
-        fp_scad,
-        config_text,
-        cfg,
-        args.pcb,
-        args.config,
-        args.keep_orientation,
-        all_shells,
-        fp_map,
-        ref_map, mh_map, smd_keepouts, topmost_z,
-        pcb_edge_points,
-        dt_centers,
-        mesh_line_segments, groove_lines,
-        pcb_min_x, pcb_max_x, pcb_min_y, pcb_max_y)
+try:
+    if do_pcb_proc:
+        gen_scad.generate_jig(
+            fp_scad,
+            config_text,
+            cfg,
+            args.pcb,
+            args.config,
+            args.keep_orientation,
+            all_shells,
+            fp_map,
+            ref_map, mh_map, smd_keepouts, topmost_z,
+            pcb_edge_points,
+            dt_centers,
+            mesh_line_segments, groove_lines,
+            pcb_min_x, pcb_max_x, pcb_min_y, pcb_max_y)
 
-elif args.footprint or args.pcb_footprints:
-    gen_scad.generate_footprints(
-        fp_scad,
-        config_text,
-        cfg,
-        args.config,
-        args.keep_orientation,
-        args.arrange,
-        args.gap,
-        all_shells,
-        fp_map,
-        ref_map,
-        topmost_z)
+    elif args.footprint or args.pcb_footprints:
+        gen_scad.generate_footprints(
+            fp_scad,
+            config_text,
+            cfg,
+            args.config,
+            args.keep_orientation,
+            args.arrange,
+            args.gap,
+            all_shells,
+            fp_map,
+            ref_map,
+            topmost_z)
+except ValueError as err:
+    print(f"ERROR: {err}", file=sys.stderr)
+    sys.exit(-1)
 
 # Done with the file
 fp_scad.close()
