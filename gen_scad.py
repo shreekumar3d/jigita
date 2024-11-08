@@ -1271,11 +1271,13 @@ def generate_footprints(
     fp_scad.write('tiny_dimension = 0.0001;\n')
     fp_scad.write('PCB_Thickness = 0;\n')
     fp_scad.write('c_Base_Thickness = Base_Thickness;\n')
+    fp_scad.write('c_Base_Line_Height = %s;\n'%(cfg['holder']['base']['line_height']))
 
     span = {}
     bottom_insertion_z = topmost_z
     x_span_sum = 0
     y_span_sum = 0
+    this_ref_gap = 0
     for subshells in all_shells:
         this_ref = subshells['ref']
         min_x = float('inf')
@@ -1305,24 +1307,37 @@ def generate_footprints(
         subshells['y_max'] = max_y
         x_span_sum += x_span
         y_span_sum += y_span
+        footprint = cfg['TH'][this_ref]['kicad_footprint']
+        alias = fp_map[footprint]['alias']
+        fp = cfg['footprint'][alias]
+        # FIXME should we get rid of this delta business? Does it actually
+        # have any utility!? Footprint level customization may be good enough
+        this_ref_gap = fp['shell_gap'] + \
+                       cfg['TH'][this_ref]['delta_shell_gap'] + \
+                       fp['shell_thickness'] + \
+                       cfg['TH'][this_ref]['delta_shell_thickness']
+        this_ref_gap = max(this_ref_gap, fp['shell_wrapper_thickness']+fp['shell_gap'])
+        this_ref_gap = this_ref_gap*2+arrange_gap*2
+        subshells['pos_gap'] = this_ref_gap
+        x_span_sum += this_ref_gap
+        y_span_sum += this_ref_gap
         span[this_ref] = {x_span, y_span}
 
     num_steps = len(all_shells)-1
+
+    # remove the last one for proper centering
+    x_span_sum -= this_ref_gap
+    y_span_sum -= this_ref_gap
+
     if num_steps==0:
         cur_x = cur_y = 0
     else:
         if arrange_dir == 'x':
-            x_span_sum += (num_steps)*arrange_gap
             cur_x = -x_span_sum/2
             cur_y = 0
         else:
-            y_span_sum += (num_steps)*arrange_gap
             cur_x = 0
             cur_y = -y_span_sum/2
-
-    # Write out entire SolidPython generated scad, including the modules
-    # Hack : ScadValue can't be empty - so passing it a comment!
-    fp_scad.write(scad_render(ScadValue('//\n')))
 
     for subshells in all_shells:
         this_ref = subshells['ref']
@@ -1334,9 +1349,13 @@ def generate_footprints(
             subshells['shell_pos_x'] = subshells['x_span']*0.5+subshells['x_min']
             subshells['shell_pos_y'] = cur_y+subshells['y_span']-subshells['y_max']
         if arrange_dir == 'x':
-            cur_x += subshells['x_span']+arrange_gap
+            cur_x += subshells['x_span']+subshells['pos_gap']
         elif arrange_dir == 'y':
-            cur_y += subshells['y_span']+arrange_gap
+            cur_y += subshells['y_span']+subshells['pos_gap']
+
+    # Write out entire SolidPython generated scad, including the modules
+    # Hack : ScadValue can't be empty - so passing it a comment!
+    fp_scad.write(scad_render(ScadValue('//\n')))
 
     gen_included_component_shells(fp_scad, all_shells)
     gen_included_component_cuts(fp_scad, all_shells)
