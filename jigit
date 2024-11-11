@@ -35,6 +35,7 @@ import tripy
 import gen_scad
 import compute_shells
 import geom_ops
+import ref_arrange
 
 # These are all modules you need to have
 try:
@@ -308,11 +309,14 @@ group.add_argument('--model3d', action='extend', nargs='+', type=str,
 parser.add_argument('--pcb-footprints', action='store_true', default=False,
     help='''Generates one shell per footprint used on the PCB design
             given through --pcb.''')
-parser.add_argument('--arrange', default='xy', choices=['x','y','xy'],
-    help='''Arrange shells in this direction. Works with --footprint,
+parser.add_argument('--arrange', default='xy', choices=['x','y','xy','grid','grid_xy','grid_yx'],
+    help='''Arrange shells in this direction. grid is same as grid_xy. Works with --footprint,
             --model3d and --pcb-footprints''')
-parser.add_argument('--gap', metavar='DISTANCE', type=float,
-    help='''Gap between shells. Applies with --arrange''')
+parser.add_argument('--gap', metavar='GAP_XY|GAP_X,GAP_Y',
+    help='''Gap around shells. You may provie a single value, or separate values
+            for X and Y axes. Applies with --arrange''')
+parser.add_argument('--grid', metavar='X,Y',
+    help='''Arrange shells in an X by Y grid. Applies with --arrange''')
 parser.add_argument('-c', '--config', metavar='FILENAME.toml',
     help='Use this configuration options file for various parameters.')
 
@@ -345,13 +349,52 @@ if args.pcb_footprints and not args.pcb:
     print(f"--pcb-footprints requires --pcb", file=sys.stderr)
     sys.exit(1)
 
+# start with defaults. FIXME: can this come from elsewhere - like a config ?
+gap_y = gap_x = 10.0
+
 if args.gap:
     if not (args.pcb_footprints or args.footprint or args.model3d):
         print("--gap requires at-least one of --pcb-footprints, --footprint or --model3d")
         sys.exit(1)
-else:
-    # FIXME - can this come from elsewhere - like a config ?
-    args.gap = 10.0
+    parts = args.gap.split(',')
+    if len(parts)>2:
+        print(f'ERROR: Upto 2 comma separated values may be specified for gap. Supplied="{args.gap}"')
+        sys.exit(1)
+
+    try:
+        gap_x = float(parts[0])
+        gap_y = float(parts[1]) if len(parts)>1 else gap_x
+    except ValueError:
+        print(f'ERROR: bad value for gap="${args.gap}"')
+        sys.exit(1)
+
+grid_x = grid_y = 1
+if args.grid or args.arrange:
+    if args.arrange not in ['grid','grid_xy','grid_yx']:
+        print("--grid requires --arrange=grid|grid_xy|grid_yx")
+        sys.exit(1)
+    if not (args.pcb_footprints or args.footprint or args.model3d):
+        print("--arrange=grid requires at-least one of --pcb-footprints, --footprint or --model3d")
+        sys.exit(1)
+    if not args.grid:
+        print("--arrange=grid requires grid size in --grid")
+        sys.exit(1)
+    parts = args.grid.split(',')
+    if len(parts)!=2:
+        print(f'ERROR: 2 comma separated values must be specified for grid. Supplied="{args.grid}"')
+        sys.exit(1)
+    try:
+        grid_x = int(parts[0])
+        grid_y = int(parts[1])
+    except ValueError:
+        print(f'ERROR: bad value for grid="${args.grid}"')
+        sys.exit(1)
+
+    # We allow a value of "1". Grid centers parts small and large,
+    # so a dimension of "1" is not the same as arrange by X or Y
+    if grid_x <= 0 or grid_y <= 0:
+        print(f'ERROR: bad value for grid="${args.grid}"')
+        sys.exit(1)
 
 if args.examples:
     print(f"Sorry, examples aren't created yet. Use the source, Luke!", file=sys.stderr)
@@ -795,14 +838,17 @@ try:
             pcb_min_x, pcb_max_x, pcb_min_y, pcb_max_y)
 
     elif args.footprint or args.pcb_footprints:
+        if args.grid and len(all_shells)>(grid_x*grid_y):
+            print("WARNING: There are more shells than grid elements. Shells shall be arranged consectively.")
+        ref_arrange.arrange(
+            cfg, fp_map, all_shells,
+            args.arrange, gap_x, gap_y, grid_x, grid_y)
         gen_scad.generate_footprints(
             fp_scad,
             config_text,
             cfg,
             args.config,
             args.keep_orientation,
-            args.arrange,
-            args.gap,
             all_shells,
             fp_map,
             ref_map,

@@ -7,9 +7,7 @@ import jigconfig
 from shapely import LineString, Polygon, Point, LinearRing
 import geom_ops
 from pprint import pprint
-import rectpack
 import math
-from itertools import cycle
 
 mod_map = {}
 wiggle_pocket_map = {}
@@ -1267,8 +1265,6 @@ def generate_footprints(
         cfg,
         config_file,
         keep_orientation,
-        arrange_dir,
-        arrange_gap,
         all_shells,
         fp_map,
         ref_map,
@@ -1309,128 +1305,13 @@ def generate_footprints(
         max_x = float('-inf')
         max_y = float('-inf')
         for shell_info in subshells['shell']:
-            # all subshells in a ref are in the same coordinate space
-            # so we can cumulatively do min, max
-            min_x = min(np.min(shell_info['mesh'][:,0]), min_x)
-            max_x = max(np.max(shell_info['mesh'][:,0]), max_x)
-            min_y = min(np.min(shell_info['mesh'][:,1]), min_y)
-            max_y = max(np.max(shell_info['mesh'][:,1]), max_y)
             gen_shell_shape(cfg, this_ref, shell_info['name'],
                         shell_info['x'], shell_info['y'], shell_info['orientation'],
                         shell_info['min_z'], shell_info['max_z'], shell_info['mesh'],
                         shell_info['fitting_bins'])
         gen_courtyard_shell_shape(this_ref, subshells['front_courtyard'])
 
-        x_span = max_x - min_x
-        y_span = max_y - min_y
-        subshells['x_span'] = x_span
-        subshells['y_span'] = y_span
-        subshells['x_min'] = min_x
-        subshells['y_min'] = min_y
-        subshells['x_max'] = max_x
-        subshells['y_max'] = max_y
-        footprint = cfg['TH'][this_ref]['kicad_footprint']
-        alias = fp_map[footprint]['alias']
-        fp = cfg['footprint'][alias]
-        # FIXME should we get rid of this delta business? Does it actually
-        # have any utility!? Footprint level customization may be good enough
-        this_ref_gap = fp['shell_gap'] + \
-                       cfg['TH'][this_ref]['delta_shell_gap'] + \
-                       fp['shell_thickness'] + \
-                       cfg['TH'][this_ref]['delta_shell_thickness']
-        this_ref_gap = max(this_ref_gap, fp['shell_wrapper_thickness']+fp['shell_gap'])
-        this_ref_gap = this_ref_gap*2+arrange_gap*2
-        subshells['pos_gap'] = this_ref_gap
         parts.append(subshells)
-
-    if arrange_dir in ['x','y']:
-        x_span_sum = 0
-        y_span_sum = 0
-        this_ref_gap = 0
-
-        for subshells in all_shells:
-            x_span_sum += subshells['x_span']
-            y_span_sum += subshells['y_span']
-            this_ref_gap = subshells['pos_gap']
-            x_span_sum += this_ref_gap
-            y_span_sum += this_ref_gap
-        num_steps = len(all_shells)-1
-
-        # remove the last one for proper centering
-        x_span_sum -= this_ref_gap
-        y_span_sum -= this_ref_gap
-
-        if num_steps==0:
-            cur_x = cur_y = 0
-        else:
-            if arrange_dir == 'x':
-                cur_x = -x_span_sum/2
-                cur_y = 0
-            else:
-                cur_x = 0
-                cur_y = -y_span_sum/2
-
-        for subshells in all_shells:
-            this_ref = subshells['ref']
-            # Note: x_min and y_min are likely to be negative
-            if arrange_dir == 'x':
-                subshells['shell_pos_x'] = cur_x+subshells['x_span']+subshells['x_min']
-                subshells['shell_pos_y'] = subshells['y_span']*0.5-subshells['y_max']
-            elif arrange_dir == 'y':
-                subshells['shell_pos_x'] = subshells['x_span']*0.5+subshells['x_min']
-                subshells['shell_pos_y'] = cur_y+subshells['y_span']-subshells['y_max']
-            if arrange_dir == 'x':
-                cur_x += subshells['x_span']+subshells['pos_gap']
-            elif arrange_dir == 'y':
-                cur_y += subshells['y_span']+subshells['pos_gap']
-    else:
-        resolv_factor = 100
-        def resolve_to_int(x):
-            return math.ceil(x*resolv_factor)
-        def resolve_from_int(x):
-            return x/resolv_factor
-
-        # FIXME: we don't support component rotation yet, that's why
-        # we disallow rotated solutions in output
-        # FIXME: all the component placement logic here has to move out
-        # of this file
-        packer = rectpack.newPacker(rotation=False)
-        for subshells in all_shells:
-            s_length = subshells['x_span'] + subshells['pos_gap']
-            s_width = subshells['y_span'] + subshells['pos_gap']
-            s_length = resolve_to_int(s_length)
-            s_width = resolve_to_int(s_width)
-            packer.add_rect(s_length, s_width, rid=subshells)
-
-        # Pack all of em in the bed! (or any size you pass in)
-        cm2mm = 10
-        x_dim = resolve_to_int(cfg['3dprinter']['bed_x_dim']*cm2mm)
-        y_dim = resolve_to_int(cfg['3dprinter']['bed_y_dim']*cm2mm)
-        packer.add_bin(x_dim, y_dim)
-
-        # Solve for it
-        packer.pack()
-
-        cycol = cycle(['red','green','blue', 'orange'])
-        all_rects = packer.rect_list()
-        if len(all_rects) != len(all_shells):
-            raise ValueError('Could only pack %d components in the given area, out of %d. Increase print bed area, reduce --gap or number of the components/footprints'%(len(all_rects), len(all_shells)))
-
-        for rect in all_rects:
-            b, x, y, w, h, rid = rect
-            x = resolve_from_int(x)
-            y = resolve_from_int(y)
-            w = resolve_from_int(w)
-            h = resolve_from_int(h)
-            subshells = rid
-            subshells['shell_pos_x'] = x + subshells['x_span'] + subshells['x_min'] + subshells['pos_gap']*0.5
-            subshells['shell_pos_y'] = y + subshells['y_span'] - subshells['y_max'] + subshells['pos_gap']*0.5
-            #fp_scad.write('color("%s") translate([%s,%s,-5])\n')
-            #fp_scad.write('  square(size=[%s,%s],center=false);\n'%(
-            #              next(cycol), x, y, w, h))
-            #print('origin=%3.2f %3.2f w=%3.2f h=%3.2f x=%3.2f y=%3.2f'%(
-            #       subshells['shell_pos_x'], subshells['shell_pos_y'],
-            #       w, h, x, y))
 
     # Write out entire SolidPython generated scad, including the modules
     # Hack : ScadValue can't be empty - so passing it a comment!
