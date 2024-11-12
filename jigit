@@ -83,11 +83,29 @@ def load_footprints(fp_spec_list, arc_resolution):
     # jigconfig. Fix the right way!
     alias_idx = 1
 
+    # User can ask for multiple copies by suffixing the spec with a number
+    # in curly braces.
+    # E.g. Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical{3}
+    # will add three 2.54mm vertical pin headers
+    #
+    # Note that this applies on top of any glob experssions
+    # E.g., Connector_PinHeader_2.54mm:PinHeader_*x05_P2.54mm_Vertical{3}
+    # will give you six total, 3 of 1x5 and 3 of 2x5
+    pxn = re.compile(r"^(.*)\{(\d+)\}$")
+
     for this_spec in fp_spec_list:
         full_spec = this_spec
         if this_spec.find(':')==-1:
             full_spec += ':*'
         fp_lib, fp_name = full_spec.split(':')
+        name_rep = pxn.match(fp_name)
+        if name_rep:
+            fp_name = name_rep[1]
+            repeat = int(name_rep[2])
+            if repeat == 0:
+                raise ValueError(f"Repeat count can't be 0 in {full_spec}")
+        else:
+            repeat = 1
         # if the lib name ends with pretty, it's a full filepath, including an
         # (optional) directory
         if not fp_lib.endswith('.pretty'):
@@ -149,10 +167,18 @@ def load_footprints(fp_spec_list, arc_resolution):
             b_pts = edge_cuts.compute_largest_filled_shape(b_crtyd_dwg, arc_resolution)
             ref_info['front_courtyard'] = f_pts
             ref_info['back_courtyard'] = b_pts
-            ref_map[this_alias] = ref_info
+            new_refs = []
+            if repeat == 1:
+                ref_map[this_alias] = ref_info
+                new_refs.append(ref_info)
+            else:
+                for i in range(repeat):
+                    this_ref = f'{this_alias}_{i}'
+                    ref_map[this_ref] = copy.copy(ref_info)
+                    new_refs.append(this_ref)
             fp_map[fp_complete_name] = {
                 'is_th' : fp.HasThroughHolePads(),
-                'refs' : [ ref_map[this_alias] ],
+                'refs' : new_refs,
                 'alias' : this_alias,
                 'footprint' : fp,
                 'display_name' : fp_complete_name,
@@ -369,15 +395,12 @@ if args.gap:
         sys.exit(1)
 
 grid_x = grid_y = 1
-if args.grid or args.arrange:
-    if args.arrange not in ['grid','grid_xy','grid_yx']:
-        print("--grid requires --arrange=grid|grid_xy|grid_yx")
+if args.arrange in ['grid', 'grid_xy', 'grid_yx']:
+    if not args.grid:
+        print("--arrange=grid requires grid size in --grid")
         sys.exit(1)
     if not (args.pcb_footprints or args.footprint or args.model3d):
         print("--arrange=grid requires at-least one of --pcb-footprints, --footprint or --model3d")
-        sys.exit(1)
-    if not args.grid:
-        print("--arrange=grid requires grid size in --grid")
         sys.exit(1)
     parts = args.grid.split(',')
     if len(parts)!=2:
