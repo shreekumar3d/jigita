@@ -191,19 +191,16 @@ def load_footprints(fp_spec_list, arc_resolution):
 
     return ref_map, fp_map
 
-def xform_mesh(mesh, modinfo, orientation):
+def xform_mesh(mesh, modinfo):
     mesh_scale = mesh * modinfo['scale']
     # FIXME: Hrrmph! why should I need to reverse these
     # angles !?
     rx = Rotation.from_euler('x', -modinfo['rotation'][0], degrees=True)
     ry = Rotation.from_euler('y', -modinfo['rotation'][1], degrees=True)
     rz = Rotation.from_euler('z', -modinfo['rotation'][2], degrees=True)
-    rot_angle=th['orientation'];
-    rz2 = Rotation.from_euler('z', rot_angle, degrees=True)
     r_xyz = rx*ry*rz
     mesh_rotated = r_xyz.apply(mesh_scale)
-    mesh2 = mesh_rotated + [modinfo['offset'][0], modinfo['offset'][1], modinfo['offset'][2]]
-    mesh = rz2.apply(mesh2)
+    mesh = mesh_rotated + [modinfo['offset'][0], modinfo['offset'][1], modinfo['offset'][2]]
     min_z = min(mesh[:,2])
     max_z = max(mesh[:,2])
     return mesh, min_z, max_z
@@ -609,7 +606,7 @@ for this_ref in th_ref_list:
             print('  WARNING: Mesh %s is empty on import. Watch out for intended side effects. SKIPPING!'
                   %(modinfo['model']))
             continue
-        mesh, min_z, max_z = xform_mesh(mesh, modinfo, th['orientation'])
+        mesh, min_z, max_z = xform_mesh(mesh, modinfo)
         #print('min_z = ', min_z, ' max_z = ', max_z)
         if min_z>0:
             print('  Mesh %s is NOT mounted on board. Skipping.'%(modinfo['model']))
@@ -678,7 +675,7 @@ if do_pcb_proc:
                 print('  WARNING: Mesh %s is empty on import. Watch out for intended side effects. SKIPPING!'
                       %(modinfo['model']))
                 continue
-            mesh, min_z, max_z = xform_mesh(mesh, modinfo, smd['orientation'])
+            mesh, min_z, max_z = xform_mesh(mesh, modinfo)
             keepout_ident = '%s_%d'%(this_ref,idx)
             smd_keepouts.append({
                 'name' : keepout_ident,

@@ -81,6 +81,12 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
     sv_ref_max_z = ScadValue('max_z_%s'%(ref))
     sv_ref_min_z = ScadValue('min_z_%s'%(ref))
 
+    # Every shell will be rotated by the rotation angle
+    # Any info we get from KiCAD in 2D (e.g. courtyard) is already in the final
+    # coordinate system (except reversing y). Thus, no need to rotate courtyards
+    # - and by extension perimeters, which are based on courtyards.
+    shell_rot_z = rot
+
     # compute the fitting pockets
     fitting_pocket_name = ref2fitting_pocket(ident)
     min_fitting_z = h_bins[0]['start_z']
@@ -171,26 +177,24 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
             # automatic choice made this this tool
             avoid_mesh_lines_z = openscad_functions.max(sv_base_line_height-sv_base_thickness, 0)
 
-            cut_volume += translate([0,0,
-                                     -sv_tiny_dimension+this_bin['start_z']
+            cut_volume += translate([x,y,sv_pcb_thickness-sv_tiny_dimension+this_bin['start_z']
                                      -avoid_mesh_lines_z]) (
-                                translate([x,y,sv_pcb_thickness]) (
-                                    linear_extrude(this_bin['end_z'] -
-                                                   this_bin['start_z'] +
-                                                   2*sv_tiny_dimension) (
-                                        cut_shape
-                                    )
-                                )
+                            rotate([0, 0, shell_rot_z]) (
+                              linear_extrude(this_bin['end_z'] -
+                                this_bin['start_z'] +
+                                2*sv_tiny_dimension) (
+                                cut_shape
+                              )
                             )
-            cut_volume += translate([0,0,
-                                     -sv_tiny_dimension-avoid_mesh_lines_z]) (
-                                translate([x,y,sv_pcb_thickness]) (
-                                    linear_extrude(this_bin['end_z'] +
-                                                   2*sv_tiny_dimension) (
-                                        cut_to_top_shape
-                                    )
-                                )
+                          )
+            cut_volume += translate([x,y,sv_pcb_thickness-sv_tiny_dimension-avoid_mesh_lines_z]) (
+                            rotate([0, 0, shell_rot_z]) (
+                              linear_extrude(this_bin['end_z'] + 2*sv_tiny_dimension) (
+                                cut_to_top_shape
+                              )
                             )
+                          )
+
     fitting_cuts_name = ref2fitting_cuts(ident)
     fitting_cuts_map[ident] = module(fitting_cuts_name, cut_volume)
 
@@ -201,33 +205,34 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
         else:
             # if start_z is closer than clearance, start at clearance
             start_z = openscad_functions.max(this_bin['start_z'], sv_ref_shell_clearance)
-        flower_shell += translate([0,0,start_z-sv_tiny_dimension]) (
-                            translate([x,y,sv_pcb_thickness]) (
-                                linear_extrude(sv_ref_max_z-start_z+2*sv_tiny_dimension) (
-                                    difference() (
-                                        offset(sv_ref_shell_gap+sv_ref_shell_thickness) (
-                                            polygon(this_bin['hull'])
-                                        ),
-                                        offset(sv_ref_shell_gap) (
-                                            polygon(this_bin['hull'])
-                                        )
-                                    )
+
+        flower_shell += translate([x,y,sv_pcb_thickness+start_z-sv_tiny_dimension]) (
+                          rotate([0, 0, shell_rot_z]) (
+                            linear_extrude(sv_ref_max_z-start_z+2*sv_tiny_dimension) (
+                              difference() (
+                                offset(sv_ref_shell_gap+sv_ref_shell_thickness) (
+                                  polygon(this_bin['hull'])
+                                ),
+                                offset(sv_ref_shell_gap) (
+                                  polygon(this_bin['hull'])
                                 )
+                              )
                             )
+                          )
                         )
 
     fitting_pocket = union()
     for this_bin in h_bins:
         # tiny_dimension ensures overlap across adjacent shells - important for boolean ops
-        fitting_pocket += translate([0,0,-sv_tiny_dimension+this_bin['start_z']]) (
-                            translate([x,y,sv_pcb_thickness]) (
-                                linear_extrude(this_bin['end_z']-this_bin['start_z']+2*sv_tiny_dimension) (
-                                    offset(sv_ref_shell_gap) (
-                                        polygon(this_bin['hull'])
-                                    )
+        fitting_pocket += translate([x,y,sv_pcb_thickness-sv_tiny_dimension+this_bin['start_z']]) (
+                            rotate([0, 0, shell_rot_z]) (
+                              linear_extrude(this_bin['end_z']-this_bin['start_z']+2*sv_tiny_dimension) (
+                                offset(sv_ref_shell_gap) (
+                                  polygon(this_bin['hull'])
                                 )
+                              )
                             )
-                        )
+                          )
     fitting_pocket_map[ident] = module(fitting_pocket_name, fitting_pocket)
 
     # define the polygon so that we can do offset on it
@@ -235,28 +240,31 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
     mod_map[ident] = module(mod_name, polygon(h_bins[0]['hull']))
 
     wiggle_pocket_name = ref2wiggle_pocket(ident)
-    wiggle_pocket = translate([x,y,sv_pcb_thickness])(
-                translate([0,0,sv_ref_min_z])(
-                    linear_extrude(sv_ref_max_z-sv_ref_min_z) (
-                        offset(sv_ref_shell_gap) (
+    wiggle_pocket = translate([x,y,sv_pcb_thickness+sv_ref_min_z])(
+                      rotate([0, 0, shell_rot_z]) (
+                        linear_extrude(sv_ref_max_z-sv_ref_min_z) (
+                          offset(sv_ref_shell_gap) (
                             mod_map[ident]()
+                          )
                         )
+                      )
                     )
-                )
-             )
     wiggle_pocket_map[ident] = module(wiggle_pocket_name, wiggle_pocket)
 
     perimeter_name = ref2perimeter(ident)
     perimeter_solid = translate([x,y,sv_pcb_thickness+sv_ref_shell_clearance]) (
-                        linear_extrude(sv_topmost_z-sv_ref_shell_clearance+sv_base_thickness) (
+                        rotate([0, 0, shell_rot_z]) (
+                          linear_extrude(sv_topmost_z-sv_ref_shell_clearance+sv_base_thickness) (
                             offset(sv_ref_shell_gap+sv_ref_shell_thickness) (
-                                mod_map[ident]()
+                              mod_map[ident]()
                             )
+                          )
                         )
                       )
 
     # Add wrapper
     wrapper = translate([x,y,sv_pcb_thickness+sv_topmost_z+sv_base_thickness-sv_ref_wrapper_height]) (
+                 rotate([0, 0, shell_rot_z]) (
                     linear_extrude(sv_ref_wrapper_height) (
                         difference() (
                             offset(sv_ref_shell_gap+sv_ref_shell_thickness+sv_ref_wrapper_thickness) (
@@ -267,7 +275,8 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
                             )
                         )
                     )
-                  )
+                 )
+              )
     perimeter_solid += wrapper
     flower_shell += wrapper
 
@@ -276,12 +285,14 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
 
     # Include the base and any extra height required to be made up for the flower shell
     flower_shell += translate([x,y,sv_pcb_thickness+sv_ref_max_z]) (
+                      rotate([0, 0, shell_rot_z]) (
                         linear_extrude(sv_topmost_z-sv_ref_max_z+sv_base_thickness) (
                             offset(sv_ref_shell_gap+sv_ref_shell_thickness) (
                                 mod_map[ident]()
                             )
                         )
                       )
+                    )
 
     fitting_flower_name = ref2fitting_flower(ident)
     fitting_flower_map[ident] = module(fitting_flower_name, flower_shell)
