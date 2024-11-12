@@ -25,6 +25,10 @@ import re
 import copy
 import math
 import pathlib
+import hashlib
+import appdirs
+import pathlib
+import pickle
 
 # Local imports
 from jigcommon import *
@@ -58,6 +62,8 @@ from pcbnew import PCB_IO_MGR
 from python_tsp.distances import euclidean_distance_matrix
 from python_tsp.heuristics import solve_tsp_local_search, solve_tsp_simulated_annealing
 from shapely import LineString, Polygon, Point
+
+APP_NAME = 'jigit'
 
 def get_courtyard_polygon(shape):
     # Courtyard Polygon Coordinate System Note:
@@ -140,6 +146,8 @@ def load_footprints(fp_spec_list, arc_resolution):
                     'scale'    : [mod3d.m_Scale[0], mod3d.m_Scale[1], mod3d.m_Scale[2]],
                     'rotation' : [mod3d.m_Rotation[0], mod3d.m_Rotation[1], mod3d.m_Rotation[2]]
                 })
+            # alphabetical order of mesh filename
+            models_3d.sort(key=lambda x:x['model'])
             fields = fp.Fields()
             footprint = fields[2].GetText() # e.g. Package_QFP:LQFP-128_14x14mm_P0.4mm
             ref_info = {
@@ -230,6 +238,8 @@ def get_ref_info(fp_list, unity_xform):
                 'scale'    : [mod3d.m_Scale[0], mod3d.m_Scale[1], mod3d.m_Scale[2]],
                 'rotation' : [mod3d.m_Rotation[0], mod3d.m_Rotation[1], mod3d.m_Rotation[2]]
             })
+        # alphabetical order of mesh filename
+        models_3d.sort(key=lambda x:x['model'])
         fp_rot = fp.GetOrientation().AsDegrees()
         fields = fp.Fields()
         footprint = fields[2].GetText() # e.g. Package_QFP:LQFP-128_14x14mm_P0.4mm
@@ -307,9 +317,57 @@ def load_3d_models(ref_list, ref_map, desc):
         comp = ref_map[ref]
         for modinfo in comp['models']:
             model_filename = os.path.expandvars(modinfo['model'])
-            modinfo['mesh'] = mesh_ops.load_mesh(model_filename, scriptdir, temp_dir)
+            modinfo['mesh'], modinfo['mesh_hash'], modinfo['nverts'] = mesh_ops.load_mesh(model_filename, scriptdir, temp_dir)
 
+_bid_map = {}
+_fp_bid_map = {}
 
+def ensure_dir_exists(path):
+    dirent = pathlib.Path(path)
+    if not dirent.exists():
+        dirent.mkdir(parents=True, exist_ok=True)
+
+def get_cache_dir():
+    cachedir = appdirs.user_cache_dir(APP_NAME)
+    ensure_dir_exists(cachedir)
+    return cachedir
+
+def get_fp_dir(footprint, bid):
+    cachedir = get_cache_dir()
+    fp_dir = cachedir
+    for part in footprint.split(':'):
+        fp_dir = os.path.join(fp_dir, part)
+    ensure_dir_exists(fp_dir)
+    return os.path.join(fp_dir, bid)
+
+def get_cached_bid(bid, footprint):
+    global _bid_map
+    if bid in _bid_map:
+        return _bid_map[bid]
+    entry_path = get_fp_dir(footprint, bid)
+    if pathlib.Path(entry_path).exists():
+        with open(entry_path, 'rb') as f:
+            #print('Loading from : ', entry_path)
+            value = pickle.load(f)
+            add_cached_bid(bid, value, footprint, False)
+            return value
+    return None
+
+def add_cached_bid(bid, value, footprint, save_to_file=True):
+    global _bid_map, _fp_bid_map
+
+    _bid_map[bid] = value
+
+    if footprint not in _fp_bid_map:
+        _fp_bid_map[footprint] = [bid]
+    elif bid not in _fp_bid_map[footprint]:
+        _fp_bid_map[footprint].append(bid)
+
+    entry_path = get_fp_dir(footprint, bid)
+    if save_to_file:
+        with open(entry_path, 'wb') as f:
+            #print('Saving to : ', entry_path)
+            return pickle.dump(value, f)
 #
 # Execution starts here
 #
@@ -453,7 +511,7 @@ if args.genconfig:
     print(f'Generated : %{args.genconfig}')
     sys.exit(0)
 
-jigconfig.load_user_config('jigit')
+jigconfig.load_user_config(APP_NAME)
 
 try:
     cfg, config_text, used_th_fp, th_ref_list, smd_ref_list = jigconfig.load(args.config, ref_map, fp_map, mh_map)
@@ -586,6 +644,25 @@ all_shells = []
 fp_centers = []
 topmost_z = 0
 
+def body_id(cfg, ref):
+    model_names = []
+    for modinfo in ref['models']:
+        model_names.append( \
+            [modinfo['model'], modinfo['mesh_hash'], modinfo['nverts'],
+             modinfo['rotation'], modinfo['offset'], modinfo['scale']])
+
+    full_name = ''
+    for values in model_names:
+        for x in values:
+            full_name += str(x)
+    # body id includes other parameters that impact the geometry of the
+    # shells. any change to these must trigger a "rebuild"
+    full_name += str(cfg['3dprinter']['min_printable_hole_area'])
+
+    return hashlib.md5(bytes(full_name,'utf-8')).hexdigest()
+
+
+all_bids = []
 # For each TH component on the board
 for this_ref in th_ref_list:
     print('Processing TH :', this_ref)
@@ -600,48 +677,79 @@ for this_ref in th_ref_list:
         'courtyard' : None
     }
     th = ref_map[this_ref]
+
+    printable_threshold = cfg['3dprinter']['min_printable_hole_area']
+
+    this_bid = body_id(cfg, th)
+    all_bids.append(this_bid)
+    body_info = get_cached_bid(this_bid, th['footprint'])
+
+    new_body_info = {
+            'subshells': []
+    }
     for idx, modinfo in enumerate(th['models']):
+        ss_info = {}
         mesh = modinfo['mesh']
         if mesh.shape[0]==0:
-            print('  WARNING: Mesh %s is empty on import. Watch out for intended side effects. SKIPPING!'
+            # FIXME: this must actually be treated as an error
+            print('  WARNING: Mesh %s is empty on import. Watch out for un-expected side effects. SKIPPING!'
                   %(modinfo['model']))
-            continue
-        mesh, min_z, max_z = xform_mesh(mesh, modinfo)
-        #print('min_z = ', min_z, ' max_z = ', max_z)
-        if min_z>0:
-            print('  Mesh %s is NOT mounted on board. Skipping.'%(modinfo['model']))
         else:
-            min_x = min(mesh[:,0])
-            max_x = max(mesh[:,0])
-            min_y = min(mesh[:,1])
-            max_y = max(mesh[:,1])
-            center_x = ((min_x + max_x)/2)
-            center_y = ((min_y + max_y)/2)
-            fp_centers.append([center_x+th['x'],center_y+th['y']])
-            #print('Hull size = ', len(hull.vertices), ' min Z=', min_z, ' max Z=', max_z)
-            #print(hull_verts)
-            shell_ident = '%s_%d'%(this_ref,idx)
-            printable_threshold = cfg['3dprinter']['min_printable_hole_area']
-            h_bins = compute_shells.fitting_pockets(mesh, 0.5, printable_threshold)
-            for this_bin in h_bins:
-                this_bin['corners'], this_bin['corner_segments'] = geom_ops.extract_corners_2D(this_bin['hull'])
+            mesh, min_z, max_z = xform_mesh(mesh, modinfo)
+            if min_z>0:
+                print('  Mesh %s is NOT mounted on board. Skipping.'%(modinfo['model']))
+            else:
+                shell_ident = '%s_%d'%(this_ref,idx)
+                if not body_info:
+                    min_x = min(mesh[:,0])
+                    max_x = max(mesh[:,0])
+                    min_y = min(mesh[:,1])
+                    max_y = max(mesh[:,1])
+                    center_x = ((min_x + max_x)/2)
+                    center_y = ((min_y + max_y)/2)
+                    h_bins = compute_shells.fitting_pockets(mesh, 0.5, printable_threshold)
+                    for this_bin in h_bins:
+                        this_bin['corners'], this_bin['corner_segments'] = geom_ops.extract_corners_2D(this_bin['hull'])
+                    ss_info['min_x'] = min_x
+                    ss_info['max_x'] = max_x
+                    ss_info['min_y'] = min_y
+                    ss_info['max_y'] = max_y
+                    ss_info['center_x'] = center_x
+                    ss_info['center_y'] = center_y
+                    ss_info['h_bins'] = h_bins
+                else:
+                    ss_info = body_info['subshells'][idx]
+                    min_x = ss_info['min_x']
+                    min_y = ss_info['min_y']
+                    max_x = ss_info['max_x']
+                    max_y = ss_info['max_y']
+                    center_x = ss_info['center_x']
+                    center_y = ss_info['center_y']
+                    h_bins = ss_info['h_bins']
 
-            this_subshell = {
-                'name':shell_ident,
-                'min_z':min_z,
-                'max_z':max_z,
-                'model':modinfo['model'],
-                'mesh' : mesh,
-                'fp_center': [center_x+th['x'],center_y+th['y']],
-                'fitting_bins' : h_bins
-            }
-            this_subshell['x'] = th['x']
-            this_subshell['y'] = th['y']
-            this_subshell['orientation'] = th['orientation']
-            subshells['shell'].append(this_subshell)
-            print('  Generating shell %s for ref %s with mesh %s'%(shell_ident, this_ref, modinfo['model']))
-            local_max_z = max(local_max_z, max_z)
-            local_min_z = min(local_min_z, min_z)
+                fp_centers.append([center_x+th['x'],center_y+th['y']])
+                this_subshell = {
+                    'name':shell_ident,
+                    'min_z':min_z,
+                    'max_z':max_z,
+                    'model':modinfo['model'],
+                    'mesh' : mesh,
+                    'fp_center': [center_x+th['x'],center_y+th['y']],
+                    'fitting_bins' : h_bins
+                }
+                this_subshell['x'] = th['x']
+                this_subshell['y'] = th['y']
+                this_subshell['orientation'] = th['orientation']
+                subshells['shell'].append(this_subshell)
+                this_subshell['min_x'] = min_x
+                this_subshell['max_x'] = max_x
+                this_subshell['min_y'] = min_y
+                this_subshell['max_y'] = max_y
+                print('  Generating shell %s for ref %s with mesh %s'%(shell_ident, this_ref, modinfo['model']))
+                local_max_z = max(local_max_z, max_z)
+                local_min_z = min(local_min_z, min_z)
+        if not body_info:
+            new_body_info['subshells'].append(ss_info)
     if len(subshells['shell'])>1:
         all_hulls = None
         for ss in subshells['shell']:
@@ -654,13 +762,29 @@ for this_ref in th_ref_list:
         hull = scipy.spatial.ConvexHull(all_hulls)
         hull_verts = all_hulls[hull.vertices]
         subshells['combined_hull'] = hull_verts
-    if local_max_z > 0: # Means we found a mesh
-        subshells['max_z'] = local_max_z
-        subshells['min_z'] = local_min_z
-        subshells['front_courtyard'] = th['front_courtyard']
-        all_shells.append(subshells)
+
     topmost_z = max(topmost_z, local_max_z)
 
+    if local_max_z == 0: # 0 means empty mesh, so avoid infs
+        local_min_z = 0
+
+    subshells['max_z'] = local_max_z
+    subshells['min_z'] = local_min_z
+    subshells['front_courtyard'] = th['front_courtyard']
+    all_shells.append(subshells)
+    if not body_info:
+        add_cached_bid(this_bid, new_body_info, th['footprint'])
+
+all_bids = list(set(all_bids))
+print(f"INFO: Board has {len(all_shells)} shells in {len(all_bids)} unique body shapes, using {len(_fp_bid_map)} footprints")
+if len(all_bids)>len(_fp_bid_map):
+    print(f"WARNING: The following footprints have multiple body shapes. Please check")
+    dup_fp = []
+    for fp_name in _fp_bid_map:
+        if len(_fp_bid_map[fp_name])>1:
+            dup_fp.append(fp_name)
+    for fp_name in dup_fp:
+        print(fp_name, ' has ', len(_fp_bid_map[fp_name]), ' shapes')
 if do_pcb_proc:
     smd_keepouts = []
     for this_ref in smd_ref_list:

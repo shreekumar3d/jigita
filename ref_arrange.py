@@ -45,7 +45,7 @@ def _arrange_x_or_y(arrange_dir, all_shells):
         elif arrange_dir == 'y':
             cur_y += subshells['y_span']+subshells['pos_gap_y']
 
-def _arrange_pack(all_shells):
+def _arrange_pack(cfg,all_shells):
     # rectpack does not use floating point values. We ignore anything
     # smaller than 0.01 mm
     resolv_factor = 100
@@ -148,10 +148,10 @@ def arrange(
         for shell_info in subshells['shell']:
             # all subshells in a ref are in the same coordinate space
             # so we can cumulatively do min, max
-            min_x = min(np.min(shell_info['mesh'][:,0]), min_x)
-            max_x = max(np.max(shell_info['mesh'][:,0]), max_x)
-            min_y = min(np.min(shell_info['mesh'][:,1]), min_y)
-            max_y = max(np.max(shell_info['mesh'][:,1]), max_y)
+            min_x = min(shell_info['min_x'], min_x)
+            max_x = max(shell_info['max_x'], max_x)
+            min_y = min(shell_info['min_y'], min_y)
+            max_y = max(shell_info['max_y'], max_y)
         x_span = max_x - min_x
         footprint = cfg['TH'][this_ref]['kicad_footprint']
         alias = fp_map[footprint]['alias']
@@ -177,7 +177,7 @@ def arrange(
     if arrange_dir in ['x','y']:
         _arrange_x_or_y(arrange_dir, all_shells)
     elif arrange_dir == 'xy':
-        _arrange_pack(all_shells)
+        _arrange_pack(cfg,all_shells)
     elif arrange_dir in ['grid', 'grid_xy','grid_yx']:
         _arrange_grid(arrange_dir, all_shells, grid_x, grid_y)
     else:

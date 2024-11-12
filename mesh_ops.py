@@ -3,6 +3,8 @@ import numpy as np
 import tempfile
 import subprocess
 import os
+import hashlib
+import copy
 
 mesh_cache = {}
 
@@ -22,9 +24,11 @@ def load_obj_mesh_verts(filename, scale=1.0):
 def load_mesh(filename, scriptdir, temp_dir=None):
     global mesh_cache
     retval = None
-    if filename in mesh_cache:
+    if filename in mesh_cache.keys():
         #print('Returning %s from cache'%(filename))
         return mesh_cache[filename]
+
+    file_hash = hashlib.md5(open(filename,'rb').read()).hexdigest()
 
     if filename.endswith('.obj'):
         retval = load_obj_mesh_verts(filename)
@@ -55,7 +59,7 @@ def load_mesh(filename, scriptdir, temp_dir=None):
     else:
         raise RuntimeError("No converter to load %s"%(filename))
 
-    mesh_cache[filename] = retval
-    return retval
+    mesh_cache[filename] = (retval, file_hash, len(retval))
+    return copy.copy(mesh_cache[filename])
 
 
