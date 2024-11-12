@@ -3,7 +3,7 @@ import numpy as np
 import math
 from itertools import cycle
 
-def _arrange_x_or_y(all_shells):
+def _arrange_x_or_y(arrange_dir, all_shells):
     x_span_sum = 0
     y_span_sum = 0
     this_ref_gap = 0
@@ -175,7 +175,7 @@ def arrange(
         subshells['x_max'] = max_x
         subshells['y_max'] = max_y
     if arrange_dir in ['x','y']:
-        _arrange_x_or_y(all_shells)
+        _arrange_x_or_y(arrange_dir, all_shells)
     elif arrange_dir == 'xy':
         _arrange_pack(all_shells)
     elif arrange_dir in ['grid', 'grid_xy','grid_yx']:
