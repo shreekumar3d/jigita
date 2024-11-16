@@ -377,7 +377,7 @@ _inbuilt_user_config = '''
 [cache]
 enabled = true
 # hash or timestamp
-method = 'hash'
+method = 'timestamp'
 
 [openscad]
 binary = 'openscad'
