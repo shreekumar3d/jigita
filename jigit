@@ -26,12 +26,10 @@ import copy
 import math
 import pathlib
 import hashlib
-import appdirs
-import pathlib
-import pickle
 
 # Local imports
 from jigcommon import *
+import jigcommon
 import edge_cuts
 import mesh_ops
 import jigconfig
@@ -40,6 +38,7 @@ import gen_scad
 import compute_shells
 import geom_ops
 import ref_arrange
+import shape_cache
 
 # These are all modules you need to have
 try:
@@ -62,8 +61,6 @@ from pcbnew import PCB_IO_MGR
 from python_tsp.distances import euclidean_distance_matrix
 from python_tsp.heuristics import solve_tsp_local_search, solve_tsp_simulated_annealing
 from shapely import LineString, Polygon, Point
-
-APP_NAME = 'jigit'
 
 def get_courtyard_polygon(shape):
     # Courtyard Polygon Coordinate System Note:
@@ -301,6 +298,21 @@ def get_ref_info(fp_list, unity_xform):
         #pprint(dir(fp.Footprint()))
     return ref_map, fp_map, mounting_holes
 
+def load_ref_3d_models(cfg, ref, ref_map):
+    scriptdir = os.path.dirname(os.path.realpath(__file__))
+    temp_dir = os.path.expanduser(os.environ['TMPDIR']) if 'TMPDIR' in os.environ else None
+    value_type = cfg['cache']['method']
+    comp = ref_map[ref]
+    metadata = {
+            'files':[],
+    }
+
+    for modinfo in comp['models']:
+        model_filename = os.path.expandvars(modinfo['model'])
+        modinfo['mesh'], modinfo['mtime'], modinfo['mesh_hash'] = mesh_ops.load_mesh(model_filename, scriptdir, temp_dir)
+        metadata['files'].append({"file":modinfo['model'],"ts":modinfo['mtime'], "hash": modinfo['mesh_hash']})
+    return metadata
+
 def load_3d_models(ref_list, ref_map, desc):
     temp_dir = os.path.expanduser(os.environ['TMPDIR']) if 'TMPDIR' in os.environ else None
     scriptdir = os.path.dirname(os.path.realpath(__file__))
@@ -314,60 +326,24 @@ def load_3d_models(ref_list, ref_map, desc):
     fnames = list(set(fnames))
     print(f'Loading {len(fnames)} 3D models for {desc} components...')
     for ref in ref_list:
-        comp = ref_map[ref]
-        for modinfo in comp['models']:
-            model_filename = os.path.expandvars(modinfo['model'])
-            modinfo['mesh'], modinfo['mesh_hash'], modinfo['nverts'] = mesh_ops.load_mesh(model_filename, scriptdir, temp_dir)
+        load_ref_3d_models(cfg, ref, ref_map)
 
-_bid_map = {}
-_fp_bid_map = {}
+def body_id(cfg, ref):
+    model_names = []
+    for modinfo in ref['models']:
+        model_names.append( \
+            [modinfo['model'],
+             modinfo['rotation'], modinfo['offset'], modinfo['scale']])
 
-def ensure_dir_exists(path):
-    dirent = pathlib.Path(path)
-    if not dirent.exists():
-        dirent.mkdir(parents=True, exist_ok=True)
+    full_name = ''
+    for values in model_names:
+        for x in values:
+            full_name += str(x)
+    # body id includes other parameters that impact the geometry of the
+    # shells. any change to these must trigger a "rebuild"
+    full_name += str(cfg['3dprinter']['min_printable_hole_area'])
 
-def get_cache_dir():
-    cachedir = appdirs.user_cache_dir(APP_NAME)
-    ensure_dir_exists(cachedir)
-    return cachedir
-
-def get_fp_dir(footprint, bid):
-    cachedir = get_cache_dir()
-    fp_dir = cachedir
-    for part in footprint.split(':'):
-        fp_dir = os.path.join(fp_dir, part)
-    ensure_dir_exists(fp_dir)
-    return os.path.join(fp_dir, bid)
-
-def get_cached_bid(bid, footprint):
-    global _bid_map
-    if bid in _bid_map:
-        return _bid_map[bid]
-    entry_path = get_fp_dir(footprint, bid)
-    if pathlib.Path(entry_path).exists():
-        with open(entry_path, 'rb') as f:
-            #print('Loading from : ', entry_path)
-            value = pickle.load(f)
-            add_cached_bid(bid, value, footprint, False)
-            return value
-    return None
-
-def add_cached_bid(bid, value, footprint, save_to_file=True):
-    global _bid_map, _fp_bid_map
-
-    _bid_map[bid] = value
-
-    if footprint not in _fp_bid_map:
-        _fp_bid_map[footprint] = [bid]
-    elif bid not in _fp_bid_map[footprint]:
-        _fp_bid_map[footprint].append(bid)
-
-    entry_path = get_fp_dir(footprint, bid)
-    if save_to_file:
-        with open(entry_path, 'wb') as f:
-            #print('Saving to : ', entry_path)
-            return pickle.dump(value, f)
+    return hashlib.md5(bytes(full_name,'utf-8')).hexdigest()
 #
 # Execution starts here
 #
@@ -511,12 +487,12 @@ if args.genconfig:
     print(f'Generated : %{args.genconfig}')
     sys.exit(0)
 
-jigconfig.load_user_config(APP_NAME)
+jigconfig.load_user_config(jigcommon.APP_NAME)
 
 try:
     cfg, config_text, used_th_fp, th_ref_list, smd_ref_list = jigconfig.load(args.config, ref_map, fp_map, mh_map)
 except ValueError as err:
-    print(f"ERROR: {err}", file=sys.stderr)
+    print(f"ERROR in load config: {err}", file=sys.stderr)
     sys.exit(-1)
 #pprint(cfg)
 
@@ -596,8 +572,8 @@ for ver in ['', 6,7,8]: # Hmm - would we need more ?
     if env_var_name not in os.environ:
         os.environ[env_var_name] = path_sys_3dmodels
 
-load_3d_models(th_ref_list, ref_map, 'Through Hole')
-load_3d_models(smd_ref_list, ref_map, 'SMD')
+#load_3d_models(th_ref_list, ref_map, 'Through Hole')
+#load_3d_models(smd_ref_list, ref_map, 'SMD')
 
 if args.output_format == 'stl':
     fp_scad = tempfile.NamedTemporaryFile(mode='w', suffix='.scad', delete_on_close=False)
@@ -644,24 +620,6 @@ all_shells = []
 fp_centers = []
 topmost_z = 0
 
-def body_id(cfg, ref):
-    model_names = []
-    for modinfo in ref['models']:
-        model_names.append( \
-            [modinfo['model'], modinfo['mesh_hash'], modinfo['nverts'],
-             modinfo['rotation'], modinfo['offset'], modinfo['scale']])
-
-    full_name = ''
-    for values in model_names:
-        for x in values:
-            full_name += str(x)
-    # body id includes other parameters that impact the geometry of the
-    # shells. any change to these must trigger a "rebuild"
-    full_name += str(cfg['3dprinter']['min_printable_hole_area'])
-
-    return hashlib.md5(bytes(full_name,'utf-8')).hexdigest()
-
-
 all_bids = []
 # For each TH component on the board
 for this_ref in th_ref_list:
@@ -682,72 +640,79 @@ for this_ref in th_ref_list:
 
     this_bid = body_id(cfg, th)
     all_bids.append(this_bid)
-    body_info = get_cached_bid(this_bid, th['footprint'])
-
-    new_body_info = {
-            'subshells': []
-    }
+    body_info = shape_cache.get_cached_bid(cfg, 'th', this_bid, th['footprint'])
+    if not body_info:
+        new_body_metadata = load_ref_3d_models(cfg, this_ref, ref_map)
+        new_body_info = {
+                'subshells': []
+            }
+    else:
+        new_body_info = None
     for idx, modinfo in enumerate(th['models']):
         ss_info = {}
-        mesh = modinfo['mesh']
-        if mesh.shape[0]==0:
-            # FIXME: this must actually be treated as an error
-            print('  WARNING: Mesh %s is empty on import. Watch out for un-expected side effects. SKIPPING!'
+        if not body_info:
+            mesh = modinfo['mesh']
+            if mesh.shape[0]==0:
+                # FIXME: this must actually be treated as an error
+                print('  WARNING: Mesh %s is empty on import. Watch out for un-expected side effects. SKIPPING!'
                   %(modinfo['model']))
-        else:
-            mesh, min_z, max_z = xform_mesh(mesh, modinfo)
-            if min_z>0:
-                print('  Mesh %s is NOT mounted on board. Skipping.'%(modinfo['model']))
-            else:
-                shell_ident = '%s_%d'%(this_ref,idx)
-                if not body_info:
-                    min_x = min(mesh[:,0])
-                    max_x = max(mesh[:,0])
-                    min_y = min(mesh[:,1])
-                    max_y = max(mesh[:,1])
-                    center_x = ((min_x + max_x)/2)
-                    center_y = ((min_y + max_y)/2)
-                    h_bins = compute_shells.fitting_pockets(mesh, 0.5, printable_threshold)
-                    for this_bin in h_bins:
-                        this_bin['corners'], this_bin['corner_segments'] = geom_ops.extract_corners_2D(this_bin['hull'])
-                    ss_info['min_x'] = min_x
-                    ss_info['max_x'] = max_x
-                    ss_info['min_y'] = min_y
-                    ss_info['max_y'] = max_y
-                    ss_info['center_x'] = center_x
-                    ss_info['center_y'] = center_y
-                    ss_info['h_bins'] = h_bins
-                else:
-                    ss_info = body_info['subshells'][idx]
-                    min_x = ss_info['min_x']
-                    min_y = ss_info['min_y']
-                    max_x = ss_info['max_x']
-                    max_y = ss_info['max_y']
-                    center_x = ss_info['center_x']
-                    center_y = ss_info['center_y']
-                    h_bins = ss_info['h_bins']
 
-                fp_centers.append([center_x+th['x'],center_y+th['y']])
-                this_subshell = {
-                    'name':shell_ident,
-                    'min_z':min_z,
-                    'max_z':max_z,
-                    'model':modinfo['model'],
-                    'mesh' : mesh,
-                    'fp_center': [center_x+th['x'],center_y+th['y']],
-                    'fitting_bins' : h_bins
-                }
-                this_subshell['x'] = th['x']
-                this_subshell['y'] = th['y']
-                this_subshell['orientation'] = th['orientation']
-                subshells['shell'].append(this_subshell)
-                this_subshell['min_x'] = min_x
-                this_subshell['max_x'] = max_x
-                this_subshell['min_y'] = min_y
-                this_subshell['max_y'] = max_y
-                print('  Generating shell %s for ref %s with mesh %s'%(shell_ident, this_ref, modinfo['model']))
-                local_max_z = max(local_max_z, max_z)
-                local_min_z = min(local_min_z, min_z)
+        if not body_info:
+            mesh, min_z, max_z = xform_mesh(mesh, modinfo)
+            min_x = min(mesh[:,0])
+            max_x = max(mesh[:,0])
+            min_y = min(mesh[:,1])
+            max_y = max(mesh[:,1])
+            center_x = ((min_x + max_x)/2)
+            center_y = ((min_y + max_y)/2)
+            h_bins = compute_shells.fitting_pockets(mesh, 0.5, printable_threshold)
+            for this_bin in h_bins:
+                this_bin['corners'], this_bin['corner_segments'] = geom_ops.extract_corners_2D(this_bin['hull'])
+            ss_info['min_x'] = min_x
+            ss_info['max_x'] = max_x
+            ss_info['min_y'] = min_y
+            ss_info['max_y'] = max_y
+            ss_info['min_z'] = min_z
+            ss_info['max_z'] = max_z
+            ss_info['center_x'] = center_x
+            ss_info['center_y'] = center_y
+            ss_info['h_bins'] = h_bins
+        else:
+            ss_info = body_info['subshells'][idx]
+            min_x = ss_info['min_x']
+            min_y = ss_info['min_y']
+            max_x = ss_info['max_x']
+            max_y = ss_info['max_y']
+            min_z = ss_info['min_z']
+            max_z = ss_info['max_z']
+            center_x = ss_info['center_x']
+            center_y = ss_info['center_y']
+            h_bins = ss_info['h_bins']
+
+        if min_z>0:
+            print('  Mesh %s is NOT mounted on board. Skipping.'%(modinfo['model']))
+        else:
+            shell_ident = '%s_%d'%(this_ref,idx)
+            fp_centers.append([center_x+th['x'],center_y+th['y']])
+            this_subshell = {
+                'name':shell_ident,
+                'min_z':min_z,
+                'max_z':max_z,
+                'model':modinfo['model'],
+                'fp_center': [center_x+th['x'],center_y+th['y']],
+                'fitting_bins' : h_bins
+            }
+            this_subshell['x'] = th['x']
+            this_subshell['y'] = th['y']
+            this_subshell['orientation'] = th['orientation']
+            subshells['shell'].append(this_subshell)
+            this_subshell['min_x'] = min_x
+            this_subshell['max_x'] = max_x
+            this_subshell['min_y'] = min_y
+            this_subshell['max_y'] = max_y
+            print('  Generating shell %s for ref %s with mesh %s'%(shell_ident, this_ref, modinfo['model']))
+            local_max_z = max(local_max_z, max_z)
+            local_min_z = min(local_min_z, min_z)
         if not body_info:
             new_body_info['subshells'].append(ss_info)
     if len(subshells['shell'])>1:
@@ -772,34 +737,52 @@ for this_ref in th_ref_list:
     subshells['min_z'] = local_min_z
     subshells['front_courtyard'] = th['front_courtyard']
     all_shells.append(subshells)
-    if not body_info:
-        add_cached_bid(this_bid, new_body_info, th['footprint'])
+    if new_body_info:
+        shape_cache.add_cached_bid(cfg, 'th',
+            this_bid, new_body_info, new_body_metadata,
+            th['footprint'])
 
 all_bids = list(set(all_bids))
-print(f"INFO: Board has {len(all_shells)} shells in {len(all_bids)} unique body shapes, using {len(_fp_bid_map)} footprints")
-if len(all_bids)>len(_fp_bid_map):
+print(f"INFO: Board has {len(all_shells)} shells in {len(all_bids)} unique body shapes")
+dup_fp = shape_cache.get_fp_duplicates()
+if len(dup_fp)>0:
     print(f"WARNING: The following footprints have multiple body shapes. Please check")
-    dup_fp = []
-    for fp_name in _fp_bid_map:
-        if len(_fp_bid_map[fp_name])>1:
-            dup_fp.append(fp_name)
     for fp_name in dup_fp:
-        print(fp_name, ' has ', len(_fp_bid_map[fp_name]), ' shapes')
+        print(fp_name, ' has ', dup_fp[fp_name], ' shapes')
+
 if do_pcb_proc:
     smd_keepouts = []
     for this_ref in smd_ref_list:
         smd = ref_map[this_ref]
+        this_bid = body_id(cfg, smd)
+        body_info = shape_cache.get_cached_bid(cfg, 'smd', this_bid, smd['footprint'])
+        if not body_info:
+            new_body_metadata = load_ref_3d_models(cfg, this_ref, ref_map)
+            new_body_info = {
+                    'subshells': []
+                }
+        else:
+            new_body_info = None
         #print('Processing SMD :', smd['ref'])
         # each footprint can have multiple models.
         # each model that is "in contact" with the board will generate
         # a shell
         for idx, modinfo in enumerate(smd['models']):
-            mesh = modinfo['mesh']
-            if mesh.shape[0]==0:
-                print('  WARNING: Mesh %s is empty on import. Watch out for intended side effects. SKIPPING!'
-                      %(modinfo['model']))
-                continue
-            mesh, min_z, max_z = xform_mesh(mesh, modinfo)
+            ss_info = {}
+            if not body_info:
+                mesh = modinfo['mesh']
+                if mesh.shape[0]==0:
+                    print('  WARNING: Mesh %s is empty on import. Watch out for un-intended side effects. SKIPPING!'
+                          %(modinfo['model']))
+
+            if not body_info:
+                mesh, min_z, max_z = xform_mesh(mesh, modinfo)
+                ss_info['min_z'] = min_z
+                ss_info['max_z'] = max_z
+            else:
+                ss_info = body_info['subshells'][idx]
+                min_z = ss_info['min_z']
+                max_z = ss_info['max_z']
             keepout_ident = '%s_%d'%(this_ref,idx)
             smd_keepouts.append({
                 'name' : keepout_ident,
@@ -813,6 +796,12 @@ if do_pcb_proc:
                 'front_courtyard' : smd['front_courtyard']
             })
             topmost_z = max(topmost_z, max_z)
+            if not body_info:
+                new_body_info['subshells'].append(ss_info)
+        if new_body_info:
+            shape_cache.add_cached_bid(cfg, 'smd',
+                this_bid, new_body_info, new_body_metadata,
+                smd['footprint'])
 
 if do_pcb_proc:
     # Compute bounding box of PCB

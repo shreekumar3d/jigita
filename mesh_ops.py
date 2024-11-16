@@ -59,7 +59,7 @@ def load_mesh(filename, scriptdir, temp_dir=None):
     else:
         raise RuntimeError("No converter to load %s"%(filename))
 
-    mesh_cache[filename] = (retval, file_hash, len(retval))
+    mesh_cache[filename] = (retval, os.path.getmtime(filename), file_hash)
     return copy.copy(mesh_cache[filename])
 
 

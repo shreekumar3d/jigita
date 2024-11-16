@@ -1,3 +1,5 @@
+APP_NAME = 'jigit'
+
 def units_to_mm(x):
     return x/1000000
 

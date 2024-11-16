@@ -71,7 +71,7 @@ def peri_line(start, end, line_width):
         circle(d=line_width).translate(end)
     )
 
-def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, mesh, h_bins):
+def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, h_bins):
     sv_tiny_dimension = ScadValue('tiny_dimension')
     sv_ref_shell_gap = ScadValue('Effective_Shell_Gap_For_%s'%(ref))
     sv_ref_shell_thickness = ScadValue('Effective_Shell_Thickness_For_%s'%(ref))
@@ -759,7 +759,7 @@ def generate_jig(
         for shell_info in subshells['shell']:
             gen_shell_shape(cfg, this_ref, shell_info['name'],
                         shell_info['x'], shell_info['y'], shell_info['orientation'],
-                        shell_info['min_z'], shell_info['max_z'], shell_info['mesh'],
+                        shell_info['min_z'], shell_info['max_z'],
                         shell_info['fitting_bins'])
         gen_courtyard_shell_shape(this_ref, subshells['front_courtyard'])
 
@@ -1318,7 +1318,7 @@ def generate_footprints(
         for shell_info in subshells['shell']:
             gen_shell_shape(cfg, this_ref, shell_info['name'],
                         shell_info['x'], shell_info['y'], shell_info['orientation'],
-                        shell_info['min_z'], shell_info['max_z'], shell_info['mesh'],
+                        shell_info['min_z'], shell_info['max_z'],
                         shell_info['fitting_bins'])
         gen_courtyard_shell_shape(this_ref, subshells['front_courtyard'])
 

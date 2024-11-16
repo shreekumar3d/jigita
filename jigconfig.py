@@ -5,6 +5,7 @@ from copy import deepcopy
 from pprint import pprint
 import string
 import appdirs
+
 from pathlib import Path
 
 valid_shell_types = ['wiggle', 'fitting', 'fitting_flower', 'courtyard']
@@ -113,7 +114,6 @@ def load(configFile, ref_map, fp_map, mh_map):
     default_cfg = tomllib.loads(default_config_text)
 
     keys_TH_builtin = default_cfg['TH'].keys()
-
     if configFile:
         config_text = open(configFile, 'r').read()
         cfg = tomllib.load(open(configFile,'rb'))
@@ -373,6 +373,11 @@ def generate_config(configFile, ref_map, fp_map):
 
 _inbuilt_user_config = '''
 [environment]
+
+[cache]
+enabled = true
+# hash or timestamp
+method = 'hash'
 
 [openscad]
 binary = 'openscad'
