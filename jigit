@@ -374,6 +374,11 @@ parser.add_argument('--gap', metavar='GAP_XY|GAP_X,GAP_Y',
             for X and Y axes. Applies with --arrange''')
 parser.add_argument('--grid', metavar='X,Y',
     help='''Arrange shells in an X by Y grid. Applies with --arrange''')
+parser.add_argument('--topmost-z', type=float,
+    help='''Specify the height of the jig(in mm), excluding the base
+            and PCB holder if any(in mm). The value you provide cannot
+            be smaller than the computed value (based on the 3D shapes
+            of the components)''')
 parser.add_argument('-c', '--config', metavar='FILENAME.toml',
     help='Use this configuration options file for various parameters.')
 
@@ -741,6 +746,13 @@ for this_ref in th_ref_list:
         shape_cache.add_cached_bid(cfg, 'th',
             this_bid, new_body_info, new_body_metadata,
             th['footprint'])
+
+if args.topmost_z:
+    if args.topmost_z < topmost_z:
+        print(f"ERROR: Specified value {args.topmost_z} has to be >= computed value {topmost_z}")
+        sys.exit(1)
+    else:
+        topmost_z = args.topmost_z
 
 all_bids = list(set(all_bids))
 print(f"INFO: Board has {len(all_shells)} shells in {len(all_bids)} unique body shapes")
