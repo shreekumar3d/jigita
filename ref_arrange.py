@@ -107,17 +107,33 @@ def _arrange_grid(arrange_dir, all_shells, grid_x, grid_y):
         max_span_y = max(max_span_y, subshells['y_span']+subshells['pos_gap_y'])
 
     g_x = g_y = 0
+    x_base = y_base = 0
+    max_md_span_x = 0
+    max_md_span_y = 0
+    c_x = []
+    c_y = []
+    c_max_span_x = []
+    c_max_span_y = []
+    # Find max of the other dimension while traversing one dimension
+    # Feels convoluted. Just saying X & Y and running max might result in
+    # more readable code ?
     for subshells in all_shells:
-        # compute the position for this subshell
-        subshells['shell_pos_x'] = g_x * (max_span_x) + \
-                                   (max_span_x-(subshells['x_span'] +
-                                    subshells['pos_gap_x']))*0.5
-        subshells['shell_pos_y'] = g_y * (max_span_y) + \
-                                   (max_span_y-(subshells['y_span'] +
-                                    subshells['pos_gap_y']))*0.5
-        # center it here
-        subshells['shell_pos_x'] += subshells['x_span'] + subshells['x_min'] + subshells['pos_gap_x']*0.5
-        subshells['shell_pos_y'] += subshells['y_span'] - subshells['y_max'] + subshells['pos_gap_y']*0.5
+        if arrange_dir in ['grid', 'grid_xy']:
+            ss_x =  g_x * (max_span_x)
+            max_md_span_x = max_span_x
+            max_md_span_y = max(max_md_span_y, subshells['y_span']+subshells['pos_gap_y'])
+        else:
+            ss_x = x_base
+
+        if arrange_dir == 'grid_yx':
+            ss_y = g_y * (max_span_y)
+            max_md_span_y = max_span_y
+            max_md_span_x = max(max_md_span_x, subshells['x_span']+subshells['pos_gap_x'])
+        else:
+            ss_y = y_base
+
+        c_x.append(ss_x)
+        c_y.append(ss_y)
 
         # step to the next cell
         if arrange_dir in ['grid', 'grid_xy']:
@@ -125,11 +141,47 @@ def _arrange_grid(arrange_dir, all_shells, grid_x, grid_y):
             if g_x == grid_x:
                 g_y += 1
                 g_x = 0
+                y_base += max_md_span_y
+                c_max_span_y += [max_md_span_y]*grid_x
+                c_max_span_x += [max_md_span_x]*grid_x
+                max_md_span_y = 0
         else:
             g_y += 1
             if g_y == grid_y:
                 g_x += 1
                 g_y = 0
+                x_base += max_md_span_x
+                c_max_span_x += [max_md_span_x]*grid_y
+                c_max_span_y += [max_md_span_y]*grid_y
+                max_md_span_x = 0
+
+    # Handle overflows
+    if arrange_dir in ['grid', 'grid_xy']:
+        if g_x != 0:
+            c_max_span_y += [max_md_span_y]*g_x
+            c_max_span_x += [max_md_span_x]*g_x
+    else:
+        if g_y != 0:
+            c_max_span_x += [max_md_span_x]*g_y
+            c_max_span_y += [max_md_span_y]*g_y
+
+    # We know the positions. Now lay them out
+    for idx, subshells in enumerate(all_shells):
+        ss_x = c_x[idx]
+        ss_y = c_y[idx]
+        ss_max_span_x = c_max_span_x[idx]
+        ss_max_span_y = c_max_span_y[idx]
+        # compute the position for this subshell
+        subshells['shell_pos_x'] = ss_x + \
+                                   (ss_max_span_x-(subshells['x_span'] +
+                                    subshells['pos_gap_x']))*0.5
+        subshells['shell_pos_y'] = ss_y + \
+                                   (ss_max_span_y-(subshells['y_span'] +
+                                    subshells['pos_gap_y']))*0.5
+        # center it here
+        subshells['shell_pos_x'] += subshells['x_span'] + subshells['x_min'] + subshells['pos_gap_x']*0.5
+        subshells['shell_pos_y'] += subshells['y_span'] - subshells['y_max'] + subshells['pos_gap_y']*0.5
+
 
 def arrange(
         cfg,
