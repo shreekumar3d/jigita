@@ -384,7 +384,7 @@ parser.add_argument('-c', '--config', metavar='FILENAME.toml',
 
 parser.add_argument('-o','--output',
     help='Output file.')
-parser.add_argument('-f', '--output-format', choices=['stl','scad'],
+parser.add_argument('-f', '--output-format', choices=['3mf', 'stl','scad'],
     help='Output file format. Default autodect based on output file extension.')
 parser.add_argument('--keep-orientation',
     action='store_true',
@@ -477,7 +477,7 @@ if args.model3d:
 if args.output and not args.output_format:
     out_split = os.path.splitext(args.output)
     out_ext = out_split[1] # will be empty string if no extension
-    if out_ext in ['.stl','.scad']:
+    if out_ext in ['.3mf','.stl','.scad']:
         args.output_format = out_ext[1:]
     if not args.output_format:
         print(f"Unrecorgnized extension in output filename '{args.output}'", file=sys.stderr)
@@ -580,10 +580,10 @@ for ver in ['', 6,7,8]: # Hmm - would we need more ?
 #load_3d_models(th_ref_list, ref_map, 'Through Hole')
 #load_3d_models(smd_ref_list, ref_map, 'SMD')
 
-if args.output_format == 'stl':
+if args.output_format in ['3mf', 'stl']:
     fp_scad = tempfile.NamedTemporaryFile(mode='w', suffix='.scad', delete_on_close=False)
     oscad_filename = fp_scad.name
-    stl_filename = args.output
+    out_filename = args.output
 else:
     oscad_filename = args.output
     fp_scad = open(oscad_filename, 'w')
@@ -1005,7 +1005,7 @@ except ValueError as err:
 # Done with the file
 fp_scad.close()
 
-if args.output_format == 'stl':
+if args.output_format in ['3mf','stl']:
     cmd = []
     # FIXME - ideally we'll have a config in ~/.config to store things
     # like paths to binaries etc
@@ -1014,7 +1014,7 @@ if args.output_format == 'stl':
              '--hardwarnings' ]
     if cfg_scad['use_manifold']:
         cmd += [ '--backend', 'Manifold' ]
-    cmd += [ '-o', stl_filename, oscad_filename ]
+    cmd += [ '-o', out_filename, oscad_filename ]
     print('Generating output using : %s'%(' '.join(cmd)))
     print('-----------------------------------------')
     retcode = subprocess.call(cmd)
@@ -1022,7 +1022,7 @@ if args.output_format == 'stl':
     if retcode !=0 :
         print('ERROR: OpenSCAD Failed, exit code %d'%(retcode))
     else:
-        print('Done, output : %s'%(stl_filename))
+        print('Done, output : %s'%(out_filename))
 else:
     print('Done, output : %s'%(oscad_filename))
 #
