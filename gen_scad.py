@@ -53,6 +53,8 @@ def ref2fitting_cuts(ref):
     return 'fitting_cuts_%s'%(ref)
 def ref2fitting_flower(ref):
     return 'fitting_flower_%s'%(ref)
+def ref2hull_poly(ident):
+    return 'hullpoly_%s'%(ident)
 
 def ref2courtyard(ref):
     return 'courtyard_%s'%(ref)
@@ -200,6 +202,9 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, h_bins):
 
     flower_shell = union()
     for this_bin in h_bins:
+        hp_name = ref2hull_poly(ident)
+        this_bin['hull_poly'] = module(hp_name, polygon(this_bin['hull']))
+    for this_bin in h_bins:
         if this_bin['start_z']<0:
             start_z= sv_ref_shell_clearance
         else:
@@ -211,10 +216,10 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, h_bins):
                             linear_extrude(sv_ref_max_z-start_z+2*sv_tiny_dimension) (
                               difference() (
                                 offset(sv_ref_shell_gap+sv_ref_shell_thickness) (
-                                  polygon(this_bin['hull'])
+                                  this_bin['hull_poly']()
                                 ),
                                 offset(sv_ref_shell_gap) (
-                                  polygon(this_bin['hull'])
+                                  this_bin['hull_poly']()
                                 )
                               )
                             )
@@ -228,7 +233,7 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, h_bins):
                             rotate([0, 0, shell_rot_z]) (
                               linear_extrude(this_bin['end_z']-this_bin['start_z']+2*sv_tiny_dimension) (
                                 offset(sv_ref_shell_gap) (
-                                  polygon(this_bin['hull'])
+                                  this_bin['hull_poly']()
                                 )
                               )
                             )
@@ -237,7 +242,7 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, h_bins):
 
     # define the polygon so that we can do offset on it
     mod_name = ref2outline(ident)
-    mod_map[ident] = module(mod_name, polygon(h_bins[0]['hull']))
+    mod_map[ident] = module(mod_name, h_bins[0]['hull_poly'])
 
     wiggle_pocket_name = ref2wiggle_pocket(ident)
     wiggle_pocket = translate([x,y,sv_pcb_thickness+sv_ref_min_z])(
