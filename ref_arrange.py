@@ -44,6 +44,8 @@ def _arrange_x_or_y(arrange_dir, all_shells):
             cur_x += subshells['x_span']+subshells['pos_gap_x']
         elif arrange_dir == 'y':
             cur_y += subshells['y_span']+subshells['pos_gap_y']
+        # no rotation
+        subshells['orientation'] = 0
 
 def _arrange_pack(cfg,all_shells):
     # rectpack does not use floating point values. We ignore anything
@@ -54,11 +56,14 @@ def _arrange_pack(cfg,all_shells):
     def resolve_from_int(x):
         return x/resolv_factor
 
-    # FIXME: we don't support component rotation yet, that's why
+    # FIXME:  we do support rotation=True by default now. But this
+    # fails in some cases, and rotation=False passes
+    # e.g. --footprint Connector_PinHeader_2.54mm:PinHeader_1x0*_P2.54mm_Vertical{13} -o blah.scad --gap 5 --arrange xy
+    # fails with rotation=True, but works with rotation=False!
     # we disallow rotated solutions in output
     # FIXME: all the component placement logic here has to move out
     # of this file
-    packer = rectpack.newPacker(rotation=False)
+    packer = rectpack.newPacker() #rotation=False)
     for subshells in all_shells:
         s_length = subshells['x_span'] + subshells['pos_gap_x']
         s_width = subshells['y_span'] + subshells['pos_gap_y']
@@ -87,8 +92,14 @@ def _arrange_pack(cfg,all_shells):
         w = resolve_from_int(w)
         h = resolve_from_int(h)
         subshells = rid
-        subshells['shell_pos_x'] = x + subshells['x_span'] + subshells['x_min'] + subshells['pos_gap_x']*0.5
-        subshells['shell_pos_y'] = y + subshells['y_span'] - subshells['y_max'] + subshells['pos_gap_y']*0.5
+        if w != subshells['x_span'] + subshells['pos_gap_x']:
+            subshells['orientation'] = -90
+            subshells['shell_pos_x'] = x + subshells['y_span'] - subshells['y_max'] + subshells['pos_gap_y']*0.5
+            subshells['shell_pos_y'] = y + subshells['x_span'] + subshells['x_min'] + subshells['pos_gap_x']*0.5
+        else:
+            subshells['orientation'] = 0
+            subshells['shell_pos_x'] = x + subshells['x_span'] + subshells['x_min'] + subshells['pos_gap_x']*0.5
+            subshells['shell_pos_y'] = y + subshells['y_span'] - subshells['y_max'] + subshells['pos_gap_y']*0.5
         #fp_scad.write('color("%s") translate([%s,%s,-5])\n')
         #fp_scad.write('  square(size=[%s,%s],center=false);\n'%(
         #              next(cycol), x, y, w, h))
@@ -181,6 +192,8 @@ def _arrange_grid(arrange_dir, all_shells, grid_x, grid_y):
         # center it here
         subshells['shell_pos_x'] += subshells['x_span'] + subshells['x_min'] + subshells['pos_gap_x']*0.5
         subshells['shell_pos_y'] += subshells['y_span'] - subshells['y_max'] + subshells['pos_gap_y']*0.5
+        # no rotation
+        subshells['orientation'] = 0
 
 
 def arrange(

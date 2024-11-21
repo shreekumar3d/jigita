@@ -689,6 +689,7 @@ def gen_included_component_shells(fp_scad, all_shells):
         this_ref = subshells['ref']
         if 'shell_pos_x' in subshells:
             fp_scad.write('  translate([%s,%s,0]) {\n'%(subshells['shell_pos_x'], subshells['shell_pos_y']))
+            fp_scad.write('  rotate([0,0,%s]) {\n'%(subshells['orientation']))
             if 'combined_hull' in subshells:
                 combined_poly = subshells['combined_hull']
                 fp_scad.write('    translate([0,0,PCB_Thickness+topmost_z]) {\n')
@@ -727,7 +728,8 @@ def gen_included_component_shells(fp_scad, all_shells):
         fp_scad.write('    }\n')
         fp_scad.write('  }\n') # included
         if 'shell_pos_x' in subshells:
-            fp_scad.write('  }\n')
+            fp_scad.write('  }\n') # rotate
+            fp_scad.write('  }\n') # translate
     fp_scad.write('  }\n')
     fp_scad.write('}\n')
 
@@ -738,6 +740,7 @@ def gen_included_component_cuts(fp_scad, all_shells):
         this_ref = subshells['ref']
         if 'shell_pos_x' in subshells:
             fp_scad.write('  translate([%s,%s,0]) {\n'%(subshells['shell_pos_x'], subshells['shell_pos_y']))
+            fp_scad.write('  rotate([0,0,%s]) {\n'%(subshells['orientation']))
         fp_scad.write('    if(Include_%s_in_Jig) {\n'%(this_ref))
         for shell_info in subshells['shell']:
             this_name = shell_info['name']
@@ -748,7 +751,8 @@ def gen_included_component_cuts(fp_scad, all_shells):
             fp_scad.write('      }\n')
         fp_scad.write('    }\n') # included
         if 'shell_pos_x' in subshells:
-            fp_scad.write('  }')
+            fp_scad.write('  }\n') # rotate
+            fp_scad.write('  }\n') # translate
     fp_scad.write('  }\n') # union
     fp_scad.write('}\n')
 
@@ -761,6 +765,7 @@ def gen_included_component_pockets(fp_scad, all_shells):
         this_ref = subshells['ref']
         if 'shell_pos_x' in subshells:
             fp_scad.write('  translate([%s,%s,0]) {\n'%(subshells['shell_pos_x'], subshells['shell_pos_y']))
+            fp_scad.write('  rotate([0,0,%s]) {\n'%(subshells['orientation']))
         fp_scad.write('    if(Shell_Type_For_%s=="courtyard") {\n'%(this_ref))
         fp_scad.write('      %s();\n'%(ref2courtyard_pocket(this_ref)))
         fp_scad.write('    } else if(Shell_Type_For_%s=="wiggle") {\n'%(this_ref))
@@ -777,7 +782,8 @@ def gen_included_component_pockets(fp_scad, all_shells):
             fp_scad.write('      %s();\n'%(ref2fitting_pocket(this_name)))
         fp_scad.write('    }\n')
         if 'shell_pos_x' in subshells:
-            fp_scad.write('  }')
+            fp_scad.write('  }\n') # rotate
+            fp_scad.write('  }\n') # translate
     fp_scad.write('  }\n')
     fp_scad.write('}\n')
 
