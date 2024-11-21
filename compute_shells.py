@@ -126,6 +126,19 @@ def tight_pockets(mesh, z_bin_size, printable_threshold):
             # different transform, potentially causing confusion
             planar, _to_3D = section.to_planar(to_2D=np.eye(4))
             #logging.debug(' At Z=%s, Number of polygons = %s'%(cur_z,len(planar.polygons_full)))
+            try:
+                if not planar.polygons_full:
+                    logging.warning(f' At Z={cur_z} there are NO polygons!')
+                    cur_z = cur_z-z_step
+                    continue
+            except ValueError as err:
+                logging.warning(f"At Z={cur_z} error:{err}")
+                cur_z = cur_z-z_step
+                continue
+            except shapely.errors.GEOSException as err:
+                logging.warning(f"At Z={cur_z} error:{err}")
+                cur_z = cur_z-z_step
+                continue
             for polygon in planar.polygons_full:
                 outline = polygon.exterior
                 pc.addPath(np.array(outline.coords), pyclipr.Clip)

@@ -677,21 +677,15 @@ for this_ref in th_ref_list:
                 this_bin['corners'], this_bin['corner_segments'] = geom_ops.extract_corners_2D(this_bin['hull'])
             # FIXME: tight pockets computes z slices on the mesh
             # if the mesh isn't tight, that doesn't work. trimesh will throw
-            # errors - and we'll disable the bins for this subshell.
+            # errors on various Z values - which we ignore. The remaining Z
+            # values hopefully are enough to reconstruct the object.
             # this is a reasonable decision for now. The user is warned.
             # fitting and fitting_flowers are computed using hulls computed
-            # over the vertices, so those aren't impacted. Thus, the user always
-            # has something to work with, even though they may have a bad mesh
+            # over the vertices, so those aren't impacted. Overall, the user always
+            # has something correct to work with, even though they may have a bad mesh
             # We don't repair meshes here, and it's an open question if we
             # should even try that.
-            try:
-                c_bins = compute_shells.tight_pockets(mesh, 0.5, printable_threshold)
-            except shapely.errors.GEOSException as err:
-                print(f"WARNING: skipping {this_ref}_{idx}, model {modinfo['model']}. Reason: {err}")
-                c_bins = None
-            except ValueError as err:
-                print(f"WARNING: skipping {this_ref}_{idx}, model {modinfo['model']}. Reason: {err}")
-                c_bins = None
+            c_bins = compute_shells.tight_pockets(mesh, 0.5, printable_threshold)
             ss_info['min_x'] = min_x
             ss_info['max_x'] = max_x
             ss_info['min_y'] = min_y
