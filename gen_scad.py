@@ -53,8 +53,8 @@ def ref2fitting_cuts(ref):
     return 'fitting_cuts_%s'%(ref)
 def ref2fitting_flower(ref):
     return 'fitting_flower_%s'%(ref)
-def ref2hull_poly(ident):
-    return 'hullpoly_%s'%(ident)
+def ref2hull_poly(ident, idx):
+    return 'hullpoly_%s_%d'%(ident, idx)
 
 def ref2courtyard(ref):
     return 'courtyard_%s'%(ref)
@@ -201,8 +201,8 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, h_bins):
     fitting_cuts_map[ident] = module(fitting_cuts_name, cut_volume)
 
     flower_shell = union()
-    for this_bin in h_bins:
-        hp_name = ref2hull_poly(ident)
+    for idx, this_bin in enumerate(h_bins):
+        hp_name = ref2hull_poly(ident, idx)
         this_bin['hull_poly'] = module(hp_name, polygon(this_bin['hull']))
     for this_bin in h_bins:
         if this_bin['start_z']<0:
