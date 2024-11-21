@@ -698,13 +698,20 @@ for this_ref in th_ref_list:
             print('  Mesh %s is NOT mounted on board. Skipping.'%(modinfo['model']))
         else:
             shell_ident = '%s_%d'%(this_ref,idx)
-            fp_centers.append([center_x+th['x'],center_y+th['y']])
+            # compute the center now, post cache. x, y, and orientation
+            # are per component
+            rz2 = Rotation.from_euler('z', th['orientation'], degrees=True)
+            c_pt = np.array([[center_x, center_y,0]])
+            c_pt = rz2.apply(c_pt)
+            c_pt = c_pt +[ th['x'], th['y'], 0]
+            c_pt = [c_pt[0][0], c_pt[0][1]]
+            fp_centers.append(c_pt)
             this_subshell = {
                 'name':shell_ident,
                 'min_z':min_z,
                 'max_z':max_z,
                 'model':modinfo['model'],
-                'fp_center': [center_x+th['x'],center_y+th['y']],
+                'fp_center': c_pt,
                 'fitting_bins' : h_bins
             }
             this_subshell['x'] = th['x']

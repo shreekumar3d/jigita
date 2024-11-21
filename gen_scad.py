@@ -1316,10 +1316,6 @@ def generate_footprints(
     parts = []
     for subshells in all_shells:
         this_ref = subshells['ref']
-        min_x = float('inf')
-        min_y = float('inf')
-        max_x = float('-inf')
-        max_y = float('-inf')
         for shell_info in subshells['shell']:
             gen_shell_shape(cfg, this_ref, shell_info['name'],
                         shell_info['x'], shell_info['y'], shell_info['orientation'],
