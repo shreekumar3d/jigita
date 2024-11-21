@@ -49,6 +49,7 @@ try:
     import shapely
     import rectpack
     import python_tsp
+    import trimesh
 except ImportError as err:
     print(f'Missing module : {err.name}', file=sys.stderr)
     print('Please install it using pip, and retry.')
@@ -196,19 +197,21 @@ def load_footprints(fp_spec_list, arc_resolution):
 
     return ref_map, fp_map
 
-def xform_mesh(mesh, modinfo):
-    mesh_scale = mesh * modinfo['scale']
+def xform_mesh(mesh_in, modinfo):
+    mesh = mesh_in.copy() # don't change source mesh
+    mesh.apply_scale(modinfo['scale'])
     # FIXME: Hrrmph! why should I need to reverse these
     # angles !?
-    rx = Rotation.from_euler('x', -modinfo['rotation'][0], degrees=True)
-    ry = Rotation.from_euler('y', -modinfo['rotation'][1], degrees=True)
-    rz = Rotation.from_euler('z', -modinfo['rotation'][2], degrees=True)
-    r_xyz = rx*ry*rz
-    mesh_rotated = r_xyz.apply(mesh_scale)
-    mesh = mesh_rotated + [modinfo['offset'][0], modinfo['offset'][1], modinfo['offset'][2]]
-    min_z = min(mesh[:,2])
-    max_z = max(mesh[:,2])
-    return mesh, min_z, max_z
+    mat = trimesh.transformations.euler_matrix( \
+            np.radians(-modinfo['rotation'][0]),
+            np.radians(-modinfo['rotation'][1]),
+            np.radians(-modinfo['rotation'][2]))
+    mesh.apply_transform(mat)
+    mesh.apply_translation([modinfo['offset'][0], modinfo['offset'][1], modinfo['offset'][2]])
+    vertices = np.array(mesh.vertices)
+    min_z = min(vertices[:,2])
+    max_z = max(vertices[:,2])
+    return vertices, mesh, min_z, max_z
 
 
 def get_ref_info(fp_list, unity_xform):
@@ -536,9 +539,6 @@ else:
 pcb_thickness = cfg['pcb']['thickness']
 shell_clearance = cfg['TH']['component_shell']['shell_clearance_from_pcb']
 shell_type = cfg['TH']['component_shell']['shell_type']
-if shell_type in ['tight']:
-    print(f"ERROR: shell_type='{shell_type}' is not implemented yet.", file=sys.stderr)
-    sys.exit(-1)
 shell_gap = cfg['TH']['component_shell']['shell_gap']
 shell_thickness = cfg['TH']['component_shell']['shell_thickness']
 
@@ -665,16 +665,33 @@ for this_ref in th_ref_list:
                   %(modinfo['model']))
 
         if not body_info:
-            mesh, min_z, max_z = xform_mesh(mverts, modinfo)
-            min_x = min(mesh[:,0])
-            max_x = max(mesh[:,0])
-            min_y = min(mesh[:,1])
-            max_y = max(mesh[:,1])
+            mverts, mesh, min_z, max_z = xform_mesh(mesh, modinfo)
+            min_x = min(mverts[:,0])
+            max_x = max(mverts[:,0])
+            min_y = min(mverts[:,1])
+            max_y = max(mverts[:,1])
             center_x = ((min_x + max_x)/2)
             center_y = ((min_y + max_y)/2)
-            h_bins = compute_shells.fitting_pockets(mesh, 0.5, printable_threshold)
+            h_bins = compute_shells.fitting_pockets(mverts, 0.5, printable_threshold)
             for this_bin in h_bins:
                 this_bin['corners'], this_bin['corner_segments'] = geom_ops.extract_corners_2D(this_bin['hull'])
+            # FIXME: tight pockets computes z slices on the mesh
+            # if the mesh isn't tight, that doesn't work. trimesh will throw
+            # errors - and we'll disable the bins for this subshell.
+            # this is a reasonable decision for now. The user is warned.
+            # fitting and fitting_flowers are computed using hulls computed
+            # over the vertices, so those aren't impacted. Thus, the user always
+            # has something to work with, even though they may have a bad mesh
+            # We don't repair meshes here, and it's an open question if we
+            # should even try that.
+            try:
+                c_bins = compute_shells.tight_pockets(mesh, 0.5, printable_threshold)
+            except shapely.errors.GEOSException as err:
+                print(f"WARNING: skipping {this_ref}_{idx}, model {modinfo['model']}. Reason: {err}")
+                c_bins = None
+            except ValueError as err:
+                print(f"WARNING: skipping {this_ref}_{idx}, model {modinfo['model']}. Reason: {err}")
+                c_bins = None
             ss_info['min_x'] = min_x
             ss_info['max_x'] = max_x
             ss_info['min_y'] = min_y
@@ -684,6 +701,7 @@ for this_ref in th_ref_list:
             ss_info['center_x'] = center_x
             ss_info['center_y'] = center_y
             ss_info['h_bins'] = h_bins
+            ss_info['c_bins'] = c_bins
         else:
             ss_info = body_info['subshells'][idx]
             min_x = ss_info['min_x']
@@ -695,6 +713,7 @@ for this_ref in th_ref_list:
             center_x = ss_info['center_x']
             center_y = ss_info['center_y']
             h_bins = ss_info['h_bins']
+            c_bins = ss_info['c_bins']
 
         if min_z>0:
             print('  Mesh %s is NOT mounted on board. Skipping.'%(modinfo['model']))
@@ -714,7 +733,8 @@ for this_ref in th_ref_list:
                 'max_z':max_z,
                 'model':modinfo['model'],
                 'fp_center': c_pt,
-                'fitting_bins' : h_bins
+                'fitting_bins' : h_bins,
+                'tight_bins' : c_bins
             }
             this_subshell['x'] = th['x']
             this_subshell['y'] = th['y']
@@ -799,7 +819,7 @@ if do_pcb_proc:
                           %(modinfo['model']))
 
             if not body_info:
-                mesh, min_z, max_z = xform_mesh(mverts, modinfo)
+                mverts, mesh, min_z, max_z = xform_mesh(mesh, modinfo)
                 ss_info['min_z'] = min_z
                 ss_info['max_z'] = max_z
             else:

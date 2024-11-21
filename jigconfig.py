@@ -8,7 +8,7 @@ import appdirs
 
 from pathlib import Path
 
-valid_shell_types = ['wiggle', 'fitting', 'fitting_flower', 'courtyard']
+valid_shell_types = ['wiggle', 'fitting', 'fitting_flower', 'tight', 'courtyard']
 valid_jig_types = ['TH_soldering', 'component_fitting']
 valid_base_types = ["x_lines", "y_lines", "griddish", "mesh", "minmesh", "solid"]
 valid_insertions = ["top", "bottom"]
@@ -531,24 +531,25 @@ extra_mounting_holes = [
 # that serves as a component holder at its exact location on the board.
 
 # shell can have one of a few types
-# - wiggle    => A shape that gives a bit of wiggle room for the component,
-#                when inserted into the shell. Depending on the exact shape of
-#                the component, it may be possible to rock/shake the component
-#                around.
-# - fitting   => multiple outlines, like a "step well". Each level helps hold
-#                the component in place, thus reducing wiggle room
-# - tight     => step-well of concave hulls. Provides the tightest fit, but
-#                also requires the most accuracy in dimensions and printing
-# - courtyard => the "courtyard" of the component is used as the shape of the
-#                shell. In almost all cases, this will allow the component
-#                to move around freely in the shell. This is potentially
-#                useful in two cases:
-#                  - components that you mount on the PCB directly, rather
-#                    than in the shell
-#                  - With insertion_direction="bottom" (see below), this
-#                    gives ample room to push in the component
+# - wiggle         => A shape that gives a bit of wiggle room for the component,
+#                     when inserted into the shell. Depending on the exact shape of
+#                     the component, it may be possible to rock/shake the component
+#                     around.
+# - fitting        => multiple outlines, like a "step well". Each level helps hold
+#                     the component in place, thus reducing wiggle room
+# - fitting_flower => Same as fitting, except each level creates a vertical
+#                     shell
+# - tight          => step-well of concave hulls. Provides the tightest fit, but
+#                     also requires the most accuracy in dimensions and printing
+# - courtyard      => the "courtyard" of the component is used as the shape of the
+#                     shell. In almost all cases, this will allow the component
+#                     to move around freely in the shell. This is potentially
+#                     useful in two cases:
+#                       - components that you mount on the PCB directly, rather
+#                         than in the shell
+#                       - With insertion_direction="bottom" (see below), this
+#                         gives ample room to push in the component
 #
-# "tight" is not implemented yet, and isn't treated valid right now.
 shell_type = "fitting"
 
 # component will typically be inserted from the top side (w.r.t # the PCB, and

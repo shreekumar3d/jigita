@@ -14,6 +14,9 @@ wiggle_pocket_map = {}
 fitting_pocket_map = {}
 fitting_cuts_map = {}
 fitting_flower_map = {}
+tight_map = {}
+tight_perimeter_map = {}
+tight_pocket_map = {}
 perimeter_map = {}
 
 courtyard_map = {}
@@ -47,8 +50,12 @@ def ref2wiggle_pocket(ref):
     return 'wiggle_pocket_%s'%(ref)
 def ref2fitting_pocket(ref):
     return 'fitting_pocket_%s'%(ref)
+def ref2tight_pocket(ref):
+    return 'tight_pocket_%s'%(ref)
 def ref2perimeter(ref):
     return 'perimeter_%s'%(ref)
+def ref2tight_perimeter(ref):
+    return 'tight_perimeter_%s'%(ref)
 def ref2fitting_cuts(ref):
     return 'fitting_cuts_%s'%(ref)
 def ref2fitting_flower(ref):
@@ -73,7 +80,7 @@ def peri_line(start, end, line_width):
         circle(d=line_width).translate(end)
     )
 
-def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, h_bins):
+def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, h_bins, c_bins):
     sv_tiny_dimension = ScadValue('tiny_dimension')
     sv_ref_shell_gap = ScadValue('Effective_Shell_Gap_For_%s'%(ref))
     sv_ref_shell_thickness = ScadValue('Effective_Shell_Thickness_For_%s'%(ref))
@@ -298,6 +305,45 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, h_bins):
 
     fitting_flower_name = ref2fitting_flower(ident)
     fitting_flower_map[ident] = module(fitting_flower_name, flower_shell)
+
+    # NOTE FIXME: start and end in c_bin have opposite meaning here. "start" is the
+    # higher point, end is the lower point w.r.t PCB.
+    shell_end = openscad_functions.max(c_bins[0]['z_end'],sv_ref_shell_clearance)
+    for idx, this_bin in enumerate(c_bins):
+        overall_shape = union()
+        for shape in this_bin['shapes']:
+            overall_shape += solid2.polygon(shape)
+        this_bin['scad_poly'] = module(f"shape_{ident}_{idx}", overall_shape)
+        this_bin['keepout_volume'] = module(f"keepout_volume_{ident}_{idx}", translate([x,y,sv_pcb_thickness+shell_end]) (
+                                            rotate([0, 0, shell_rot_z]) (
+                                                linear_extrude(this_bin['z_start']-shell_end+sv_tiny_dimension) (
+                                                    solid2.offset(sv_ref_shell_gap) (
+                                                        this_bin['scad_poly']()
+                                                    )
+                                                )
+                                            )
+                                         )
+                                    )
+
+    tight_perimeter_name = ref2tight_perimeter(ident)
+    tight_perimeter_solid = translate([x,y,sv_pcb_thickness+sv_ref_shell_clearance]) (
+                        rotate([0, 0, shell_rot_z]) (
+                          linear_extrude(sv_topmost_z-sv_ref_shell_clearance+sv_base_thickness) (
+                            offset(sv_ref_shell_gap+sv_ref_shell_thickness) (
+                              c_bins[0]['scad_poly']()
+                            )
+                          )
+                        )
+                      )
+
+    tight_perimeter_map[ident] = module(tight_perimeter_name, tight_perimeter_solid,
+                           comment=f"Tight Perimeter for {ident}")
+    tight_pocket_name = ref2tight_pocket(ident)
+    tight_pocket = union()
+    for idx, this_bin in enumerate(c_bins):
+        tight_pocket += this_bin['keepout_volume']()
+    tight_pocket_map[ident] = module(tight_pocket_name, tight_pocket,
+                           comment=f"Tight pocket for {ident}")
 
 def gen_courtyard_shell_shape(ref, courtyard_poly):
     sv_ref_max_z = ScadValue('max_z_%s'%(ref))
@@ -651,6 +697,10 @@ def gen_included_component_shells(fp_scad, all_shells):
         fp_scad.write('  if(Include_%s_in_Jig) {\n'%(this_ref))
         fp_scad.write('    if(Shell_Type_For_%s=="courtyard") {\n'%(this_ref))
         fp_scad.write('      %s();\n'%(ref2courtyard_perimeter(this_ref)))
+        fp_scad.write('    } else if(Shell_Type_For_%s=="tight") {\n'%(this_ref))
+        for shell_info in subshells['shell']:
+            this_name = shell_info['name']
+            fp_scad.write('      %s();\n'%(ref2tight_perimeter(this_name)))
         fp_scad.write('    } else if(Shell_Type_For_%s=="fitting_flower") {\n'%(this_ref))
         for shell_info in subshells['shell']:
             this_name = shell_info['name']
@@ -702,6 +752,10 @@ def gen_included_component_pockets(fp_scad, all_shells):
         for shell_info in subshells['shell']:
             this_name = shell_info['name']
             fp_scad.write('      %s();\n'%(ref2wiggle_pocket(this_name)))
+        fp_scad.write('    } else if(Shell_Type_For_%s=="tight") {\n'%(this_ref))
+        for shell_info in subshells['shell']:
+            this_name = shell_info['name']
+            fp_scad.write('      %s();\n'%(ref2tight_pocket(this_name)))
         fp_scad.write('    } else { //fitting or fitting_flower\n')
         for shell_info in subshells['shell']:
             this_name = shell_info['name']
@@ -762,7 +816,8 @@ def generate_jig(
             gen_shell_shape(cfg, this_ref, shell_info['name'],
                         shell_info['x'], shell_info['y'], shell_info['orientation'],
                         shell_info['min_z'], shell_info['max_z'],
-                        shell_info['fitting_bins'])
+                        shell_info['fitting_bins'],
+                        shell_info['tight_bins'])
         gen_courtyard_shell_shape(this_ref, subshells['front_courtyard'])
 
     for keepout in smd_keepouts:
@@ -1317,7 +1372,8 @@ def generate_footprints(
             gen_shell_shape(cfg, this_ref, shell_info['name'],
                         shell_info['x'], shell_info['y'], shell_info['orientation'],
                         shell_info['min_z'], shell_info['max_z'],
-                        shell_info['fitting_bins'])
+                        shell_info['fitting_bins'],
+                        shell_info['tight_bins'])
         gen_courtyard_shell_shape(this_ref, subshells['front_courtyard'])
 
         parts.append(subshells)
