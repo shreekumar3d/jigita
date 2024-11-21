@@ -335,7 +335,22 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, h_bins, c_bins):
                           )
                         )
                       )
-
+    # Tight peri wrapper
+    tp_wrapper = translate([x,y,sv_pcb_thickness+sv_topmost_z+sv_base_thickness-sv_ref_wrapper_height]) (
+                 rotate([0, 0, shell_rot_z]) (
+                    linear_extrude(sv_ref_wrapper_height) (
+                        difference() (
+                            offset(sv_ref_shell_gap+sv_ref_shell_thickness+sv_ref_wrapper_thickness) (
+                                c_bins[0]['scad_poly']()
+                            ),
+                            offset(sv_ref_shell_gap+sv_ref_shell_thickness) (
+                                c_bins[0]['scad_poly']()
+                            )
+                        )
+                    )
+                 )
+              )
+    tight_perimeter_solid += tp_wrapper
     tight_perimeter_map[ident] = module(tight_perimeter_name, tight_perimeter_solid,
                            comment=f"Tight Perimeter for {ident}")
     tight_pocket_name = ref2tight_pocket(ident)
