@@ -655,15 +655,17 @@ for this_ref in th_ref_list:
         new_body_info = None
     for idx, modinfo in enumerate(th['models']):
         ss_info = {}
+        mverts = None
         if not body_info:
             mesh = modinfo['mesh']
-            if mesh.shape[0]==0:
+            mverts = np.array(mesh.vertices)
+            if mverts.shape[0]==0:
                 # FIXME: this must actually be treated as an error
                 print('  WARNING: Mesh %s is empty on import. Watch out for un-expected side effects. SKIPPING!'
                   %(modinfo['model']))
 
         if not body_info:
-            mesh, min_z, max_z = xform_mesh(mesh, modinfo)
+            mesh, min_z, max_z = xform_mesh(mverts, modinfo)
             min_x = min(mesh[:,0])
             max_x = max(mesh[:,0])
             min_y = min(mesh[:,1])
@@ -788,14 +790,16 @@ if do_pcb_proc:
         # a shell
         for idx, modinfo in enumerate(smd['models']):
             ss_info = {}
+            mverts = None
             if not body_info:
                 mesh = modinfo['mesh']
-                if mesh.shape[0]==0:
+                mverts = np.array(mesh.vertices)
+                if mverts.shape[0]==0:
                     print('  WARNING: Mesh %s is empty on import. Watch out for un-intended side effects. SKIPPING!'
                           %(modinfo['model']))
 
             if not body_info:
-                mesh, min_z, max_z = xform_mesh(mesh, modinfo)
+                mesh, min_z, max_z = xform_mesh(mverts, modinfo)
                 ss_info['min_z'] = min_z
                 ss_info['max_z'] = max_z
             else:

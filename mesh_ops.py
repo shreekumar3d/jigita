@@ -5,25 +5,22 @@ import subprocess
 import os
 import hashlib
 import copy
+import trimesh
 
 mesh_cache = {}
 
 # returns flat array of xyz coordinates
 def load_obj_mesh_verts(filename, scale=1.0):
-    reader = tinyobjloader.ObjReader()
-    ret = reader.ParseFromFile(filename)
-    if ret == False:
-        raise RuntimeError("Unable to load OBJ file %s"%(filename))
-    attrib = reader.GetAttrib()
-    nverts = len(attrib.vertices)//3 # attrib.vertices is contiguous x,y,z
-    mesh = np.array(attrib.vertices)
-    mesh *= scale
-    mesh.resize((nverts,3)) # in place change in dims
+    try:
+        mesh = trimesh.load_mesh(filename)
+    except ValueError as err:
+        raise ValueError("Unable to load OBJ file %s"%(filename))
+    mesh.apply_scale(scale)
     return mesh
 
 def load_mesh(filename, scriptdir, temp_dir=None):
     global mesh_cache
-    retval = None
+    mesh = None
     if filename in mesh_cache.keys():
         #print('Returning %s from cache'%(filename))
         return mesh_cache[filename]
@@ -31,7 +28,7 @@ def load_mesh(filename, scriptdir, temp_dir=None):
     file_hash = hashlib.md5(open(filename,'rb').read()).hexdigest()
 
     if filename.endswith('.obj'):
-        retval = load_obj_mesh_verts(filename)
+        mesh = load_obj_mesh_verts(filename)
     elif filename.endswith('.step') or filename.endswith('.stp'):
         with tempfile.NamedTemporaryFile(suffix='.obj', dir=temp_dir) as fp:
             #print('Converting STEP file %s to OBJ file %s'%(filename, fp.name))
@@ -44,7 +41,7 @@ def load_mesh(filename, scriptdir, temp_dir=None):
             )
             if retcode != 0:
                 raise RuntimeError("Unable to convert STEP file %s to obj"%(filename))
-            retval = load_obj_mesh_verts(fp.name)
+            mesh = load_obj_mesh_verts(fp.name)
     elif filename.endswith('.wrl') or filename.endswith('.vrml'):
         with tempfile.NamedTemporaryFile(suffix='.obj', dir=temp_dir) as fp:
             #print('Converting mesh file %s to OBJ file %s'%(filename, fp.name))
@@ -55,11 +52,11 @@ def load_mesh(filename, scriptdir, temp_dir=None):
             )
             if retcode != 0:
                 raise RuntimeError("Unable to convert file %s to obj"%(filename))
-            retval = load_obj_mesh_verts(fp.name, scale=2.54) # VRML files are in 1/2.54 mm units
+            mesh = load_obj_mesh_verts(fp.name, scale=2.54) # VRML files are in 1/2.54 mm units
     else:
         raise RuntimeError("No converter to load %s"%(filename))
 
-    mesh_cache[filename] = (retval, os.path.getmtime(filename), file_hash)
+    mesh_cache[filename] = (mesh, os.path.getmtime(filename), file_hash)
     return copy.copy(mesh_cache[filename])
 
 
