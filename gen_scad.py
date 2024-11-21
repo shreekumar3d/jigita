@@ -177,21 +177,21 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, h_bins):
             # print. If mesh_line_height is 0, then the best way to avoid islands
             # is by having base_thickness > 0. FIXME this could be an intelligent
             # automatic choice made this this tool
-            avoid_mesh_lines_z = openscad_functions.max(sv_base_line_height-sv_base_thickness, 0)
-
-            cut_volume += translate([x,y,sv_pcb_thickness-sv_tiny_dimension+this_bin['start_z']
-                                     -avoid_mesh_lines_z]) (
+            end_z = openscad_functions.min(sv_topmost_z+sv_base_thickness-sv_base_line_height,
+                                           this_bin['end_z'])
+            start_z = openscad_functions.max(this_bin['start_z'], sv_ref_shell_clearance)
+            cut_volume += translate([x,y,sv_pcb_thickness-sv_tiny_dimension+start_z]) (
                             rotate([0, 0, shell_rot_z]) (
-                              linear_extrude(this_bin['end_z'] -
-                                this_bin['start_z'] +
+                              linear_extrude(end_z -
+                                start_z +
                                 2*sv_tiny_dimension) (
                                 cut_shape
                               )
                             )
                           )
-            cut_volume += translate([x,y,sv_pcb_thickness-sv_tiny_dimension-avoid_mesh_lines_z]) (
+            cut_volume += translate([x,y,sv_pcb_thickness-sv_tiny_dimension]) (
                             rotate([0, 0, shell_rot_z]) (
-                              linear_extrude(this_bin['end_z'] + 2*sv_tiny_dimension) (
+                              linear_extrude(end_z + 2*sv_tiny_dimension) (
                                 cut_to_top_shape
                               )
                             )
@@ -205,11 +205,8 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, h_bins):
         hp_name = ref2hull_poly(ident, idx)
         this_bin['hull_poly'] = module(hp_name, polygon(this_bin['hull']))
     for this_bin in h_bins:
-        if this_bin['start_z']<0:
-            start_z= sv_ref_shell_clearance
-        else:
-            # if start_z is closer than clearance, start at clearance
-            start_z = openscad_functions.max(this_bin['start_z'], sv_ref_shell_clearance)
+        # if start_z is closer than clearance, start at clearance
+        start_z = openscad_functions.max(this_bin['start_z'], sv_ref_shell_clearance)
 
         flower_shell += translate([x,y,sv_pcb_thickness+start_z-sv_tiny_dimension]) (
                           rotate([0, 0, shell_rot_z]) (
