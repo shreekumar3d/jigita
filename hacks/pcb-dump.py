@@ -50,4 +50,5 @@ for fp in fp_list:
         print('        Rot = ', mod3d.m_Rotation)
         print('        Scale = ', mod3d.m_Scale)
         print('        Offset = ', mod3d.m_Offset)
+        print('        Show = ', mod3d.m_Show)
 
