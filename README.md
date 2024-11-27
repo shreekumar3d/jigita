@@ -2,7 +2,7 @@
 
 Ease PCB assembly with automatically generated 3D printed jigs. Achieve well aligned connectors. No motor skills required.
 
-This is "equal opportunity" software. It helps you save time, material and money. If you use this tool, you are required to compensate the developer proportional to the value you derive from it.  For further details, see [this page](https://github.com/sponsors/shreekumar3d).
+This is "equal opportunity" software. It helps you save time, material and money. If you use this tool(or the source code), you are required to compensate the developer proportional to the value you derive from it.  For further details, see [this page](https://github.com/sponsors/shreekumar3d).
 
 Starting with a PCB design, the project aims to achieve this workflow:
 
