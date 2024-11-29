@@ -34,7 +34,7 @@ agreement. If you are in need of such an arrangement, please contact the develop
 Apart from the obligation mentioned above, this software is licensed under
 the AGPL 3.0 LICENSE, included in this repository. In terms of licensing, the
 "obligation to pay a fair price" is the "price" that you agree to pay for
-continued use of the software. If you are a software developer or anybody
+use of the software. If you are a software developer or anybody
 who uses the source code of this tool, then please read till the end of this
 document to get a complete picture of all your obligations.
 
