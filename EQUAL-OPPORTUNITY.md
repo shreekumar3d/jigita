@@ -4,37 +4,60 @@ jigit saves you time, material and money. jigit is an "equal opportunity"
 You (individual user, teacher/school/user group, company etc) are obligated to
 compensate the developer fairly, determined by you (and not by the developer
 of the tool), in a convenient time frame, based on your usage. Note that this
-is an obligation. While "compensation" is not limited to money, but that is 
-the easiest; read on for more possibilities.
+is an obligation. While "compensation" is not limited to money, but that is the
+easiest; read on for more possibilities.
 
 Your contribution supports the development, continued availability, support,
 enhancement and maintenance of jigit.
 
 # Compensating the Developer
 
-There are three ways you can "compensate" the developer:
+There are three ways you may "compensate" the developer:
 
- 1. Pay a fair price determined by you directly to the developer. It is recommended that you do this at-least once for every six months of your usage of the tool.
- 2. Propose a "barter", mentioning what value you have derived and what you propose as exchange of value. If the developer accepts the barter, then your dues are considered paid for the time period under consideration. This is explained in detail later.
- 3. "Educational" license. In this case, you can generate a report stating how you/your group/institution has been using the software and send it to the developer. This needs to be done for every 6 months of your usage of the tool.
+ 1. Pay a fair price determined by you directly to the developer. It is recommended
+    that you do this at-least once for every six months of your usage of the tool.
+ 2. Propose a "barter", mentioning what value you have derived and what you propose
+    as exchange of value. If the developer accepts the barter, then your dues are
+    considered paid for the time period under consideration. This is explained in
+    detail later.
+ 3. "Educational" license. In this case, you can generate a report stating how
+    you/your group/institution has been using the software, what you estimate it's
+    value to be and send it to the developer. This needs to be done for every 6
+    months of your usage of the tool.
 
 Note that compensating the developer does not result in a commercial support
-agreement. If you are in need of such an arrangement, please contact the developer. Also note that you are compensating the developer for value already derived by you, and not for something that the developer may/may not do in the future.  For specific needs future needs (including support), please contact the developer by email.
+agreement. If you are in need of such an arrangement, please contact the developer.
+Note that you are compensating the developer for value already derived by you,
+and not for something that the developer may/may not do in the future. For specific
+needs (useful for commercial use and support), please contact the developer by email.
 
-<u>**Direct payment**</u>: Please use the [github sponsors page of the developer](https://github.com/sponsors/shreekumar3d), and pay the fair price as determined by you.  If this is not convenient, let the developer know by email.
+<u>**Direct payment**</u>: Please use the
+[github sponsors page of the developer](https://github.com/sponsors/shreekumar3d),
+and pay the fair price as determined by you.  If this is not convenient, let the
+developer know by email.
 
-<u>**Barter**</u>: Here are some simple ideas: you can help translate the software, help with the website, documentation/examples, graphic design, promotion, gifts, or anything else you can come up with - which you think may be of value to the developer. Ultimately, this is left to your creativity.  Also note that till the developer agrees to the barter, your obligation stands. This obviously involves more effort than direct payment, and potentially time as well. Barters must be proposed by sending an email the the developer.
+<u>**Barter**</u>: Here are some simple ideas: you can help translate the software,
+promotion, gifts, documentation/examples, graphic design, and anything else you can come
+up with - which you think may be of value to the developer. This is not an exhaustive
+list, and thus left to your creativity. This obviously involves more effort
+than direct payment, and time as well. Barters must be proposed by sending an email
+to the developer. Note that till the developer agrees to the barter, your obligation
+stands.
 
 <u>**Education**</u>: Educational license applies to institutions, groups, and educators.
 
-<u>**Individual Education**</u>: You may use the tool for your own education, and send me a report of value every six months, so long as you are under 23 years of age.  All personal educational use under 18 years of age does not need a report.  Parents/guardians using the tool in such contexts (under 18 years) are exempt from sending such reports. The developer would appreciate it, but that is not an obligation.
+<u>**Individual Education**</u>: You may use the tool for your own education, and send
+me a report of value every six months, provided you are under 23 years of age.  All
+personal educational use under 18 years of age does not need a report. Parents/guardians
+using the tool in such contexts (under 18 years) are exempt from sending such reports.
+The developer would appreciate it (as it is encouraging!), but that is not an obligation.
 
 # LICENSE
 
-Apart from the obligation mentioned above, this software is licensed under
+Apart from the obligations mentioned above, this software is licensed under
 the AGPL 3.0 LICENSE, included in this repository. In terms of licensing, the
-"obligation to pay a fair price" is the "price" that you agree to pay for
-use of the software. If you are a software developer or anybody
+"obligation to pay a fair price" (as outlined above) is the "price" that you
+agree to pay for use of the software. If you are a software developer or anybody
 who uses the source code of this tool, then please read till the end of this
 document to get a complete picture of all your obligations.
 
@@ -42,9 +65,9 @@ document to get a complete picture of all your obligations.
 
 jigit is useful across education, hobbyists/makers, DIY, professionals and
 industry. Naturally, the value that you derive from the tool depends on many
-factors including the nature of use, location in the world and derived
+factors including your nature of use, location in the world and derived
 economic value.  Given the wide variety of situations in which this tool
-could potentially be deployed, the developer do not fix a price.
+could potentially be deployed, the developers do not fix a price.
 
 Why? Fixing a price will certainly result in denying somebody the opportunity
 to use the tool. Thus, you are expected to assess the value yourself.
@@ -82,11 +105,17 @@ software usable in many more languages.  If this is an area where you can
 help, checkout the CONTRIBUTING file.  You only need a practical working knowledge
 of languages for this.
 
+For a broader understanding of why "Equal Opportunity" matters, and how it is
+different from other approaches, see [PHILOSOPHY.md](PHILOSOPHY.md)
+
 # Note for Software Developers
 
 If you are a software developer, then you may find many things of value
 in the source code.  Techniques and algorithms. You may build additional tools
-and call them your own. Any value you derive from the source code itself also is something that falls under your "obligation" of repayment. Again, the value of
-this is assessed by you.  Finally, the developer strongly recommends that you
-continue the chain of "equal opportunity" when you share the source code in any
-form with others. That way you can ensure the sustainable development of the tool.
+and call them your own. Any value you derive from the source code itself also
+is something that falls under your "obligation" of repayment. Again, the value of
+this is assessed by you.
+
+Finally, the developer strongly recommends that you continue the chain of
+"equal opportunity" when you share the source code in any form with others.
+That way you can ensure the sustainable development of the tool.

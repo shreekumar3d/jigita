@@ -3,7 +3,9 @@
 Ease PCB assembly with automatically generated 3D printed jigs. Achieve well aligned connectors. No motor skills required.
 
 Jigit is "equal opportunity" software. It helps you save time, material and money. If you use this tool, you are obligated
-to compensate the developer fairly. Details of what "equal opportunity" means and your obligations are in [this page](EQUAL-OPPORTUNITY.md).
+to compensate the developer fairly, i.e. this software is not "free" in terms of cost - there is something you need to
+pay. Details of what "equal opportunity" means and your obligations are in [this page](EQUAL-OPPORTUNITY.md). Please take
+a moment to read it before you start using the software in any way.
 
 Starting with a PCB design, the project aims to achieve this workflow:
 
