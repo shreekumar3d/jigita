@@ -1,10 +1,10 @@
-jigit saves you time, material and money. jigit is an "equal opportunity"
- tool. It is developed by Shree Kumar (shree.shree@gmail.com).
+Jigit is a tool that saves you time, material and money. jigit is an 
+"equal opportunity" tool. It is developed by Shree Kumar (shree.shree@gmail.com).
 
 You (individual user, teacher/school/user group, company etc) are obligated to
 compensate the developer fairly, determined by you (and not by the developer
 of the tool), in a convenient time frame, based on your usage. Note that this
-is an obligation. While "compensation" is not limited to money, but that is the
+is a moral obligation. "compensation" is not limited to money, but that is the
 easiest; read on for more possibilities.
 
 Your contribution supports the development, continued availability, support,
@@ -47,8 +47,8 @@ stands.
 <u>**Education**</u>: Educational license applies to institutions, groups, and educators.
 
 <u>**Individual Education**</u>: You may use the tool for your own education, and send
-me a report of value every six months, provided you are under 23 years of age.  All
-personal educational use under 18 years of age does not need a report. Parents/guardians
+the developer a report of value every six months, provided you are under 23 years of age.
+All personal educational use under 18 years of age does not need a report. Parents/guardians
 using the tool in such contexts (under 18 years) are exempt from sending such reports.
 The developer would appreciate it (as it is encouraging!), but that is not an obligation.
 
@@ -65,9 +65,9 @@ document to get a complete picture of all your obligations.
 
 jigit is useful across education, hobbyists/makers, DIY, professionals and
 industry. Naturally, the value that you derive from the tool depends on many
-factors including your nature of use, location in the world and derived
+factors including your nature of use, your location in the world and derived
 economic value.  Given the wide variety of situations in which this tool
-could potentially be deployed, the developers do not fix a price.
+could potentially be deployed, the developer has not fixed a price for usage.
 
 Why? Fixing a price will certainly result in denying somebody the opportunity
 to use the tool. Thus, you are expected to assess the value yourself.
@@ -80,11 +80,11 @@ the developer at any time, or periodically.  Do note that continued usage is
 a reliable indicator that you are finding the tool useful and that it is adding
 value.
 
-You are encouraged to make a monetary contribution. If we do not provide a
-payment mechanism that works for you, please contact the developer for additional
-options. Note that we do not accept crypto tokens.
+You are encouraged to make a monetary contribution. If the provided payment
+mechanisms do not work for you, then do contact the developer for additional
+options. Note that crypto tokens are not accepted.
 
-Jigit supports the cause of education. Education is a bedrock of modern
+Jigit supports the cause of education. Education is the bedrock of modern
 knowledge based society. Education creates opportunities, kickstarting
 a virtuous cycle of prosperity. Unfortunately, costs of education are rising
 world wide. Jigit does not want to add to such costs. Jigit may be used without
@@ -118,4 +118,5 @@ this is assessed by you.
 
 Finally, the developer strongly recommends that you continue the chain of
 "equal opportunity" when you share the source code in any form with others.
-That way you can ensure the sustainable development of the tool.
+That way you can ensure the sustainable development of this tool as well as
+its derivatives.
