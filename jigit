@@ -26,6 +26,7 @@ import copy
 import math
 import pathlib
 import hashlib
+import traceback
 
 # Local imports
 from jigcommon import *
@@ -478,6 +479,14 @@ parser.add_argument(
     User friendly openscad output can be generated, starting
     with that as the base""",
 )
+parser.add_argument(
+    "--enable-smd-shells",
+    action="store_true",
+    default=False,
+    help="""Experimental: Generate shells for SMD components.
+Using this disables SMD keepouts.
+""",
+)
 
 group = parser.add_mutually_exclusive_group()
 group.add_argument("-v", "--verbose", help="Verbose messages")
@@ -648,6 +657,7 @@ jig_type = cfg["jig"]["type"]
 jig_type_component_fitting = jig_type == "component_fitting"
 smd_clearance_from_shells = cfg["SMD"]["clearance_from_shells"]
 smd_gap_from_shells = cfg["SMD"]["gap_from_shells"]
+printable_threshold = cfg["3dprinter"]["min_printable_hole_area"]
 if jig_type_component_fitting:
     if shell_clearance > 0:
         print(
@@ -730,8 +740,6 @@ for this_ref in th_ref_list:
     local_min_z = float("inf")
     subshells = {"ref": this_ref, "shell": [], "courtyard": None}
     th = ref_map[this_ref]
-
-    printable_threshold = cfg["3dprinter"]["min_printable_hole_area"]
 
     this_bid = body_id(cfg, th)
     all_bids.append(this_bid)
@@ -859,6 +867,7 @@ for this_ref in th_ref_list:
     subshells["max_z"] = local_max_z
     subshells["min_z"] = local_min_z
     subshells["front_courtyard"] = th["front_courtyard"]
+    subshells["ref_type"] = "TH"
     all_shells.append(subshells)
     if new_body_info:
         shape_cache.add_cached_bid(
@@ -885,6 +894,9 @@ if len(dup_fp) > 0:
 if do_pcb_proc:
     smd_keepouts = []
     for this_ref in smd_ref_list:
+        local_max_z = 0
+        local_min_z = float("inf")
+        subshells = {"ref": this_ref, "shell": [], "courtyard": None}
         smd = ref_map[this_ref]
         this_bid = body_id(cfg, smd)
         body_info = shape_cache.get_cached_bid(cfg, "smd", this_bid, smd["footprint"])
@@ -911,29 +923,128 @@ if do_pcb_proc:
 
             if not body_info:
                 mverts, mesh, min_z, max_z = xform_mesh(mesh, modinfo)
+                # FIXME: reduce code duplication after hackathon
+                min_x = min(mverts[:, 0])
+                max_x = max(mverts[:, 0])
+                min_y = min(mverts[:, 1])
+                max_y = max(mverts[:, 1])
                 ss_info["min_z"] = min_z
                 ss_info["max_z"] = max_z
+                center_x = (min_x + max_x) / 2
+                center_y = (min_y + max_y) / 2
+                # FIXME: bin_size=0.1 could be configurable
+                print("Computing fitting_pockets for ", this_ref)
+                h_bins = compute_shells.fitting_pockets(
+                    mverts, 0.1, printable_threshold
+                )
+                for this_bin in h_bins:
+                    this_bin["corners"], this_bin["corner_segments"] = (
+                        geom_ops.extract_corners_2D(this_bin["hull"])
+                    )
+                c_bins = compute_shells.tight_pockets(mesh, 0.5, printable_threshold)
+                ss_info["min_x"] = min_x
+                ss_info["max_x"] = max_x
+                ss_info["min_y"] = min_y
+                ss_info["max_y"] = max_y
+                ss_info["min_z"] = min_z
+                ss_info["max_z"] = max_z
+                ss_info["center_x"] = center_x
+                ss_info["center_y"] = center_y
+                ss_info["h_bins"] = h_bins
+                ss_info["c_bins"] = c_bins
             else:
                 ss_info = body_info["subshells"][idx]
                 min_z = ss_info["min_z"]
                 max_z = ss_info["max_z"]
-            keepout_ident = "%s_%d" % (this_ref, idx)
-            smd_keepouts.append(
-                {
-                    "name": keepout_ident,
-                    "ref": this_ref,
-                    "min_z": min_z,
-                    "max_z": max_z,
-                    "model": modinfo["model"],
-                    "x": smd["x"],
-                    "y": smd["y"],
-                    "orientation": smd["orientation"],
-                    "front_courtyard": smd["front_courtyard"],
-                }
-            )
+                min_x = ss_info["min_x"]
+                min_y = ss_info["min_y"]
+                max_x = ss_info["max_x"]
+                max_y = ss_info["max_y"]
+                min_z = ss_info["min_z"]
+                max_z = ss_info["max_z"]
+                center_x = ss_info["center_x"]
+                center_y = ss_info["center_y"]
+                h_bins = ss_info["h_bins"]
+                c_bins = ss_info["c_bins"]
+
+            shell_ident = "%s_%d" % (this_ref, idx)
+
+            rz2 = Rotation.from_euler("z", smd["orientation"], degrees=True)
+            c_pt = np.array([[center_x, center_y, 0]])
+            c_pt = rz2.apply(c_pt)
+            c_pt = c_pt + [smd["x"], smd["y"], 0]
+            c_pt = [c_pt[0][0], c_pt[0][1]]
+            fp_centers.append(c_pt)
+            this_subshell = {
+                "name": shell_ident,
+                "min_z": min_z,
+                "max_z": max_z,
+                "model": modinfo["model"],
+                "fp_center": c_pt,
+                "fitting_bins": h_bins,
+                "tight_bins": c_bins,
+            }
+            this_subshell["x"] = smd["x"]
+            this_subshell["y"] = smd["y"]
+            this_subshell["orientation"] = smd["orientation"]
+            this_subshell["min_x"] = min_x
+            this_subshell["max_x"] = max_x
+            this_subshell["min_y"] = min_y
+            this_subshell["max_y"] = max_y
+            local_max_z = max(local_max_z, max_z)
+            local_min_z = min(local_min_z, min_z)
+
+            # Shells and keepouts are exclusive for now
+            # as both can't be used together
+            # FIXME: perhaps SMD keepouts should be applied in
+            # a different order ?
+            if args.enable_smd_shells:
+                subshells["shell"].append(this_subshell)
+                print(
+                    "  Generating shell %s for ref %s with mesh %s"
+                    % (shell_ident, this_ref, modinfo["model"])
+                )
+            else:
+                smd_keepouts.append(
+                    {
+                        "name": shell_ident,
+                        "ref": this_ref,
+                        "min_z": min_z,
+                        "max_z": max_z,
+                        "model": modinfo["model"],
+                        "x": smd["x"],
+                        "y": smd["y"],
+                        "orientation": smd["orientation"],
+                        "front_courtyard": smd["front_courtyard"],
+                    }
+                )
             topmost_z = max(topmost_z, max_z)
             if not body_info:
                 new_body_info["subshells"].append(ss_info)
+        if len(subshells["shell"]) > 1:
+            all_hulls = None
+            for ss in subshells["shell"]:
+                # first bin is the biggest one
+                this_hull = ss["fitting_bins"][0]["hull"]
+                if all_hulls is None:
+                    all_hulls = np.copy(this_hull)
+                else:
+                    all_hulls = np.concatenate((this_hull, all_hulls), axis=0)
+            hull = scipy.spatial.ConvexHull(all_hulls)
+            hull_verts = all_hulls[hull.vertices]
+            subshells["combined_hull"] = hull_verts
+        topmost_z = max(topmost_z, local_max_z)
+
+        if local_max_z == 0:  # 0 means empty mesh, so avoid infs
+            local_min_z = 0
+
+        subshells["max_z"] = local_max_z
+        subshells["min_z"] = local_min_z
+        subshells["front_courtyard"] = smd["front_courtyard"]
+        subshells["ref_type"] = "SMD"
+        all_shells.append(subshells)
+        # print(subshells)
+
         if new_body_info:
             shape_cache.add_cached_bid(
                 cfg, "smd", this_bid, new_body_info, new_body_metadata, smd["footprint"]
@@ -1153,6 +1264,7 @@ try:
             topmost_z,
         )
 except ValueError as err:
+    print(traceback.format_exc())
     print(f"ERROR: {err}", file=sys.stderr)
     sys.exit(-1)
 

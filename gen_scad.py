@@ -121,7 +121,7 @@ def peri_line(start, end, line_width):
     return peri_line_scad(start_pt, end_pt, line_width)
 
 
-def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, h_bins, c_bins):
+def gen_shell_shape(cfg, ref, ref_type, ident, x, y, rot, min_z, max_z, h_bins, c_bins):
     sv_tiny_dimension = ScadValue("tiny_dimension")
     sv_ref_shell_gap = ScadValue("Effective_Shell_Gap_For_%s" % (ref))
     sv_ref_shell_thickness = ScadValue("Effective_Shell_Thickness_For_%s" % (ref))
@@ -144,10 +144,10 @@ def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, h_bins, c_bins):
     min_fitting_z = h_bins[0]["start_z"]
 
     encl_poly = Polygon(h_bins[0]["hull"])
-    cut_width = cfg["TH"][ref]["corner_cut_width"]
-    cut_depth = cfg["TH"][ref]["corner_cut_depth"]
-    min_petal_length = cfg["TH"][ref]["min_petal_length"]
-    support_len = cfg["TH"][ref]["petal_support_length"]
+    cut_width = cfg[ref_type][ref]["corner_cut_width"]
+    cut_depth = cfg[ref_type][ref]["corner_cut_depth"]
+    min_petal_length = cfg[ref_type][ref]["min_petal_length"]
+    support_len = cfg[ref_type][ref]["petal_support_length"]
 
     cut_volume = union()
     if cut_width >= 0:
@@ -646,17 +646,19 @@ def gen_configurable_fp_components(
     ui_refs = []
     for subshells in all_shells:
         this_ref = subshells["ref"]
+        ref_type = subshells["ref_type"]
         tris = tripy.earclip(subshells["front_courtyard"])
         area = tripy.calculate_total_area(tris)
-        ui_refs.append([this_ref, area])
+        ui_refs.append([this_ref, area, ref_type])
     ui_refs.sort(reverse=True, key=lambda x: x[1])  # key is the area
     # pprint(ui_refs)
 
     fp_scad.write("/* [Include these components in output STL file] */\n")
-    for this_ref, area in ui_refs:
-        footprint = cfg["TH"][this_ref]["kicad_footprint"]
+    for this_ref, area, ref_type in ui_refs:
+        print(this_ref, ref_type)
+        footprint = cfg[ref_type][this_ref]["kicad_footprint"]
         dname_fp = fp_map[footprint]["display_name"]
-        dname_ref = cfg["TH"][this_ref]["display_name"]
+        dname_ref = cfg[ref_type][this_ref]["display_name"]
         if dname_ref == this_ref:
             fp_scad.write("//%s (%s)\n" % (dname_fp, this_ref))
         else:
@@ -680,10 +682,10 @@ def gen_configurable_fp_components(
             fp_scad.write("%s_For_%s = %s;\n" % (var, alias, footprint[prop]))
 
     valid_shell_types = ",".join(jigconfig.valid_shell_types)
-    for this_ref, area in ui_refs:
-        footprint = cfg["TH"][this_ref]["kicad_footprint"]
+    for this_ref, area, ref_type in ui_refs:
+        footprint = cfg[ref_type][this_ref]["kicad_footprint"]
         dname_fp = fp_map[footprint]["display_name"]
-        dname_ref = cfg["TH"][this_ref]["display_name"]
+        dname_ref = cfg[ref_type][this_ref]["display_name"]
         if this_ref == dname_ref:
             fp_scad.write("/* [%s (%s)] */\n" % (this_ref, footprint))
         else:
@@ -691,45 +693,45 @@ def gen_configurable_fp_components(
         fp_scad.write("//Type of shell for this component\n")
         fp_scad.write(
             'Shell_Type_For_%s="%s"; // [%s]\n'
-            % (this_ref, cfg["TH"][this_ref]["shell_type"], valid_shell_types)
+            % (this_ref, cfg[ref_type][this_ref]["shell_type"], valid_shell_types)
         )
         fp_scad.write(
             "//Insert this component into jig from this side.(Bottom insertion requires wiggle or courtyard shell to work)\n"
         )
         fp_scad.write(
             'Insert_%s_From="%s"; // [top,bottom]\n'
-            % (this_ref, cfg["TH"][this_ref]["insertion_direction"])
+            % (this_ref, cfg[ref_type][this_ref]["insertion_direction"])
         )
         fp_scad.write(
             "//Delta(+/-) thickness for shell, additional to footprint setting\n"
         )
         fp_scad.write(
             "Delta_Shell_Thickness_For_%s=%s;\n"
-            % (this_ref, cfg["TH"][this_ref]["delta_shell_thickness"])
+            % (this_ref, cfg[ref_type][this_ref]["delta_shell_thickness"])
         )
         fp_scad.write(
             "//Delta XY gap to allow insertion of this component into its shell\n"
         )
         fp_scad.write(
             "Delta_Shell_Gap_For_%s=%s;\n"
-            % (this_ref, cfg["TH"][this_ref]["delta_shell_gap"])
+            % (this_ref, cfg[ref_type][this_ref]["delta_shell_gap"])
         )
         fp_scad.write("//Delta Z clearance from the shell to PCB\n")
         fp_scad.write(
             "Delta_Shell_Clearance_From_PCB_For_%s=%s;\n"
-            % (this_ref, cfg["TH"][this_ref]["delta_shell_clearance_from_pcb"])
+            % (this_ref, cfg[ref_type][this_ref]["delta_shell_clearance_from_pcb"])
         )
         fp_scad.write("//Wrapper thickness\n")
         fp_scad.write(
             "Wrapper_Thickness_For_%s=%s; // [0:0.1:10.0]\n"
-            % (this_ref, cfg["TH"][this_ref]["shell_wrapper_thickness"])
+            % (this_ref, cfg[ref_type][this_ref]["shell_wrapper_thickness"])
         )
         fp_scad.write("//Wrapper height\n")
         fp_scad.write(
             "Wrapper_Height_For_%s=%s; // [0:0.1:%s]\n"
             % (
                 this_ref,
-                cfg["TH"][this_ref]["shell_wrapper_height"],
+                cfg[ref_type][this_ref]["shell_wrapper_height"],
                 topmost_z,
             )  # FIXME: this needs to take shell shell clearance into account
         )
@@ -744,7 +746,7 @@ def gen_configurable_fp_components(
     fp_scad.write("layer_height = %s;\n" % (cfg["3dprinter"]["layer_height"]))
 
     # Effective values for each ref
-    for this_ref, area in ui_refs:
+    for this_ref, area, ref_type in ui_refs:
         footprint = ref_map[this_ref]["footprint"]
         alias = fp_map[footprint]["alias"]
         for this_var in ["Shell_Thickness", "Shell_Gap", "Shell_Clearance_From_PCB"]:
@@ -1002,10 +1004,12 @@ def generate_jig(
 
     for subshells in all_shells:
         this_ref = subshells["ref"]
+        ref_type = subshells["ref_type"]
         for shell_info in subshells["shell"]:
             gen_shell_shape(
                 cfg,
                 this_ref,
+                ref_type,
                 shell_info["name"],
                 shell_info["x"],
                 shell_info["y"],
@@ -1594,10 +1598,12 @@ def generate_footprints(
     parts = []
     for subshells in all_shells:
         this_ref = subshells["ref"]
+        ref_type = subshells["ref_type"]
         for shell_info in subshells["shell"]:
             gen_shell_shape(
                 cfg,
                 this_ref,
+                ref_type,
                 shell_info["name"],
                 shell_info["x"],
                 shell_info["y"],

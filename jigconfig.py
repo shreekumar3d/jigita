@@ -44,6 +44,23 @@ TH_ref_params2 = [
     "delta_shell_clearance_from_pcb",
 ]
 
+SMD_ref_params = [
+    "kicad_footprint",
+    "shell_type",
+    "shell_wrapper_thickness",
+    "shell_wrapper_height",
+    "insertion_direction",
+    "corner_cut_width",
+    "min_petal_length",
+    "petal_support_length",
+    "corner_cut_depth",
+]
+SMD_ref_params2 = [
+    "delta_shell_gap",
+    "delta_shell_thickness",
+    "delta_shell_clearance_from_pcb",
+]
+
 _user_cfg = None
 
 
@@ -72,7 +89,7 @@ def transfer_default_values(default_cfg, cfg, keylist=None, overwrite=False):
                 transfer_default_values(default_cfg[key], cfg[key])
 
 
-inheritable_footprint_keys = [
+inheritable_footprint_keys_smd = [
     "shell_type",
     "shell_gap",
     "shell_thickness",
@@ -84,9 +101,14 @@ inheritable_footprint_keys = [
     "min_petal_length",
     "petal_support_length",
     "corner_cut_depth",
-    "force_smd",
 ]
-valid_footprint_keys = ["kicad_footprint", "display_name"] + inheritable_footprint_keys
+
+inheritable_footprint_keys_th = inheritable_footprint_keys_smd + ["force_smd"]
+
+valid_footprint_keys_th = [
+    "kicad_footprint",
+    "display_name",
+] + inheritable_footprint_keys_th
 
 _alias_idx = 1
 
@@ -148,6 +170,7 @@ def load(configFile, ref_map, fp_map, mh_map):
         # merge with user specified config file, and anything in the config file
         # takes precendence over everything else
         transfer_default_values(default_cfg, cfg)
+
     # Do some basic validation
     base_type = cfg["holder"]["base"]["type"]
     if base_type not in valid_base_types:
@@ -212,7 +235,7 @@ def load(configFile, ref_map, fp_map, mh_map):
                 fp_map[kfp]["force_smd"] = this_fp["force_smd"]
 
         for key in this_fp:
-            if key not in valid_footprint_keys:
+            if key not in valid_footprint_keys_th:
                 raise ValueError(
                     f"footprint.{alias}.{key} is not a recognized setting."
                 )
@@ -246,9 +269,26 @@ def load(configFile, ref_map, fp_map, mh_map):
                 "display_name": kfp,
             }
             cfg["footprint"][alias] = this_fp
-        for ivkey in inheritable_footprint_keys:
+        for ivkey in inheritable_footprint_keys_th:
             if ivkey not in this_fp:
                 this_fp[ivkey] = cfg["TH"]["component_shell"][ivkey]
+
+    for kfp in smd_fp_list:
+        # we may not have the alias structure set due to footprint mode
+        if fp_map[kfp]["alias"] and (fp_map[kfp]["alias"] in cfg["footprint"]):
+            alias = fp_map[kfp]["alias"]
+            this_fp = cfg["footprint"][alias]
+        else:
+            alias = generate_alias(kfp, cfg["footprint"].keys())
+            fp_map[kfp]["alias"] = alias
+            this_fp = {
+                "kicad_footprint": kfp,
+                "display_name": kfp,
+            }
+        cfg["footprint"][alias] = this_fp
+        for ivkey in inheritable_footprint_keys_smd:
+            if ivkey not in this_fp:
+                this_fp[ivkey] = cfg["SMD"]["component_shell"][ivkey]
 
     # pprint(fp_map)
     # print('th_fp=',th_fp_list)
@@ -258,29 +298,44 @@ def load(configFile, ref_map, fp_map, mh_map):
     for ref in ref_map:
         ref_dict = ref_map[ref]
         footprint = ref_dict["footprint"]
-        if footprint not in th_fp_list:
+        if footprint in th_fp_list:
+            ref_type = "TH"
+            th_ref_list.append(ref)
+        elif footprint in smd_fp_list:
+            ref_type = "SMD"
+        else:
+            print("Ignoring footprint ", footprint)
             continue
         footprint_alias = fp_map[footprint]["alias"]
-        th_ref_list.append(ref)
-        if ref in cfg["TH"]:
-            ref_cfg = cfg["TH"][ref]
-            if "kicad_footprint" in cfg["TH"][ref]:
-                cfg_ref_footprint = cfg["TH"][ref]["kicad_footprint"]
+
+        if ref in cfg[ref_type]:
+            ref_cfg = cfg[ref_type][ref]
+            if "kicad_footprint" in cfg[ref_type][ref]:
+                cfg_ref_footprint = cfg[ref_type][ref]["kicad_footprint"]
                 if cfg_ref_footprint != footprint:
                     raise ValueError(
-                        f"TH.{ref}.kicad_footprint={cfg_ref_footprint} cannot deviate from {footprint} specified in board file!"
+                        f"{ref_type}.{ref}.kicad_footprint={cfg_ref_footprint} cannot deviate from {footprint} specified in board file!"
                     )
         else:
             ref_cfg = {}
-            cfg["TH"][ref] = ref_cfg
-        if "display_name" not in cfg["TH"][ref]:
-            cfg["TH"][ref]["display_name"] = ref
-        for param in TH_ref_params:
-            if param not in cfg["TH"][ref]:
-                cfg["TH"][ref][param] = cfg["footprint"][footprint_alias][param]
-        for param in TH_ref_params2:
-            if param not in cfg["TH"][ref]:
-                cfg["TH"][ref][param] = 0
+            cfg[ref_type][ref] = ref_cfg
+        if "display_name" not in cfg[ref_type][ref]:
+            cfg[ref_type][ref]["display_name"] = ref
+        if ref_type == "TH":
+            for param in TH_ref_params:
+                if param not in cfg[ref_type][ref]:
+                    cfg[ref_type][ref][param] = cfg["footprint"][footprint_alias][param]
+            for param in TH_ref_params2:
+                if param not in cfg["TH"][ref]:
+                    cfg["TH"][ref][param] = 0
+        else:  # SMD
+            # FIXME : possibility of merging code with above block
+            for param in SMD_ref_params:
+                if param not in cfg[ref_type][ref]:
+                    cfg[ref_type][ref][param] = cfg["footprint"][footprint_alias][param]
+            for param in SMD_ref_params2:
+                if param not in cfg["SMD"][ref]:
+                    cfg["SMD"][ref][param] = 0
 
     if len(cfg["TH"]["refs_process_only_these"]) > 0:
         rtp_list = expand_refs(
@@ -310,16 +365,21 @@ def load(configFile, ref_map, fp_map, mh_map):
             if ref in cfg["TH"]:
                 cfg["TH"].pop(ref)
 
-    # as a result of this trimming, some TH footprints may not be used at all now.
+    # as a result of this trimming, some footprints may not be used at all now.
     # find 'em
     proc_th_footprints = []
     for ref in th_ref_list:
         proc_th_footprints.append(cfg["TH"][ref]["kicad_footprint"])
     proc_th_footprints = list(set(proc_th_footprints))
+    proc_smd_footprints = []
+    for ref in smd_ref_list:
+        proc_smd_footprints.append(cfg["SMD"][ref]["kicad_footprint"])
+    proc_smd_footprints = list(set(proc_smd_footprints))
+    valid_footprints = proc_th_footprints + proc_smd_footprints
     # and remove 'em
     for alias in list(cfg["footprint"].keys()):
         fp_name = cfg["footprint"][alias]["kicad_footprint"]
-        if fp_name not in proc_th_footprints:
+        if fp_name not in valid_footprints:
             cfg["footprint"].pop(alias)
 
     # ensure display names are propagated back to fp_map
@@ -679,6 +739,19 @@ clearance_from_shells = 0.5
 # Courtyard is typically well outside the pads, so 0.5 mm is a good enough
 # default. Soldered components will stay well within this.
 gap_from_shells = 0.5
+
+[SMD.component_shell]
+shell_type = "fitting"
+insertion_direction = "top"
+shell_thickness = 1.2
+shell_gap = 0.1
+shell_clearance_from_pcb = 1
+corner_cut_width = 0.4
+min_petal_length = 0.4
+petal_support_length = 3.0
+shell_wrapper_thickness = 0.0
+shell_wrapper_height = 0.0
+corner_cut_depth = 0.2
 
 [footprint]
 # Every component on the board has a footprint, which in turn is associated

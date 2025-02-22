@@ -1,0 +1,8 @@
+[cache]
+enabled = false
+[TH]
+refs_do_not_process = [ 'J1', 'J2' ]
+[TH.component_shell]
+shell_clearance_from_pcb = 0.2
+[SMD.component_shell]
+shell_clearance_from_pcb = 0.2
