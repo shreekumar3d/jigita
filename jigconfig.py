@@ -124,7 +124,6 @@ def load(configFile, ref_map, fp_map, mh_map):
 
     default_config_text = get_default()
     default_cfg = tomllib.loads(default_config_text)
-
     keys_TH_builtin = default_cfg["TH"].keys()
     if configFile:
         config_text = open(configFile, "r").read()
@@ -132,7 +131,7 @@ def load(configFile, ref_map, fp_map, mh_map):
         # print(json.dumps(cfg, indent=2))
     else:
         config_text = default_config_text
-        cfg = deepcopy(default_cfg)
+        cfg = None
 
     user_cfg = get_user_config()
     if user_cfg:
@@ -143,10 +142,12 @@ def load(configFile, ref_map, fp_map, mh_map):
             overwrite=True,
         )
 
-    # merge with user specified config file, and anything in the config file
-    # takes precendence over everything else
-    transfer_default_values(default_cfg, cfg)
-
+    if not cfg:
+        cfg = deepcopy(default_cfg)
+    else:
+        # merge with user specified config file, and anything in the config file
+        # takes precendence over everything else
+        transfer_default_values(default_cfg, cfg)
     # Do some basic validation
     base_type = cfg["holder"]["base"]["type"]
     if base_type not in valid_base_types:
