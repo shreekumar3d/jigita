@@ -98,10 +98,27 @@ def ref2keepout(ref):
 
 
 @exportReturnValueAsModule
-def peri_line(start, end, line_width):
+def peri_line_scad(start, end, line_width):
     return solid2.hull()(
         circle(d=line_width).translate(start), circle(d=line_width).translate(end)
     )
+
+
+def peri_line(start, end, line_width):
+    """peri_line may get float or numpy float values or scad values. Pass only floats
+    to peri_line_scad, else python datatypes will end up in scad output
+    """
+    if type(start[0]) is not solid2.core.object_base.object_base_impl.OpenSCADConstant:
+        start_pt = [float(start[0]), float(start[1])]
+    else:
+        start_pt = start
+
+    if type(end[0]) is not solid2.core.object_base.object_base_impl.OpenSCADConstant:
+        end_pt = [float(end[0]), float(end[1])]
+    else:
+        end_pt = end
+
+    return peri_line_scad(start_pt, end_pt, line_width)
 
 
 def gen_shell_shape(cfg, ref, ident, x, y, rot, min_z, max_z, h_bins, c_bins):
