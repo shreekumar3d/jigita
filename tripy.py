@@ -4,31 +4,31 @@
 # Directly incorporated into project as it is
 # inconvenient to use pip.
 #
-#Commit info
-#-----------------------------------------------
-#Commit e3ac13ea0320cd37d0d577545f0839bbc97de1d5
-#Merge: 7676191 5478a05
-#Author: Sam Bolgert <sbolgert@gmail.com>
-#Date:   Tue Apr 16 14:11:11 2019 -0500
+# Commit info
+# -----------------------------------------------
+# Commit e3ac13ea0320cd37d0d577545f0839bbc97de1d5
+# Merge: 7676191 5478a05
+# Author: Sam Bolgert <sbolgert@gmail.com>
+# Date:   Tue Apr 16 14:11:11 2019 -0500
 #
 #    Merge pull request #2 from MartinFalatic/mff-improved-algorithm
 #
 #    Various enhancements and cleanups
-#-----------------------------------------------
+# -----------------------------------------------
 # MIT License
-# 
+#
 # Copyright (c) 2017 Sam Bolgert
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -40,7 +40,7 @@ import math
 import sys
 from collections import namedtuple
 
-Point = namedtuple('Point', ['x', 'y'])
+Point = namedtuple("Point", ["x", "y"])
 
 EPSILON = math.sqrt(sys.float_info.epsilon)
 
@@ -91,7 +91,9 @@ def earclip(polygon):
 
         polygon.remove(ear)
         point_count -= 1
-        triangles.append(((prev_point.x, prev_point.y), (ear.x, ear.y), (next_point.x, next_point.y)))
+        triangles.append(
+            ((prev_point.x, prev_point.y), (ear.x, ear.y), (next_point.x, next_point.y))
+        )
         if point_count > 3:
             prev_prev_point = polygon[prev_index - 1]
             next_next_index = (i + 1) % point_count
@@ -126,9 +128,11 @@ def _is_convex(prev, point, next):
 
 
 def _is_ear(p1, p2, p3, polygon):
-    ear = _contains_no_points(p1, p2, p3, polygon) and \
-        _is_convex(p1, p2, p3) and \
-        _triangle_area(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y) > 0
+    ear = (
+        _contains_no_points(p1, p2, p3, polygon)
+        and _is_convex(p1, p2, p3)
+        and _triangle_area(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y) > 0
+    )
     return ear
 
 
@@ -176,7 +180,9 @@ def calculate_total_area(triangles):
         # https://people.eecs.berkeley.edu/~wkahan/Triangle.pdf
         # For this purpose, abs() is used as a reasonable guard against this condition.
         c, b, a = sorted(sides)
-        area = .25 * math.sqrt(abs((a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c))))
+        area = 0.25 * math.sqrt(
+            abs((a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c)))
+        )
         result.append((area, a, b, c))
     triangle_area = sum(tri[0] for tri in result)
     return triangle_area

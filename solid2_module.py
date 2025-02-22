@@ -20,6 +20,7 @@ from solid2 import *
 
 registeredModules = {}
 
+
 def getCompileFunctionsHeader():
     s = ""
     for f in registeredModules:
@@ -27,19 +28,21 @@ def getCompileFunctionsHeader():
 
     return s
 
+
 def module(module_name, value, comment=None):
-    """ Helps generate modular output """
-    if not inspect.isfunction(value) and not hasattr(value, '_render'):
-        raise TypeError('must be function, or a scad primitive')
+    """Helps generate modular output"""
+    if not inspect.isfunction(value) and not hasattr(value, "_render"):
+        raise TypeError("must be function, or a scad primitive")
 
     def parametersToStr(args):
         s = ""
         for a in args:
             s += str(a) + ","
         if len(s):
-            #cut of trailing ","
+            # cut of trailing ","
             s = s[:-1]
         return s
+
     if not value in registeredModules:
         moduleCode = f"/*\n{comment}\n*/" if comment else ""
         if inspect.isfunction(value):
@@ -54,13 +57,16 @@ def module(module_name, value, comment=None):
         registeredModules[value] = moduleCode
 
     # fake union to enable mixins.
-    return lambda *args : union() + ScadValue(f"{module_name}({parametersToStr(args)});\n")
+    return lambda *args: union() + ScadValue(
+        f"{module_name}({parametersToStr(args)});\n"
+    )
+
 
 def exportReturnValueAsModule(func):
-    """ Use this as a decorator for functions. """
+    """Use this as a decorator for functions."""
     return module(func.__name__, func)
+
 
 # Pre render ensures that the module defs are output before the
 # scad tree
-default_extension_manager.register_pre_render(lambda root : getCompileFunctionsHeader())
-
+default_extension_manager.register_pre_render(lambda root: getCompileFunctionsHeader())
