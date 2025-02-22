@@ -51,8 +51,8 @@ try:
     import python_tsp
     import trimesh
 except ImportError as err:
-    print(f'Missing module : {err.name}', file=sys.stderr)
-    print('Please install it using pip, and retry.')
+    print(f"Missing module : {err.name}", file=sys.stderr)
+    print("Please install it using pip, and retry.")
     sys.exit(1)
 
 import scipy.spatial
@@ -63,6 +63,7 @@ from python_tsp.distances import euclidean_distance_matrix
 from python_tsp.heuristics import solve_tsp_local_search, solve_tsp_simulated_annealing
 from shapely import LineString, Polygon, Point
 
+
 def get_courtyard_polygon(shape):
     # Courtyard Polygon Coordinate System Note:
     #
@@ -70,35 +71,41 @@ def get_courtyard_polygon(shape):
     # offset or rotation. Just negate Y
     verts = []
     # FIXME: can we have more than one outline in the courtyard !?
-    if shape.OutlineCount()>1:
-        raise ValueError("ERROR: can't handle courtyards with more than 1 outlines", file=sys.stderr)
+    if shape.OutlineCount() > 1:
+        raise ValueError(
+            "ERROR: can't handle courtyards with more than 1 outlines", file=sys.stderr
+        )
 
     for i in range(shape.OutlineCount()):
         lc = shape.Outline(i)
         for j in range(lc.PointCount()):
             pt = lc.CPoint(j)
-            verts.append([pcbnew.ToMM(pt.x),-pcbnew.ToMM(pt.y)])
+            verts.append([pcbnew.ToMM(pt.x), -pcbnew.ToMM(pt.y)])
     return verts
+
 
 def get_3d_models(fp):
     models_3d = []
     for mod3d in fp.Models():
-        if mod3d.m_Show: # Don't consider hidden models
+        if mod3d.m_Show:  # Don't consider hidden models
             # NOTE XXX don't hold references to internal vectors - they can get
             # messed up! Make copies!
-            models_3d.append({
-                'model' :
-                    mod3d.m_Filename,
-                'offset' :
-                    [mod3d.m_Offset[0], mod3d.m_Offset[1], mod3d.m_Offset[2]],
-                'scale' :
-                    [mod3d.m_Scale[0], mod3d.m_Scale[1], mod3d.m_Scale[2]],
-                'rotation' :
-                    [mod3d.m_Rotation[0], mod3d.m_Rotation[1], mod3d.m_Rotation[2]]
-            })
+            models_3d.append(
+                {
+                    "model": mod3d.m_Filename,
+                    "offset": [mod3d.m_Offset[0], mod3d.m_Offset[1], mod3d.m_Offset[2]],
+                    "scale": [mod3d.m_Scale[0], mod3d.m_Scale[1], mod3d.m_Scale[2]],
+                    "rotation": [
+                        mod3d.m_Rotation[0],
+                        mod3d.m_Rotation[1],
+                        mod3d.m_Rotation[2],
+                    ],
+                }
+            )
     # alphabetical order of mesh filename
-    models_3d.sort(key=lambda x:x['model'])
+    models_3d.sort(key=lambda x: x["model"])
     return models_3d
+
 
 def load_footprints(fp_spec_list, arc_resolution):
     fp_map = {}
@@ -119,9 +126,9 @@ def load_footprints(fp_spec_list, arc_resolution):
 
     for this_spec in fp_spec_list:
         full_spec = this_spec
-        if this_spec.find(':')==-1:
-            full_spec += ':*'
-        fp_lib, fp_name = full_spec.split(':')
+        if this_spec.find(":") == -1:
+            full_spec += ":*"
+        fp_lib, fp_name = full_spec.split(":")
         name_rep = pxn.match(fp_name)
         if name_rep:
             fp_name = name_rep[1]
@@ -132,11 +139,11 @@ def load_footprints(fp_spec_list, arc_resolution):
             repeat = 1
         # if the lib name ends with pretty, it's a full filepath, including an
         # (optional) directory
-        if not fp_lib.endswith('.pretty'):
-            libpath = os.path.join('/usr/share/kicad/footprints',f"{fp_lib}.pretty")
+        if not fp_lib.endswith(".pretty"):
+            libpath = os.path.join("/usr/share/kicad/footprints", f"{fp_lib}.pretty")
             fp_lib_name = fp_lib
         else:
-            dirname, fname = os.path.split(fp_lib[:-7]) # remove the .pretty
+            dirname, fname = os.path.split(fp_lib[:-7])  # remove the .pretty
             fp_lib_name = fname
             libpath = fp_lib
 
@@ -155,19 +162,19 @@ def load_footprints(fp_spec_list, arc_resolution):
                 print(f"WARNING: {fp_complete_name} is not a through hole component.")
                 continue
             none_found = False
-            this_alias = 'FP%d'%(alias_idx)
+            this_alias = "FP%d" % (alias_idx)
             models_3d = get_3d_models(fp)
             fields = fp.Fields()
-            footprint = fields[2].GetText() # e.g. Package_QFP:LQFP-128_14x14mm_P0.4mm
+            footprint = fields[2].GetText()  # e.g. Package_QFP:LQFP-128_14x14mm_P0.4mm
             ref_info = {
-                'is_th' : fp.HasThroughHolePads(),
-                'x': 0,
-                'y': 0,
-                'orientation' : 0,
-                'footprint' : fp_complete_name,
-                'side' : fp.GetSide(),
-                'models' : models_3d,
-                'kfp' : fp, # Reference if we need more info later
+                "is_th": fp.HasThroughHolePads(),
+                "x": 0,
+                "y": 0,
+                "orientation": 0,
+                "footprint": fp_complete_name,
+                "side": fp.GetSide(),
+                "models": models_3d,
+                "kfp": fp,  # Reference if we need more info later
             }
             # FIXME: KiCAD doesn't return courtyard for footprints !?
             # get_courtyard_polygon(fp.GetCourtyard(pcbnew.F_CrtYd)),
@@ -176,31 +183,31 @@ def load_footprints(fp_spec_list, arc_resolution):
             f_crtyd_dwg = []
             b_crtyd_dwg = []
             for d in fp.GraphicalItems():
-                if d.GetLayer()==pcbnew.F_CrtYd:
+                if d.GetLayer() == pcbnew.F_CrtYd:
                     f_crtyd_dwg.append(d)
-                elif d.GetLayer()==pcbnew.B_CrtYd:
+                elif d.GetLayer() == pcbnew.B_CrtYd:
                     b_crtyd_dwg.append(d)
             f_pts = edge_cuts.compute_largest_filled_shape(f_crtyd_dwg, arc_resolution)
             b_pts = edge_cuts.compute_largest_filled_shape(b_crtyd_dwg, arc_resolution)
-            ref_info['front_courtyard'] = f_pts
-            ref_info['back_courtyard'] = b_pts
+            ref_info["front_courtyard"] = f_pts
+            ref_info["back_courtyard"] = b_pts
             new_refs = []
             if repeat == 1:
                 ref_map[this_alias] = ref_info
                 new_refs.append(ref_info)
             else:
                 for i in range(repeat):
-                    this_ref = f'{this_alias}_{i}'
+                    this_ref = f"{this_alias}_{i}"
                     ref_map[this_ref] = copy.copy(ref_info)
                     new_refs.append(this_ref)
             fp_map[fp_complete_name] = {
-                'is_th' : fp.HasThroughHolePads(),
-                'refs' : new_refs,
-                'alias' : this_alias,
-                'footprint' : fp,
-                'display_name' : fp_complete_name,
-                'force_smd' : False,
-                'base_footprint' : fp
+                "is_th": fp.HasThroughHolePads(),
+                "refs": new_refs,
+                "alias": this_alias,
+                "footprint": fp,
+                "display_name": fp_complete_name,
+                "force_smd": False,
+                "base_footprint": fp,
             }
             alias_idx += 1
         if none_found:
@@ -208,20 +215,24 @@ def load_footprints(fp_spec_list, arc_resolution):
 
     return ref_map, fp_map
 
+
 def xform_mesh(mesh_in, modinfo):
-    mesh = mesh_in.copy() # don't change source mesh
-    mesh.apply_scale(modinfo['scale'])
+    mesh = mesh_in.copy()  # don't change source mesh
+    mesh.apply_scale(modinfo["scale"])
     # FIXME: Hrrmph! why should I need to reverse these
     # angles !?
-    mat = trimesh.transformations.euler_matrix( \
-            np.radians(-modinfo['rotation'][0]),
-            np.radians(-modinfo['rotation'][1]),
-            np.radians(-modinfo['rotation'][2]))
+    mat = trimesh.transformations.euler_matrix(
+        np.radians(-modinfo["rotation"][0]),
+        np.radians(-modinfo["rotation"][1]),
+        np.radians(-modinfo["rotation"][2]),
+    )
     mesh.apply_transform(mat)
-    mesh.apply_translation([modinfo['offset'][0], modinfo['offset'][1], modinfo['offset'][2]])
+    mesh.apply_translation(
+        [modinfo["offset"][0], modinfo["offset"][1], modinfo["offset"][2]]
+    )
     vertices = np.array(mesh.vertices)
-    min_z = min(vertices[:,2])
-    max_z = max(vertices[:,2])
+    min_z = min(vertices[:, 2])
+    max_z = max(vertices[:, 2])
     return vertices, mesh, min_z, max_z
 
 
@@ -233,180 +244,244 @@ def get_ref_info(fp_list, unity_xform):
         ref = fp.GetReference()
         fp_x = units_to_mm(fp.GetX())
         fp_y = -units_to_mm(fp.GetY())
-        #print(fp.GetReference())
-        #print('  Position(mm):', fp_x, fp_y)
-        #print('  On side     :', fp.GetSide())
-        #print('  Orientation :', fp.GetOrientation().AsDegrees())
-        #print('  DNP ?       :', fp.IsDNP())
-        #print('  TH ?        :', fp.HasThroughHolePads())
+        # print(fp.GetReference())
+        # print('  Position(mm):', fp_x, fp_y)
+        # print('  On side     :', fp.GetSide())
+        # print('  Orientation :', fp.GetOrientation().AsDegrees())
+        # print('  DNP ?       :', fp.IsDNP())
+        # print('  TH ?        :', fp.HasThroughHolePads())
         models_3d = get_3d_models(fp)
         fp_rot = fp.GetOrientation().AsDegrees()
         fields = fp.Fields()
-        footprint = fields[2].GetText() # e.g. Package_QFP:LQFP-128_14x14mm_P0.4mm
+        footprint = fields[2].GetText()  # e.g. Package_QFP:LQFP-128_14x14mm_P0.4mm
         ref_info = {
-            'is_th' : fp.HasThroughHolePads(),
-            'footprint' : footprint,
-            'side' : fp.GetSide(),
-            'position' : fp.GetPosition(),
-            'models' : models_3d,
-            'kfp' : fp, # Reference if we need more info later
-            'front_courtyard' : get_courtyard_polygon(fp.GetCourtyard(pcbnew.F_CrtYd)),
-            'back_courtyard' : get_courtyard_polygon(fp.GetCourtyard(pcbnew.B_CrtYd)),
+            "is_th": fp.HasThroughHolePads(),
+            "footprint": footprint,
+            "side": fp.GetSide(),
+            "position": fp.GetPosition(),
+            "models": models_3d,
+            "kfp": fp,  # Reference if we need more info later
+            "front_courtyard": get_courtyard_polygon(fp.GetCourtyard(pcbnew.F_CrtYd)),
+            "back_courtyard": get_courtyard_polygon(fp.GetCourtyard(pcbnew.B_CrtYd)),
         }
-        ref_info['x'] = fp_x if not unity_xform else 0
-        ref_info['y'] = fp_y if not unity_xform else 0
-        ref_info['orientation'] = fp_rot if not unity_xform else 0
+        ref_info["x"] = fp_x if not unity_xform else 0
+        ref_info["y"] = fp_y if not unity_xform else 0
+        ref_info["orientation"] = fp_rot if not unity_xform else 0
 
         is_mounting_hole = False
         if fp.HasThroughHolePads():
             could_be_mh = False
             for fn in fp.Fields():
-                if fn.GetText().startswith('MountingHole'):
+                if fn.GetText().startswith("MountingHole"):
                     could_be_mh = True
                     break
             if could_be_mh:
                 # mounting hole could have multiple pads - corresponding to copper, drill, etc
                 for pad in fp.Pads():
                     ds = pad.GetDrillSize()
-                    if ds[0]==0 or ds[1]==0: # It could be a pad, not a drill
+                    if ds[0] == 0 or ds[1] == 0:  # It could be a pad, not a drill
                         continue
-                    if pad.GetShape()!=0:
-                        print('WARNING: No support for non-circular mounting holes', file=sys.stderr)
+                    if pad.GetShape() != 0:
+                        print(
+                            "WARNING: No support for non-circular mounting holes",
+                            file=sys.stderr,
+                        )
                         continue
-                    ref_info['mounting_hole_radius'] = units_to_mm(ds[0])*0.5
-                    #print('Mounting hole:', ref,
+                    ref_info["mounting_hole_radius"] = units_to_mm(ds[0]) * 0.5
+                    # print('Mounting hole:', ref,
                     #      ' at (%s,%s)'%(fp_x, -fp_y), # show in KiCAD coords
                     #      ' size=', ref_info['mounting_hole_radius'])
                     is_mounting_hole = True
                     break
-        ref_info['is_mounting_hole'] = is_mounting_hole
+        ref_info["is_mounting_hole"] = is_mounting_hole
         ref_map[ref] = ref_info
 
         # remember that this footprint has this ref
         if not is_mounting_hole:
             if footprint in fp_map:
-                fp_map[footprint]['refs'].append(ref)
+                fp_map[footprint]["refs"].append(ref)
             else:
                 fp_map[footprint] = {
-                    'is_th' : fp.HasThroughHolePads(),
-                    'refs' : [ref],
-                    'alias' : None,
-                    'display_name' : None,
-                    'force_smd' : False
+                    "is_th": fp.HasThroughHolePads(),
+                    "refs": [ref],
+                    "alias": None,
+                    "display_name": None,
+                    "force_smd": False,
                 }
         else:
             mounting_holes[ref] = ref_info
 
-        #print(fp.Footprint().GetName())
-        #pprint(dir(fp.Footprint()))
+        # print(fp.Footprint().GetName())
+        # pprint(dir(fp.Footprint()))
     return ref_map, fp_map, mounting_holes
+
 
 def load_ref_3d_models(cfg, ref, ref_map):
     scriptdir = os.path.dirname(os.path.realpath(__file__))
-    temp_dir = os.path.expanduser(os.environ['TMPDIR']) if 'TMPDIR' in os.environ else None
-    value_type = cfg['cache']['method']
+    temp_dir = (
+        os.path.expanduser(os.environ["TMPDIR"]) if "TMPDIR" in os.environ else None
+    )
+    value_type = cfg["cache"]["method"]
     comp = ref_map[ref]
     metadata = {
-            'files':[],
+        "files": [],
     }
 
-    for modinfo in comp['models']:
-        model_filename = os.path.expandvars(modinfo['model'])
-        modinfo['mesh'], modinfo['mtime'], modinfo['mesh_hash'] = mesh_ops.load_mesh(model_filename, scriptdir, temp_dir)
-        metadata['files'].append({"file":modinfo['model'],"ts":modinfo['mtime'], "hash": modinfo['mesh_hash']})
+    for modinfo in comp["models"]:
+        model_filename = os.path.expandvars(modinfo["model"])
+        modinfo["mesh"], modinfo["mtime"], modinfo["mesh_hash"] = mesh_ops.load_mesh(
+            model_filename, scriptdir, temp_dir
+        )
+        metadata["files"].append(
+            {
+                "file": modinfo["model"],
+                "ts": modinfo["mtime"],
+                "hash": modinfo["mesh_hash"],
+            }
+        )
     return metadata
 
+
 def load_3d_models(ref_list, ref_map, desc):
-    temp_dir = os.path.expanduser(os.environ['TMPDIR']) if 'TMPDIR' in os.environ else None
+    temp_dir = (
+        os.path.expanduser(os.environ["TMPDIR"]) if "TMPDIR" in os.environ else None
+    )
     scriptdir = os.path.dirname(os.path.realpath(__file__))
     fnames = []
     for ref in ref_list:
         comp = ref_map[ref]
-        for modinfo in comp['models']:
-            model_filename = os.path.expandvars(modinfo['model'])
+        for modinfo in comp["models"]:
+            model_filename = os.path.expandvars(modinfo["model"])
             fnames.append(model_filename)
     # get uniques
     fnames = list(set(fnames))
-    print(f'Loading {len(fnames)} 3D models for {desc} components...')
+    print(f"Loading {len(fnames)} 3D models for {desc} components...")
     for ref in ref_list:
         load_ref_3d_models(cfg, ref, ref_map)
 
+
 def body_id(cfg, ref):
     model_names = []
-    for modinfo in ref['models']:
-        model_names.append( \
-            [modinfo['model'],
-             modinfo['rotation'], modinfo['offset'], modinfo['scale']])
+    for modinfo in ref["models"]:
+        model_names.append(
+            [modinfo["model"], modinfo["rotation"], modinfo["offset"], modinfo["scale"]]
+        )
 
-    full_name = ''
+    full_name = ""
     for values in model_names:
         for x in values:
             full_name += str(x)
     # body id includes other parameters that impact the geometry of the
     # shells. any change to these must trigger a "rebuild"
-    full_name += str(cfg['3dprinter']['min_printable_hole_area'])
+    full_name += str(cfg["3dprinter"]["min_printable_hole_area"])
 
-    return hashlib.md5(bytes(full_name,'utf-8')).hexdigest()
+    return hashlib.md5(bytes(full_name, "utf-8")).hexdigest()
+
+
 #
 # Execution starts here
 #
 parser = argparse.ArgumentParser(
-    description='Create jigs in a jiffy',
-    epilog='Use the examples, Luke!')
+    description="Create jigs in a jiffy", epilog="Use the examples, Luke!"
+)
 
 group = parser.add_mutually_exclusive_group(required=True)
-group.add_argument('--examples', default=False, action='store_true',
-    help='''Shows examples of usage''')
-group.add_argument('-i','--pcb', metavar='FILENAME',
-    help='KiCAD PCB file (.kicad_pcb) to process')
-group.add_argument('--footprint', metavar='SPEC',
-    action='extend', nargs='+', type=str,
-    help='''Generate a shell for specified kicad library footprint(s),
-instead of a PCB. Use --examples for info on SPEC''')
-group.add_argument('--model3d', action='extend', nargs='+', type=str,
-    help='''Generate a shell from 3D model(s).''')
+group.add_argument(
+    "--examples", default=False, action="store_true", help="""Shows examples of usage"""
+)
+group.add_argument(
+    "-i", "--pcb", metavar="FILENAME", help="KiCAD PCB file (.kicad_pcb) to process"
+)
+group.add_argument(
+    "--footprint",
+    metavar="SPEC",
+    action="extend",
+    nargs="+",
+    type=str,
+    help="""Generate a shell for specified kicad library footprint(s),
+instead of a PCB. Use --examples for info on SPEC""",
+)
+group.add_argument(
+    "--model3d",
+    action="extend",
+    nargs="+",
+    type=str,
+    help="""Generate a shell from 3D model(s).""",
+)
 
-parser.add_argument('--pcb-footprints', action='store_true', default=False,
-    help='''Generates one shell per footprint used on the PCB design
-            given through --pcb.''')
-parser.add_argument('--arrange', default='xy', choices=['x','y','xy','grid','grid_xy','grid_yx'],
-    help='''Arrange shells in this direction. grid is same as grid_xy. Works with --footprint,
-            --model3d and --pcb-footprints''')
-parser.add_argument('--gap', metavar='GAP_XY|GAP_X,GAP_Y',
-    help='''Gap around shells. You may provie a single value, or separate values
-            for X and Y axes. Applies with --arrange''')
-parser.add_argument('--grid', metavar='X,Y',
-    help='''Arrange shells in an X by Y grid. Applies with --arrange''')
-parser.add_argument('--topmost-z', type=float,
-    help='''Specify the height of the jig(in mm), excluding the base
+parser.add_argument(
+    "--pcb-footprints",
+    action="store_true",
+    default=False,
+    help="""Generates one shell per footprint used on the PCB design
+            given through --pcb.""",
+)
+parser.add_argument(
+    "--arrange",
+    default="xy",
+    choices=["x", "y", "xy", "grid", "grid_xy", "grid_yx"],
+    help="""Arrange shells in this direction. grid is same as grid_xy. Works with --footprint,
+            --model3d and --pcb-footprints""",
+)
+parser.add_argument(
+    "--gap",
+    metavar="GAP_XY|GAP_X,GAP_Y",
+    help="""Gap around shells. You may provie a single value, or separate values
+            for X and Y axes. Applies with --arrange""",
+)
+parser.add_argument(
+    "--grid",
+    metavar="X,Y",
+    help="""Arrange shells in an X by Y grid. Applies with --arrange""",
+)
+parser.add_argument(
+    "--topmost-z",
+    type=float,
+    help="""Specify the height of the jig(in mm), excluding the base
             and PCB holder if any(in mm). The value you provide cannot
             be smaller than the computed value (based on the 3D shapes
-            of the components)''')
-parser.add_argument('-c', '--config', metavar='FILENAME.toml',
-    help='Use this configuration options file for various parameters.')
+            of the components)""",
+)
+parser.add_argument(
+    "-c",
+    "--config",
+    metavar="FILENAME.toml",
+    help="Use this configuration options file for various parameters.",
+)
 
-parser.add_argument('-o','--output',
-    help='Output file.')
-parser.add_argument('-f', '--output-format', choices=['3mf', 'stl','scad'],
-    help='Output file format. Default autodect based on output file extension.')
-parser.add_argument('--keep-orientation',
-    action='store_true',
+parser.add_argument("-o", "--output", help="Output file.")
+parser.add_argument(
+    "-f",
+    "--output-format",
+    choices=["3mf", "stl", "scad"],
+    help="Output file format. Default autodect based on output file extension.",
+)
+parser.add_argument(
+    "--keep-orientation",
+    action="store_true",
     default=False,
-    help='''Match orientation of the output to KiCAD 3D view.
+    help="""Match orientation of the output to KiCAD 3D view.
 The default orients the output for direct printing (i.e. rotated by 180 degrees
-along the X axis.)''')
-parser.add_argument('--dump-config', metavar='FILENAME.toml',
-    help='''Save a copy of the effective configuration after applying
-    internal defaults, user and config file.''')
-parser.add_argument('--genconfig', metavar='FILENAME.toml',
-    help='''Generate a default configuration file, from an
+along the X axis.)""",
+)
+parser.add_argument(
+    "--dump-config",
+    metavar="FILENAME.toml",
+    help="""Save a copy of the effective configuration after applying
+    internal defaults, user and config file.""",
+)
+parser.add_argument(
+    "--genconfig",
+    metavar="FILENAME.toml",
+    help="""Generate a default configuration file, from an
     input KiCAD PCB. This lists all footprint and components.
     User friendly openscad output can be generated, starting
-    with that as the base''')
+    with that as the base""",
+)
 
 group = parser.add_mutually_exclusive_group()
-group.add_argument("-v", "--verbose", help='Verbose messages')
-group.add_argument("-q", "--quiet", help='Info messages are suppressed')
+group.add_argument("-v", "--verbose", help="Verbose messages")
+group.add_argument("-q", "--quiet", help="Info messages are suppressed")
 args = parser.parse_args()
 
 # Validate command line parameter requirements
@@ -419,31 +494,39 @@ gap_y = gap_x = 10.0
 
 if args.gap:
     if not (args.pcb_footprints or args.footprint or args.model3d):
-        print("--gap requires at-least one of --pcb-footprints, --footprint or --model3d")
+        print(
+            "--gap requires at-least one of --pcb-footprints, --footprint or --model3d"
+        )
         sys.exit(1)
-    parts = args.gap.split(',')
-    if len(parts)>2:
-        print(f'ERROR: Upto 2 comma separated values may be specified for gap. Supplied="{args.gap}"')
+    parts = args.gap.split(",")
+    if len(parts) > 2:
+        print(
+            f'ERROR: Upto 2 comma separated values may be specified for gap. Supplied="{args.gap}"'
+        )
         sys.exit(1)
 
     try:
         gap_x = float(parts[0])
-        gap_y = float(parts[1]) if len(parts)>1 else gap_x
+        gap_y = float(parts[1]) if len(parts) > 1 else gap_x
     except ValueError:
         print(f'ERROR: bad value for gap="${args.gap}"')
         sys.exit(1)
 
 grid_x = grid_y = 1
-if args.arrange in ['grid', 'grid_xy', 'grid_yx']:
+if args.arrange in ["grid", "grid_xy", "grid_yx"]:
     if not args.grid:
         print("--arrange=grid requires grid size in --grid")
         sys.exit(1)
     if not (args.pcb_footprints or args.footprint or args.model3d):
-        print("--arrange=grid requires at-least one of --pcb-footprints, --footprint or --model3d")
+        print(
+            "--arrange=grid requires at-least one of --pcb-footprints, --footprint or --model3d"
+        )
         sys.exit(1)
-    parts = args.grid.split(',')
-    if len(parts)!=2:
-        print(f'ERROR: 2 comma separated values must be specified for grid. Supplied="{args.grid}"')
+    parts = args.grid.split(",")
+    if len(parts) != 2:
+        print(
+            f'ERROR: 2 comma separated values must be specified for grid. Supplied="{args.grid}"'
+        )
         sys.exit(1)
     try:
         grid_x = int(parts[0])
@@ -479,11 +562,14 @@ if args.model3d:
 # determine extension
 if args.output and not args.output_format:
     out_split = os.path.splitext(args.output)
-    out_ext = out_split[1] # will be empty string if no extension
-    if out_ext in ['.3mf','.stl','.scad']:
+    out_ext = out_split[1]  # will be empty string if no extension
+    if out_ext in [".3mf", ".stl", ".scad"]:
         args.output_format = out_ext[1:]
     if not args.output_format:
-        print(f"Unrecorgnized extension in output filename '{args.output}'", file=sys.stderr)
+        print(
+            f"Unrecorgnized extension in output filename '{args.output}'",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
 if args.pcb:
@@ -492,39 +578,43 @@ if args.pcb:
 
 if args.genconfig:
     jigconfig.generate_config(args.genconfig, ref_map, fp_map)
-    print(f'Generated : %{args.genconfig}')
+    print(f"Generated : %{args.genconfig}")
     sys.exit(0)
 
 jigconfig.load_user_config(jigcommon.APP_NAME)
 
 try:
-    cfg, config_text, used_th_fp, th_ref_list, smd_ref_list = jigconfig.load(args.config, ref_map, fp_map, mh_map)
+    cfg, config_text, used_th_fp, th_ref_list, smd_ref_list = jigconfig.load(
+        args.config, ref_map, fp_map, mh_map
+    )
 except ValueError as err:
     print(f"ERROR in load config: {err}", file=sys.stderr)
     sys.exit(-1)
-#pprint(cfg)
+# pprint(cfg)
 
 if args.pcb and args.pcb_footprints:
     # trim th_ref_list. Keep only one component per footprint
     final_ref_list = []
     for key in fp_map:
-        if fp_map[key]['is_th'] and not fp_map[key]['force_smd']:
-            ref_list = fp_map[key]['refs']
+        if fp_map[key]["is_th"] and not fp_map[key]["force_smd"]:
+            ref_list = fp_map[key]["refs"]
             retain_ref = ref_list[0]
             final_ref_list.append(retain_ref)
             # remove the rest
             for comp_ref in ref_list[1:]:
                 ref_map.pop(comp_ref)
     th_ref_list = final_ref_list
-    print(f"Selected {len(th_ref_list)} unique footprint(s) on the board:",
-          ",".join(th_ref_list))
+    print(
+        f"Selected {len(th_ref_list)} unique footprint(s) on the board:",
+        ",".join(th_ref_list),
+    )
 
 mounting_holes = []
 for name in mh_map.keys():
-    mounting_holes.append([mh_map[name]['x'], mh_map[name]['y']])
+    mounting_holes.append([mh_map[name]["x"], mh_map[name]["y"]])
 
 if args.dump_config:
-    with open(args.dump_config, 'w') as fp:
+    with open(args.dump_config, "w") as fp:
         toml.dump(cfg, fp)
 
 if not args.output:
@@ -536,57 +626,61 @@ if args.pcb:
 else:
     do_pcb_proc = False
 
-pcb_thickness = cfg['pcb']['thickness']
-shell_clearance = cfg['TH']['component_shell']['shell_clearance_from_pcb']
-shell_type = cfg['TH']['component_shell']['shell_type']
-shell_gap = cfg['TH']['component_shell']['shell_gap']
-shell_thickness = cfg['TH']['component_shell']['shell_thickness']
+pcb_thickness = cfg["pcb"]["thickness"]
+shell_clearance = cfg["TH"]["component_shell"]["shell_clearance_from_pcb"]
+shell_type = cfg["TH"]["component_shell"]["shell_type"]
+shell_gap = cfg["TH"]["component_shell"]["shell_gap"]
+shell_thickness = cfg["TH"]["component_shell"]["shell_thickness"]
 
-arc_resolution = cfg['pcb']['tesellate_edge_cuts_curve']
+arc_resolution = cfg["pcb"]["tesellate_edge_cuts_curve"]
 
-base_line_width = cfg['holder']['base']['line_width']
-base_line_height = cfg['holder']['base']['line_height']
-pcb_perimeter_height = cfg['holder']['base']['perimeter_height']
-pcb_holder_gap = cfg['holder']['pcb_gap']
-pcb_holder_overlap = cfg['holder']['pcb_overlap']
-pcb_holder_perimeter = cfg['holder']['perimeter']
-forced_pcb_supports = cfg['holder']['forced_grooves']
-groove_size = cfg['holder']['groove_size']
-ref_do_not_process = cfg['TH']['refs_do_not_process']
-ref_process_only_these = cfg['TH']['refs_process_only_these']
-jig_type = cfg['jig']['type']
-jig_type_component_fitting = (jig_type == 'component_fitting')
-smd_clearance_from_shells = cfg['SMD']['clearance_from_shells']
-smd_gap_from_shells = cfg['SMD']['gap_from_shells']
+base_line_width = cfg["holder"]["base"]["line_width"]
+base_line_height = cfg["holder"]["base"]["line_height"]
+pcb_perimeter_height = cfg["holder"]["base"]["perimeter_height"]
+pcb_holder_gap = cfg["holder"]["pcb_gap"]
+pcb_holder_overlap = cfg["holder"]["pcb_overlap"]
+pcb_holder_perimeter = cfg["holder"]["perimeter"]
+forced_pcb_supports = cfg["holder"]["forced_grooves"]
+groove_size = cfg["holder"]["groove_size"]
+ref_do_not_process = cfg["TH"]["refs_do_not_process"]
+ref_process_only_these = cfg["TH"]["refs_process_only_these"]
+jig_type = cfg["jig"]["type"]
+jig_type_component_fitting = jig_type == "component_fitting"
+smd_clearance_from_shells = cfg["SMD"]["clearance_from_shells"]
+smd_gap_from_shells = cfg["SMD"]["gap_from_shells"]
 if jig_type_component_fitting:
-    if shell_clearance>0:
-        print('INFO: Generating component shells, note shell_clearance=%s will cut into shell.'
-            %(shell_clearance))
+    if shell_clearance > 0:
+        print(
+            "INFO: Generating component shells, note shell_clearance=%s will cut into shell."
+            % (shell_clearance)
+        )
 
 
 # Setup environment for file name expansion
 # First take from user config
-for env_var_name in cfg['environment']:
-    os.environ[env_var_name] = cfg['environment'][env_var_name]
+for env_var_name in cfg["environment"]:
+    os.environ[env_var_name] = cfg["environment"][env_var_name]
 if args.pcb:
     os.environ["KIPRJMOD"] = os.path.split(args.pcb)[0]
 # Now add onto it, this allows overrides from user config
-path_sys_3dmodels = '/usr/share/kicad/3dmodels'
-for ver in ['', 6,7,8]: # Hmm - would we need more ?
-    env_var_name = 'KICAD%s_3DMODEL_DIR'%(ver)
+path_sys_3dmodels = "/usr/share/kicad/3dmodels"
+for ver in ["", 6, 7, 8]:  # Hmm - would we need more ?
+    env_var_name = "KICAD%s_3DMODEL_DIR" % (ver)
     if env_var_name not in os.environ:
         os.environ[env_var_name] = path_sys_3dmodels
 
-#load_3d_models(th_ref_list, ref_map, 'Through Hole')
-#load_3d_models(smd_ref_list, ref_map, 'SMD')
+# load_3d_models(th_ref_list, ref_map, 'Through Hole')
+# load_3d_models(smd_ref_list, ref_map, 'SMD')
 
-if args.output_format in ['3mf', 'stl']:
-    fp_scad = tempfile.NamedTemporaryFile(mode='w', suffix='.scad', delete_on_close=False)
+if args.output_format in ["3mf", "stl"]:
+    fp_scad = tempfile.NamedTemporaryFile(
+        mode="w", suffix=".scad", delete_on_close=False
+    )
     oscad_filename = fp_scad.name
     out_filename = args.output
 else:
     oscad_filename = args.output
-    fp_scad = open(oscad_filename, 'w')
+    fp_scad = open(oscad_filename, "w")
 
 pcb_segments = []
 pcb_filled_shapes = []
@@ -597,24 +691,24 @@ if do_pcb_proc:
     edge_cuts.load(board, pcb_segments, pcb_filled_shapes)
 
     if not edge_cuts.coalesce_segments(pcb_segments, seg_shapes):
-        print('ERROR: Please check the edge cuts layer in KiCAD.')
-        print('ERROR: There are incomplete outlines. DRC or 3D View should help')
-        print('ERROR: diagnose the issue')
+        print("ERROR: Please check the edge cuts layer in KiCAD.")
+        print("ERROR: There are incomplete outlines. DRC or 3D View should help")
+        print("ERROR: diagnose the issue")
         sys.exit(-1)
 
     edge_cuts.tesellate(arc_resolution, seg_shapes, pcb_filled_shapes)
     edge_cuts.compute_areas(pcb_filled_shapes)
 
     if len(pcb_filled_shapes) == 0:
-        print('ERROR: At-least one filled shape is needed in Edge.Cuts layer')
-        print('Please check and validate board file.')
+        print("ERROR: At-least one filled shape is needed in Edge.Cuts layer")
+        print("Please check and validate board file.")
         sys.exit(-1)
 
     # Find the largest filled area. This is assumed to be the actual
     # PCB outline
-    pcb_filled_shapes.sort(key=lambda x:x['area'], reverse=True)
+    pcb_filled_shapes.sort(key=lambda x: x["area"], reverse=True)
     # And hence these are the vertices
-    pcb_edge_points = pcb_filled_shapes[0]['vertices']
+    pcb_edge_points = pcb_filled_shapes[0]["vertices"]
     # Fix Y immediately - don't let the disease spread :)
     # FIXME I really need some coordinated way of setting up the coordinate
     # system
@@ -628,53 +722,51 @@ topmost_z = 0
 all_bids = []
 # For each TH component on the board
 for this_ref in th_ref_list:
-    print('Processing TH :', this_ref)
+    print("Processing TH :", this_ref)
     # each footprint can have multiple models.
     # each model that is "in contact" with the board will generate
     # a shell
     local_max_z = 0
-    local_min_z = float('inf')
-    subshells = {
-        'ref' : this_ref,
-        'shell' : [],
-        'courtyard' : None
-    }
+    local_min_z = float("inf")
+    subshells = {"ref": this_ref, "shell": [], "courtyard": None}
     th = ref_map[this_ref]
 
-    printable_threshold = cfg['3dprinter']['min_printable_hole_area']
+    printable_threshold = cfg["3dprinter"]["min_printable_hole_area"]
 
     this_bid = body_id(cfg, th)
     all_bids.append(this_bid)
-    body_info = shape_cache.get_cached_bid(cfg, 'th', this_bid, th['footprint'])
+    body_info = shape_cache.get_cached_bid(cfg, "th", this_bid, th["footprint"])
     if not body_info:
         new_body_metadata = load_ref_3d_models(cfg, this_ref, ref_map)
-        new_body_info = {
-                'subshells': []
-            }
+        new_body_info = {"subshells": []}
     else:
         new_body_info = None
-    for idx, modinfo in enumerate(th['models']):
+    for idx, modinfo in enumerate(th["models"]):
         ss_info = {}
         mverts = None
         if not body_info:
-            mesh = modinfo['mesh']
+            mesh = modinfo["mesh"]
             mverts = np.array(mesh.vertices)
-            if mverts.shape[0]==0:
+            if mverts.shape[0] == 0:
                 # FIXME: this must actually be treated as an error
-                print('  WARNING: Mesh %s is empty on import. Watch out for un-expected side effects. SKIPPING!'
-                  %(modinfo['model']))
+                print(
+                    "  WARNING: Mesh %s is empty on import. Watch out for un-expected side effects. SKIPPING!"
+                    % (modinfo["model"])
+                )
 
         if not body_info:
             mverts, mesh, min_z, max_z = xform_mesh(mesh, modinfo)
-            min_x = min(mverts[:,0])
-            max_x = max(mverts[:,0])
-            min_y = min(mverts[:,1])
-            max_y = max(mverts[:,1])
-            center_x = ((min_x + max_x)/2)
-            center_y = ((min_y + max_y)/2)
+            min_x = min(mverts[:, 0])
+            max_x = max(mverts[:, 0])
+            min_y = min(mverts[:, 1])
+            max_y = max(mverts[:, 1])
+            center_x = (min_x + max_x) / 2
+            center_y = (min_y + max_y) / 2
             h_bins = compute_shells.fitting_pockets(mverts, 0.5, printable_threshold)
             for this_bin in h_bins:
-                this_bin['corners'], this_bin['corner_segments'] = geom_ops.extract_corners_2D(this_bin['hull'])
+                this_bin["corners"], this_bin["corner_segments"] = (
+                    geom_ops.extract_corners_2D(this_bin["hull"])
+                )
             # FIXME: tight pockets computes z slices on the mesh
             # if the mesh isn't tight, that doesn't work. trimesh will throw
             # errors on various Z values - which we ignore. The remaining Z
@@ -686,93 +778,98 @@ for this_ref in th_ref_list:
             # We don't repair meshes here, and it's an open question if we
             # should even try that.
             c_bins = compute_shells.tight_pockets(mesh, 0.5, printable_threshold)
-            ss_info['min_x'] = min_x
-            ss_info['max_x'] = max_x
-            ss_info['min_y'] = min_y
-            ss_info['max_y'] = max_y
-            ss_info['min_z'] = min_z
-            ss_info['max_z'] = max_z
-            ss_info['center_x'] = center_x
-            ss_info['center_y'] = center_y
-            ss_info['h_bins'] = h_bins
-            ss_info['c_bins'] = c_bins
+            ss_info["min_x"] = min_x
+            ss_info["max_x"] = max_x
+            ss_info["min_y"] = min_y
+            ss_info["max_y"] = max_y
+            ss_info["min_z"] = min_z
+            ss_info["max_z"] = max_z
+            ss_info["center_x"] = center_x
+            ss_info["center_y"] = center_y
+            ss_info["h_bins"] = h_bins
+            ss_info["c_bins"] = c_bins
         else:
-            ss_info = body_info['subshells'][idx]
-            min_x = ss_info['min_x']
-            min_y = ss_info['min_y']
-            max_x = ss_info['max_x']
-            max_y = ss_info['max_y']
-            min_z = ss_info['min_z']
-            max_z = ss_info['max_z']
-            center_x = ss_info['center_x']
-            center_y = ss_info['center_y']
-            h_bins = ss_info['h_bins']
-            c_bins = ss_info['c_bins']
+            ss_info = body_info["subshells"][idx]
+            min_x = ss_info["min_x"]
+            min_y = ss_info["min_y"]
+            max_x = ss_info["max_x"]
+            max_y = ss_info["max_y"]
+            min_z = ss_info["min_z"]
+            max_z = ss_info["max_z"]
+            center_x = ss_info["center_x"]
+            center_y = ss_info["center_y"]
+            h_bins = ss_info["h_bins"]
+            c_bins = ss_info["c_bins"]
 
-        if min_z>0:
-            print('  Mesh %s is NOT mounted on board. Skipping.'%(modinfo['model']))
+        if min_z > 0:
+            print("  Mesh %s is NOT mounted on board. Skipping." % (modinfo["model"]))
         else:
-            shell_ident = '%s_%d'%(this_ref,idx)
+            shell_ident = "%s_%d" % (this_ref, idx)
             # compute the center now, post cache. x, y, and orientation
             # are per component
-            rz2 = Rotation.from_euler('z', th['orientation'], degrees=True)
-            c_pt = np.array([[center_x, center_y,0]])
+            rz2 = Rotation.from_euler("z", th["orientation"], degrees=True)
+            c_pt = np.array([[center_x, center_y, 0]])
             c_pt = rz2.apply(c_pt)
-            c_pt = c_pt +[ th['x'], th['y'], 0]
+            c_pt = c_pt + [th["x"], th["y"], 0]
             c_pt = [c_pt[0][0], c_pt[0][1]]
             fp_centers.append(c_pt)
             this_subshell = {
-                'name':shell_ident,
-                'min_z':min_z,
-                'max_z':max_z,
-                'model':modinfo['model'],
-                'fp_center': c_pt,
-                'fitting_bins' : h_bins,
-                'tight_bins' : c_bins
+                "name": shell_ident,
+                "min_z": min_z,
+                "max_z": max_z,
+                "model": modinfo["model"],
+                "fp_center": c_pt,
+                "fitting_bins": h_bins,
+                "tight_bins": c_bins,
             }
-            this_subshell['x'] = th['x']
-            this_subshell['y'] = th['y']
-            this_subshell['orientation'] = th['orientation']
-            subshells['shell'].append(this_subshell)
-            this_subshell['min_x'] = min_x
-            this_subshell['max_x'] = max_x
-            this_subshell['min_y'] = min_y
-            this_subshell['max_y'] = max_y
-            print('  Generating shell %s for ref %s with mesh %s'%(shell_ident, this_ref, modinfo['model']))
+            this_subshell["x"] = th["x"]
+            this_subshell["y"] = th["y"]
+            this_subshell["orientation"] = th["orientation"]
+            subshells["shell"].append(this_subshell)
+            this_subshell["min_x"] = min_x
+            this_subshell["max_x"] = max_x
+            this_subshell["min_y"] = min_y
+            this_subshell["max_y"] = max_y
+            print(
+                "  Generating shell %s for ref %s with mesh %s"
+                % (shell_ident, this_ref, modinfo["model"])
+            )
             local_max_z = max(local_max_z, max_z)
             local_min_z = min(local_min_z, min_z)
         if not body_info:
-            new_body_info['subshells'].append(ss_info)
-    if len(subshells['shell'])>1:
+            new_body_info["subshells"].append(ss_info)
+    if len(subshells["shell"]) > 1:
         all_hulls = None
-        for ss in subshells['shell']:
+        for ss in subshells["shell"]:
             # first bin is the biggest one
-            this_hull = ss['fitting_bins'][0]['hull']
+            this_hull = ss["fitting_bins"][0]["hull"]
             if all_hulls is None:
                 all_hulls = np.copy(this_hull)
             else:
                 all_hulls = np.concatenate((this_hull, all_hulls), axis=0)
         hull = scipy.spatial.ConvexHull(all_hulls)
         hull_verts = all_hulls[hull.vertices]
-        subshells['combined_hull'] = hull_verts
+        subshells["combined_hull"] = hull_verts
 
     topmost_z = max(topmost_z, local_max_z)
 
-    if local_max_z == 0: # 0 means empty mesh, so avoid infs
+    if local_max_z == 0:  # 0 means empty mesh, so avoid infs
         local_min_z = 0
 
-    subshells['max_z'] = local_max_z
-    subshells['min_z'] = local_min_z
-    subshells['front_courtyard'] = th['front_courtyard']
+    subshells["max_z"] = local_max_z
+    subshells["min_z"] = local_min_z
+    subshells["front_courtyard"] = th["front_courtyard"]
     all_shells.append(subshells)
     if new_body_info:
-        shape_cache.add_cached_bid(cfg, 'th',
-            this_bid, new_body_info, new_body_metadata,
-            th['footprint'])
+        shape_cache.add_cached_bid(
+            cfg, "th", this_bid, new_body_info, new_body_metadata, th["footprint"]
+        )
 
 if args.topmost_z:
     if args.topmost_z < topmost_z:
-        print(f"ERROR: Specified value {args.topmost_z} has to be >= computed value {topmost_z}")
+        print(
+            f"ERROR: Specified value {args.topmost_z} has to be >= computed value {topmost_z}"
+        )
         sys.exit(1)
     else:
         topmost_z = args.topmost_z
@@ -780,65 +877,67 @@ if args.topmost_z:
 all_bids = list(set(all_bids))
 print(f"INFO: Board has {len(all_shells)} shells in {len(all_bids)} unique body shapes")
 dup_fp = shape_cache.get_fp_duplicates()
-if len(dup_fp)>0:
+if len(dup_fp) > 0:
     print(f"WARNING: The following footprints have multiple body shapes. Please check")
     for fp_name in dup_fp:
-        print(fp_name, ' has ', dup_fp[fp_name], ' shapes')
+        print(fp_name, " has ", dup_fp[fp_name], " shapes")
 
 if do_pcb_proc:
     smd_keepouts = []
     for this_ref in smd_ref_list:
         smd = ref_map[this_ref]
         this_bid = body_id(cfg, smd)
-        body_info = shape_cache.get_cached_bid(cfg, 'smd', this_bid, smd['footprint'])
+        body_info = shape_cache.get_cached_bid(cfg, "smd", this_bid, smd["footprint"])
         if not body_info:
             new_body_metadata = load_ref_3d_models(cfg, this_ref, ref_map)
-            new_body_info = {
-                    'subshells': []
-                }
+            new_body_info = {"subshells": []}
         else:
             new_body_info = None
-        #print('Processing SMD :', smd['ref'])
+        # print('Processing SMD :', smd['ref'])
         # each footprint can have multiple models.
         # each model that is "in contact" with the board will generate
         # a shell
-        for idx, modinfo in enumerate(smd['models']):
+        for idx, modinfo in enumerate(smd["models"]):
             ss_info = {}
             mverts = None
             if not body_info:
-                mesh = modinfo['mesh']
+                mesh = modinfo["mesh"]
                 mverts = np.array(mesh.vertices)
-                if mverts.shape[0]==0:
-                    print('  WARNING: Mesh %s is empty on import. Watch out for un-intended side effects. SKIPPING!'
-                          %(modinfo['model']))
+                if mverts.shape[0] == 0:
+                    print(
+                        "  WARNING: Mesh %s is empty on import. Watch out for un-intended side effects. SKIPPING!"
+                        % (modinfo["model"])
+                    )
 
             if not body_info:
                 mverts, mesh, min_z, max_z = xform_mesh(mesh, modinfo)
-                ss_info['min_z'] = min_z
-                ss_info['max_z'] = max_z
+                ss_info["min_z"] = min_z
+                ss_info["max_z"] = max_z
             else:
-                ss_info = body_info['subshells'][idx]
-                min_z = ss_info['min_z']
-                max_z = ss_info['max_z']
-            keepout_ident = '%s_%d'%(this_ref,idx)
-            smd_keepouts.append({
-                'name' : keepout_ident,
-                'ref' : this_ref,
-                'min_z':min_z,
-                'max_z':max_z,
-                'model':modinfo['model'],
-                'x' : smd['x'],
-                'y' : smd['y'],
-                'orientation' : smd['orientation'],
-                'front_courtyard' : smd['front_courtyard']
-            })
+                ss_info = body_info["subshells"][idx]
+                min_z = ss_info["min_z"]
+                max_z = ss_info["max_z"]
+            keepout_ident = "%s_%d" % (this_ref, idx)
+            smd_keepouts.append(
+                {
+                    "name": keepout_ident,
+                    "ref": this_ref,
+                    "min_z": min_z,
+                    "max_z": max_z,
+                    "model": modinfo["model"],
+                    "x": smd["x"],
+                    "y": smd["y"],
+                    "orientation": smd["orientation"],
+                    "front_courtyard": smd["front_courtyard"],
+                }
+            )
             topmost_z = max(topmost_z, max_z)
             if not body_info:
-                new_body_info['subshells'].append(ss_info)
+                new_body_info["subshells"].append(ss_info)
         if new_body_info:
-            shape_cache.add_cached_bid(cfg, 'smd',
-                this_bid, new_body_info, new_body_metadata,
-                smd['footprint'])
+            shape_cache.add_cached_bid(
+                cfg, "smd", this_bid, new_body_info, new_body_metadata, smd["footprint"]
+            )
 
 if do_pcb_proc:
     # Compute bounding box of PCB
@@ -852,10 +951,10 @@ if do_pcb_proc:
         pcb_max_y = max(pcb_max_y, pt[1])
 
     pcb_bb_corners = [
-        [pcb_min_x , pcb_min_y],
-        [pcb_min_x , pcb_max_y],
-        [pcb_max_x , pcb_min_y],
-        [pcb_max_x , pcb_max_y]
+        [pcb_min_x, pcb_min_y],
+        [pcb_min_x, pcb_max_y],
+        [pcb_max_x, pcb_min_y],
+        [pcb_max_x, pcb_max_y],
     ]
 
     # Delaunay triangulation will be done on the following points
@@ -873,15 +972,18 @@ if do_pcb_proc:
     pcb_edge_poly = Polygon(pcb_edge_points)
     # ignore mounting holes outside PCB for mesh calculation
     for pt in mounting_holes:
-        if pcb_edge_poly.contains(Point(pt[0],pt[1])):
+        if pcb_edge_poly.contains(Point(pt[0], pt[1])):
             dt_centers.append(pt)
         else:
-            print('NOTE: Mounting hole at ', pt,
-                  ' is out of PCB - will not be considered for mesh and minmesh')
+            print(
+                "NOTE: Mounting hole at ",
+                pt,
+                " is out of PCB - will not be considered for mesh and minmesh",
+            )
 
     mesh_line_segments = []
-    if len(dt_centers)>=4:
-        mesh_comment = 'delaunay triangulated mesh'
+    if len(dt_centers) >= 4:
+        mesh_comment = "delaunay triangulated mesh"
         d_verts = np.array(dt_centers)
         d_tris = scipy.spatial.Delaunay(d_verts)
         for tri in d_tris.simplices:
@@ -892,30 +994,32 @@ if do_pcb_proc:
             b = [bv[0], bv[1]]
             cv = d_verts[tri[2]]
             c = [cv[0], cv[1]]
-            mesh_line_segments.append([a,b])
-            mesh_line_segments.append([b,c])
-            mesh_line_segments.append([c,a])
+            mesh_line_segments.append([a, b])
+            mesh_line_segments.append([b, c])
+            mesh_line_segments.append([c, a])
     else:
-        if len(dt_centers)>1:
+        if len(dt_centers) > 1:
             av = dt_centers[0]
-            a = [av[0],av[1]]
+            a = [av[0], av[1]]
             bv = dt_centers[1]
-            b = [bv[0],bv[1]]
-            mesh_line_segments.append([a,b])
-        if len(dt_centers)==3:
+            b = [bv[0], bv[1]]
+            mesh_line_segments.append([a, b])
+        if len(dt_centers) == 3:
             cv = dt_centers[2]
-            c = [cv[0],cv[1]]
-            mesh_line_segments.append([b,c])
-            mesh_line_segments.append([c,a])
+            c = [cv[0], cv[1]]
+            mesh_line_segments.append([b, c])
+            mesh_line_segments.append([c, a])
 
     minmesh_line_segments = []
-    if len(dt_centers)>2:
+    if len(dt_centers) > 2:
         # FIXME: should we not do minmesh if there are very large number of points !?
         # CPU could just hang if given large number of points... Of course, that can
         # generally happen if there are bugs in the program - typically we wouldn't
         # expect even 100 points to go for Travelling Salesman
-        print('Computing minmesh nodes=%d...'%(len(dt_centers)))
-        distance_matrix = euclidean_distance_matrix(np.array(dt_centers), np.array(dt_centers))
+        print("Computing minmesh nodes=%d..." % (len(dt_centers)))
+        distance_matrix = euclidean_distance_matrix(
+            np.array(dt_centers), np.array(dt_centers)
+        )
         all_nodes = np.array(dt_centers)
 
         # NOTE: starting point of the travelling salesman problem will be a point
@@ -938,9 +1042,11 @@ if do_pcb_proc:
     else:
         minmesh_path = dt_centers
 
-    groove_lines = edge_cuts.compute_grooves(arc_resolution, pcb_filled_shapes[0], groove_size)
+    groove_lines = edge_cuts.compute_grooves(
+        arc_resolution, pcb_filled_shapes[0], groove_size
+    )
 
-if do_pcb_proc and cfg['jig']['mounting_hole_spacer_end']==0:
+if do_pcb_proc and cfg["jig"]["mounting_hole_spacer_end"] == 0:
     #
     # Find the second highest Z, without looking at values that are
     # too close to the topmost z. Spacer will run from this Z
@@ -949,44 +1055,55 @@ if do_pcb_proc and cfg['jig']['mounting_hole_spacer_end']==0:
     # lower.
     z_second_highest = -1
     spacer_start = 0
-    h2_z_name = ''
+    h2_z_name = ""
     z_list = []
     #  little margin of error, to compensate for mis-aligned bergs ?
     thresh = topmost_z - 0.2
     for subshells in all_shells:
-        this_ref = subshells['ref']
-        for shell_info in subshells['shell']:
-            for this_bin in shell_info['fitting_bins']:
-                for tmz in [ this_bin['end_z'],
-                             this_bin['start_z'] ]:
-                    if tmz < thresh and tmz>z_second_highest:
+        this_ref = subshells["ref"]
+        for shell_info in subshells["shell"]:
+            for this_bin in shell_info["fitting_bins"]:
+                for tmz in [this_bin["end_z"], this_bin["start_z"]]:
+                    if tmz < thresh and tmz > z_second_highest:
                         z_second_highest = tmz
                         h2_z_name = this_ref
                     elif tmz >= thresh and tmz < topmost_z:
                         spacer_start = max(spacer_start, tmz)
-                        print("WARNING: you have component %s at z=%s that is being ignored as it is too close to top height %s"%(
-                            this_ref, tmz, topmost_z))
+                        print(
+                            "WARNING: you have component %s at z=%s that is being ignored as it is too close to top height %s"
+                            % (this_ref, tmz, topmost_z)
+                        )
                     z_list.append(tmz)
     # unique
     z_list = list(set(z_list))
     z_list.sort()
-    print('Unique Zs are = ', z_list)
+    print("Unique Zs are = ", z_list)
 
-    mh_spacer_end = z_second_highest + \
-                    cfg['3dprinter']['first_layer_height'] + \
-                    cfg['3dprinter']['layer_height']
-    cfg['jig']['mounting_hole_spacer_end'] = mh_spacer_end
+    mh_spacer_end = (
+        z_second_highest
+        + cfg["3dprinter"]["first_layer_height"]
+        + cfg["3dprinter"]["layer_height"]
+    )
+    cfg["jig"]["mounting_hole_spacer_end"] = mh_spacer_end
 
     # one extra layer to have at-least one line show up
-    spacer_start -= cfg['3dprinter']['layer_height']
-    if cfg['jig']['mounting_hole_spacer_start'] == 0:
-        cfg['jig']['mounting_hole_spacer_start'] = spacer_start
+    spacer_start -= cfg["3dprinter"]["layer_height"]
+    if cfg["jig"]["mounting_hole_spacer_start"] == 0:
+        cfg["jig"]["mounting_hole_spacer_start"] = spacer_start
 
-    print('Mounting hole spacer ends at Z=%s, component is %s'%(mh_spacer_end, h2_z_name))
-    print('Mounting hole spacer start = %s, height= %s'%(spacer_start,spacer_start-mh_spacer_end))
+    print(
+        "Mounting hole spacer ends at Z=%s, component is %s"
+        % (mh_spacer_end, h2_z_name)
+    )
+    print(
+        "Mounting hole spacer start = %s, height= %s"
+        % (spacer_start, spacer_start - mh_spacer_end)
+    )
 
-if not cfg['jig']['mounting_hole_bolt_is_external'] and \
-   not cfg['jig']['mounting_hole_spacer_is_fused']:
+if (
+    not cfg["jig"]["mounting_hole_bolt_is_external"]
+    and not cfg["jig"]["mounting_hole_spacer_is_fused"]
+):
     print("ERROR: can't have separate spacer with internal bolt")
     sys.exit(1)
 
@@ -1001,18 +1118,29 @@ try:
             args.keep_orientation,
             all_shells,
             fp_map,
-            ref_map, mh_map, smd_keepouts, topmost_z,
+            ref_map,
+            mh_map,
+            smd_keepouts,
+            topmost_z,
             pcb_edge_points,
             dt_centers,
-            mesh_line_segments, minmesh_path, groove_lines,
-            pcb_min_x, pcb_max_x, pcb_min_y, pcb_max_y)
+            mesh_line_segments,
+            minmesh_path,
+            groove_lines,
+            pcb_min_x,
+            pcb_max_x,
+            pcb_min_y,
+            pcb_max_y,
+        )
 
     elif args.footprint or args.pcb_footprints:
-        if args.grid and len(all_shells)>(grid_x*grid_y):
-            print("WARNING: There are more shells than grid elements. Shells shall be arranged consectively.")
+        if args.grid and len(all_shells) > (grid_x * grid_y):
+            print(
+                "WARNING: There are more shells than grid elements. Shells shall be arranged consectively."
+            )
         ref_arrange.arrange(
-            cfg, fp_map, all_shells,
-            args.arrange, gap_x, gap_y, grid_x, grid_y)
+            cfg, fp_map, all_shells, args.arrange, gap_x, gap_y, grid_x, grid_y
+        )
         gen_scad.generate_footprints(
             fp_scad,
             config_text,
@@ -1022,7 +1150,8 @@ try:
             all_shells,
             fp_map,
             ref_map,
-            topmost_z)
+            topmost_z,
+        )
 except ValueError as err:
     print(f"ERROR: {err}", file=sys.stderr)
     sys.exit(-1)
@@ -1030,26 +1159,25 @@ except ValueError as err:
 # Done with the file
 fp_scad.close()
 
-if args.output_format in ['3mf','stl']:
+if args.output_format in ["3mf", "stl"]:
     cmd = []
     # FIXME - ideally we'll have a config in ~/.config to store things
     # like paths to binaries etc
-    cfg_scad = cfg['openscad']
-    cmd += [ os.path.expanduser(cfg_scad['binary']),
-             '--hardwarnings' ]
-    if cfg_scad['use_manifold']:
-        cmd += [ '--backend', 'Manifold' ]
-    cmd += [ '-o', out_filename, oscad_filename ]
-    print('Generating output using : %s'%(' '.join(cmd)))
-    print('-----------------------------------------')
+    cfg_scad = cfg["openscad"]
+    cmd += [os.path.expanduser(cfg_scad["binary"]), "--hardwarnings"]
+    if cfg_scad["use_manifold"]:
+        cmd += ["--backend", "Manifold"]
+    cmd += ["-o", out_filename, oscad_filename]
+    print("Generating output using : %s" % (" ".join(cmd)))
+    print("-----------------------------------------")
     retcode = subprocess.call(cmd)
-    print('-----------------------------------------')
-    if retcode !=0 :
-        print('ERROR: OpenSCAD Failed, exit code %d'%(retcode))
+    print("-----------------------------------------")
+    if retcode != 0:
+        print("ERROR: OpenSCAD Failed, exit code %d" % (retcode))
     else:
-        print('Done, output : %s'%(out_filename))
+        print("Done, output : %s" % (out_filename))
 else:
-    print('Done, output : %s'%(oscad_filename))
+    print("Done, output : %s" % (oscad_filename))
 #
 #
 # Coordinate system notes:
