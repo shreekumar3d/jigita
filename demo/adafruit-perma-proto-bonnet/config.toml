@@ -1,5 +1,11 @@
 [cache]
 enabled = false
+[jig]
+# Don't generate PCB mount so we can check model from sides
+type = "component_fitting"
+[holder.base]
+# Solid holder to fit components in place
+type = "solid_fill"
 [TH]
 [SMD]
 # These are format conversion artifacts, best ignored

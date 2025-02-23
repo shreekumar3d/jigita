@@ -1056,6 +1056,13 @@ def generate_jig(
     )
     sm_base_solid = module("base_solid", base_solid)
 
+    base_solid_fill = translate([0, 0, sv_pcb_thickness + sv_smd_clearance_from_shells])(
+        linear_extrude(sv_topmost_z+sv_base_thickness-sv_smd_clearance_from_shells)(
+            offset(sv_pcb_holder_perimeter + sv_pcb_gap)(sm_pcb_edge())
+        )
+    )
+    sm_base_solid_fill = module("base_solid_fill", base_solid_fill)
+
     mesh_lines = union()
     for start, end in mesh_line_segments:
         mesh_lines += wide_line(start, end)
@@ -1385,8 +1392,10 @@ module complete_model_TH_soldering() {
           base_x_lines();
         } else if(Base_Type=="y_lines") {
           base_y_lines();
+        } else if(Base_Type=="solid_fill") {
+          base_solid_fill();
         } else {
-          base_solid();
+          base_solid(); // solid
         }
         mounted_component_shells();
         mounting_hole_bolt_shells();
@@ -1420,8 +1429,10 @@ module complete_model_component_fitting() {
           base_x_lines();
         } else if(Base_Type=="y_lines") {
           base_y_lines();
+        } else if(Base_Type=="solid_fill") {
+          base_solid_fill();
         } else {
-          base_solid();
+          base_solid(); // solid
         }
         mounted_component_shells();
         mounting_hole_bolt_shells();

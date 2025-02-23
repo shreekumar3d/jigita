@@ -10,7 +10,7 @@ from pathlib import Path
 
 valid_shell_types = ["wiggle", "fitting", "fitting_flower", "tight", "courtyard"]
 valid_jig_types = ["TH_soldering", "component_fitting"]
-valid_base_types = ["x_lines", "y_lines", "griddish", "mesh", "minmesh", "solid"]
+valid_base_types = ["x_lines", "y_lines", "griddish", "mesh", "minmesh", "solid", "solid_fill"]
 valid_insertions = ["top", "bottom"]
 keys_TH_builtin = None
 TH_component_shell_value_keys = [
@@ -601,6 +601,8 @@ perimeter = 1.6
 # - "y_lines". lines along the Y axis, connecting each shell to the
 #   frame
 # - "solid". A flat plate. More space for annotation.
+# - "solid_fill". Solid stretching almost all the way till PCB (stops
+#    at a small distance from it equal to SMD shell clearance)
 type = "griddish"
 
 # Thickness of the base. Higher value will improve rigidity in the
