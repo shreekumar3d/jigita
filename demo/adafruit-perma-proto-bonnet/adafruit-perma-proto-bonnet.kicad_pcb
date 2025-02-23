@@ -173,7 +173,7 @@
 		(layer "F.Cu")
 		(uuid "49ae341f-a88a-4a0b-ad79-fb4b9949d13c")
 		(at 120.953757 115.515271 -90)
-		(property "Reference" "U$1"
+		(property "Reference" "U1"
 			(at 0 0 -90)
 			(layer "F.SilkS")
 			(hide yes)
@@ -13705,7 +13705,7 @@
 		(uuid "bc8fe691-9749-454c-b1fc-ad708ae33568")
 		(at 175.182757 91.555271)
 		(descr "Revision Level Field - 56 mil\n\nSet version with global board attribute '>REV'")
-		(property "Reference" "U$3"
+		(property "Reference" "U3"
 			(at 0 0 0)
 			(layer "F.SilkS")
 			(hide yes)
