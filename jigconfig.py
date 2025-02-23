@@ -295,6 +295,7 @@ def load(configFile, ref_map, fp_map, mh_map):
     # Process TH components
     # Propagate values from TH footprints to the actual components
     th_ref_list = []
+    smd_ref_list = []
     for ref in ref_map:
         ref_dict = ref_map[ref]
         footprint = ref_dict["footprint"]
@@ -303,6 +304,7 @@ def load(configFile, ref_map, fp_map, mh_map):
             th_ref_list.append(ref)
         elif footprint in smd_fp_list:
             ref_type = "SMD"
+            smd_ref_list.append(ref)
         else:
             print("Ignoring footprint ", footprint)
             continue
@@ -356,6 +358,18 @@ def load(configFile, ref_map, fp_map, mh_map):
         for rtp in rtp_x_list:
             if rtp in th_ref_list:
                 th_ref_list.remove(rtp)
+            elif rtp in mh_map:
+                mh_map.pop(rtp)
+
+    if len(cfg["SMD"]["refs_do_not_process"]) > 0:
+        rtp_x_list = expand_refs(
+            cfg["SMD"]["refs_do_not_process"],
+            list(ref_map.keys()) + list(mh_map.keys()),
+            fp_map,
+        )
+        for rtp in rtp_x_list:
+            if rtp in smd_ref_list:
+                smd_ref_list.remove(rtp)
             elif rtp in mh_map:
                 mh_map.pop(rtp)
 
@@ -729,6 +743,10 @@ force_smd = false
 
 [SMD]
 # Parameters for SMD components
+
+refs_do_not_process = [
+  # list of refs that we should not include in the output
+]
 
 # Shells must not touch SMD components. It is better to have a small clearance
 # SMD keepout volume is it's courtyard extended along the height of the

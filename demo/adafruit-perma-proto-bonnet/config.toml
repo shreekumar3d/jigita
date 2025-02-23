@@ -1,0 +1,10 @@
+[cache]
+enabled = false
+[TH]
+[SMD]
+# These are format conversion artifacts, best ignored
+refs_do_not_process = [ 'U1', 'U3', 'CONN1', 'RPI1' ]
+[TH.component_shell]
+shell_clearance_from_pcb = 0.2
+[SMD.component_shell]
+shell_clearance_from_pcb = 0.2
