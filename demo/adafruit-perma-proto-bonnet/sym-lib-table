@@ -1,0 +1,4 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "Adafruit Perma Proto Bonnet-eagle-import")(type "KiCad")(uri "${KIPRJMOD}/Adafruit Perma Proto Bonnet-eagle-import.kicad_sym")(options "")(descr ""))
+)

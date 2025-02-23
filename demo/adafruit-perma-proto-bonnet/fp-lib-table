@@ -1,0 +1,4 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "Adafruit Perma Proto Bonnet")(type "KiCad")(uri "$(KIPRJMOD)/adafruit-perma-proto-bonnet.pretty")(options "")(descr ""))
+)
