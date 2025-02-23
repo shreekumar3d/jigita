@@ -6,6 +6,7 @@ type = "component_fitting"
 [holder.base]
 # Solid holder to fit components in place
 type = "solid_fill"
+thickness = 1.0 # stiff and thick
 [TH]
 [SMD]
 # These are format conversion artifacts, best ignored
@@ -14,3 +15,4 @@ refs_do_not_process = [ 'U1', 'U3', 'CONN1', 'RPI1' ]
 shell_clearance_from_pcb = 0.2
 [SMD.component_shell]
 shell_clearance_from_pcb = 0.2
+shell_gap = 0.25
