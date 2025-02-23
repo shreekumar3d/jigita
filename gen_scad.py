@@ -626,7 +626,7 @@ SMD_Gap_From_Shells=%s;
             cfg["holder"]["base"]["thickness"],
             cfg["holder"]["base"]["line_width"],
             cfg["holder"]["base"]["line_height"],
-            cfg["SMD"]["clearance_from_shells"],
+            cfg["SMD"]["component_shell"]["shell_clearance_from_pcb"],
             cfg["SMD"]["gap_from_shells"],
         )
     )
