@@ -2,10 +2,12 @@ import numpy as np
 import tempfile
 import subprocess
 import os
+import os.path
 import hashlib
 import copy
 import trimesh
 import pymeshlab
+import platform
 
 mesh_cache = {}
 
@@ -32,18 +34,22 @@ def load_mesh(filename, scriptdir, temp_dir=None):
         mesh = load_obj_mesh_verts(filename)
     elif filename.endswith(".step") or filename.endswith(".stp"):
         with tempfile.NamedTemporaryFile(suffix=".obj", dir=temp_dir) as fp:
+            # On windows, the temporary file can't be written out of process...
+            # delete it so that save_current_mesh won't fail
+            os.unlink(fp.name)
             # print('Converting STEP file %s to OBJ file %s'%(filename, fp.name))
-            retcode = subprocess.call(
+            cp = subprocess.run(
                 [
-                    "freecad.cmd",
+                    # on linux it's freecad.cmd, on windows its freecadcmd
+                    # mac I support not for now. FIXME unify platform specifics
+                    "freecad.cmd" if platform.system()=="Linux" else "freecadcmd",
                     os.path.join(scriptdir, "stp2obj.py"),  # FIXME:generate at runtime?
                     filename,
                     fp.name,
                 ],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                shell=True
             )
-            if retcode != 0:
+            if cp.returncode != 0:
                 raise RuntimeError("Unable to convert STEP file %s to obj" % (filename))
             mesh = load_obj_mesh_verts(fp.name)
     elif filename.endswith(".wrl") or filename.endswith(".vrml"):
@@ -51,6 +57,7 @@ def load_mesh(filename, scriptdir, temp_dir=None):
             # print('Converting mesh file %s to OBJ file %s'%(filename, fp.name))
             ms = pymeshlab.MeshSet()
             ms.load_new_mesh(filename)
+            os.unlink(fp.name)
             ms.save_current_mesh(fp.name)
             mesh = load_obj_mesh_verts(
                 fp.name, scale=2.54
