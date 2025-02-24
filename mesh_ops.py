@@ -1,4 +1,3 @@
-import tinyobjloader
 import numpy as np
 import tempfile
 import subprocess

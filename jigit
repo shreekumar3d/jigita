@@ -43,7 +43,6 @@ import shape_cache
 
 # These are all modules you need to have
 try:
-    import tinyobjloader
     import pcbnew
     import solid2
     import toml
