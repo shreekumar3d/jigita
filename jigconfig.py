@@ -140,9 +140,8 @@ def expand_refs(name_list, ref_map, fp_map):
     # return uniques
     return list(set(full))
 
-
-def load(configFile, ref_map, fp_map, mh_map):
-    """load configuration file, validate against TH reference names"""
+def load_config(configFile):
+    """load configuration file"""
 
     default_config_text = get_default()
     default_cfg = tomllib.loads(default_config_text)
@@ -160,7 +159,7 @@ def load(configFile, ref_map, fp_map, mh_map):
         transfer_default_values(
             user_cfg,
             default_cfg,
-            keylist=["openscad", "3dprinter", "environment"],
+            keylist=["openscad", "kicad", "3dprinter", "environment"],
             overwrite=True,
         )
 
@@ -170,6 +169,11 @@ def load(configFile, ref_map, fp_map, mh_map):
         # merge with user specified config file, and anything in the config file
         # takes precendence over everything else
         transfer_default_values(default_cfg, cfg)
+
+    return cfg, config_text, default_cfg
+
+def update(cfg, default_cfg, ref_map, fp_map, mh_map):
+    """validate and update config, based on info maps about the board"""
 
     # Do some basic validation
     base_type = cfg["holder"]["base"]["type"]
@@ -422,7 +426,7 @@ def load(configFile, ref_map, fp_map, mh_map):
             "y": -hy,  # KiCAD coordinate system
             "mounting_hole_radius": hr,
         }
-    return cfg, config_text, proc_th_footprints, th_ref_list, smd_ref_list
+    return cfg, proc_th_footprints, th_ref_list, smd_ref_list
 
 
 def generate_config(configFile, ref_map, fp_map):
@@ -509,6 +513,13 @@ method = 'timestamp'
 [openscad]
 binary = 'openscad'
 use_manifold = false
+
+[kicad]
+# kicad keeps 3d models, footprints in a "share" directory this is inside under
+# the install directory on Windows, and typically /usr/share/kicad/ on Linux.
+# The default here is for Linux. If this is seen on windows, we can ask users to
+# fix easily. The entire path upto "kicad" is required
+share = '/usr/share/kicad'
 
 [3dprinter]
 # This is the smallest area your 3d printer

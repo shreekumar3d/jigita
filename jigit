@@ -27,6 +27,7 @@ import math
 import pathlib
 import hashlib
 import traceback
+import platform
 
 # Local imports
 from jigcommon import *
@@ -43,6 +44,7 @@ import shape_cache
 
 # These are all modules you need to have
 try:
+    import appdirs
     import pcbnew
     import solid2
     import toml
@@ -140,7 +142,8 @@ def load_footprints(fp_spec_list, arc_resolution):
         # if the lib name ends with pretty, it's a full filepath, including an
         # (optional) directory
         if not fp_lib.endswith(".pretty"):
-            libpath = os.path.join("/usr/share/kicad/footprints", f"{fp_lib}.pretty")
+            footprint_path = os.path.join(cfg["kicad"]["share"], "footprints")
+            libpath = os.path.join(footprint_path, f"{fp_lib}.pretty")
             fp_lib_name = fp_lib
         else:
             dirname, fname = os.path.split(fp_lib[:-7])  # remove the .pretty
@@ -408,6 +411,14 @@ group.add_argument(
     type=str,
     help="""Generate a shell from 3D model(s).""",
 )
+group.add_argument(
+    "--show-paths",
+    action="store_true",
+    default=False,
+    help="""Show various paths used by the tool. Useful for
+debugging when something isn't working.
+""",
+)
 
 parser.add_argument(
     "--pcb-footprints",
@@ -580,6 +591,26 @@ if args.output and not args.output_format:
         )
         sys.exit(1)
 
+jigconfig.load_user_config(jigcommon.APP_NAME)
+
+try:
+    cfg, config_text, default_cfg = jigconfig.load_config(args.config)
+except ValueError as err:
+    print(f"ERROR in load config: {err}", file=sys.stderr)
+    sys.exit(-1)
+
+if args.show_paths:
+    print('User specific configuration file loaded on startup :',
+            os.path.join(appdirs.user_config_dir(jigcommon.APP_NAME),"config.toml")
+         )
+    print('Cache directory :', (appdirs.user_cache_dir(jigcommon.APP_NAME)))
+    print('KiCAD share directory :', cfg["kicad"]["share"])
+    oscad_bin = cfg["openscad"]["binary"]
+    fccmd_bin = "freecad.cmd" if platform.system()=="Linux" else "freecadcmd"
+    print('OpenSCAD binary : %s (if not full path to tool, keep on PATH)'%(oscad_bin))
+    print('FreeCAD cmd : %s (must be on PATH)'%(fccmd_bin))
+    sys.exit(0)
+
 if args.pcb:
     board = pcbnew.LoadBoard(args.pcb)
     ref_map, fp_map, mh_map = get_ref_info(board.Footprints(), args.pcb_footprints)
@@ -589,14 +620,12 @@ if args.genconfig:
     print(f"Generated : %{args.genconfig}")
     sys.exit(0)
 
-jigconfig.load_user_config(jigcommon.APP_NAME)
-
 try:
-    cfg, config_text, used_th_fp, th_ref_list, smd_ref_list = jigconfig.load(
-        args.config, ref_map, fp_map, mh_map
+    cfg, used_th_fp, th_ref_list, smd_ref_list = jigconfig.update(
+        cfg, default_cfg, ref_map, fp_map, mh_map
     )
 except ValueError as err:
-    print(f"ERROR in load config: {err}", file=sys.stderr)
+    print(f"ERROR in validate config: {err}", file=sys.stderr)
     sys.exit(-1)
 # pprint(cfg)
 
@@ -671,8 +700,10 @@ for env_var_name in cfg["environment"]:
     os.environ[env_var_name] = cfg["environment"][env_var_name]
 if args.pcb:
     os.environ["KIPRJMOD"] = os.path.split(args.pcb)[0]
+
+path_sys_3dmodels = os.path.join(cfg["kicad"]["share"], "3dmodels")
+
 # Now add onto it, this allows overrides from user config
-path_sys_3dmodels = "/usr/share/kicad/3dmodels"
 for ver in ["", 6, 7, 8]:  # Hmm - would we need more ?
     env_var_name = "KICAD%s_3DMODEL_DIR" % (ver)
     if env_var_name not in os.environ:
