@@ -5,9 +5,9 @@ import os
 import hashlib
 import copy
 import trimesh
+import pymeshlab
 
 mesh_cache = {}
-
 
 # returns flat array of xyz coordinates
 def load_obj_mesh_verts(filename, scale=1.0):
@@ -49,13 +49,9 @@ def load_mesh(filename, scriptdir, temp_dir=None):
     elif filename.endswith(".wrl") or filename.endswith(".vrml"):
         with tempfile.NamedTemporaryFile(suffix=".obj", dir=temp_dir) as fp:
             # print('Converting mesh file %s to OBJ file %s'%(filename, fp.name))
-            retcode = subprocess.call(
-                ["meshlabserver", "-i", filename, "-o", fp.name],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            if retcode != 0:
-                raise RuntimeError("Unable to convert file %s to obj" % (filename))
+            ms = pymeshlab.MeshSet()
+            ms.load_new_mesh(filename)
+            ms.save_current_mesh(fp.name)
             mesh = load_obj_mesh_verts(
                 fp.name, scale=2.54
             )  # VRML files are in 1/2.54 mm units

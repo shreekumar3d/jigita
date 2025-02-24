@@ -17,7 +17,6 @@ Jigit has a few dependencies, you need to install them first:
 
 - KiCAD (tested version 8). This installs kicad python modules also to python.
 - OpenSCAD (recommended to use a development version with Manifold mesh support for fast mesh output)
-- MeshLab
 - FreeCAD
 
 Jigit is developed in python, and depends on the following modules
@@ -27,6 +26,7 @@ Jigit is developed in python, and depends on the following modules
 - rectpack
 - python_tsp
 - trimesh
+- pymeshlab
 
 If you face package clashes, consider using python virtual environment to run jigit.
 
