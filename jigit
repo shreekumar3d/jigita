@@ -109,7 +109,7 @@ def get_3d_models(fp):
     return models_3d
 
 
-def load_footprints(fp_spec_list, arc_resolution):
+def load_footprints(cfg, fp_spec_list, arc_resolution):
     fp_map = {}
     ref_map = {}
     # FIXME: This idx business can cause obscure bugs with numbering from
@@ -564,11 +564,19 @@ if args.examples:
     print(f"Sorry, examples aren't created yet. Use the source, Luke!", file=sys.stderr)
     sys.exit(1)
 
+jigconfig.load_user_config(jigcommon.APP_NAME)
+
+try:
+    cfg, config_text, default_cfg = jigconfig.load_config(args.config)
+except ValueError as err:
+    print(f"ERROR in load config: {err}", file=sys.stderr)
+    sys.exit(-1)
+
 if args.footprint:
     try:
         # FIXME: how do we decide 1.0 is the tesellation resolution?
         # sure its good enough for courtyard polys!
-        ref_map, fp_map = load_footprints(args.footprint, 1.0)
+        ref_map, fp_map = load_footprints(cfg, args.footprint, 1.0)
     except ValueError as err:
         print(f"ERROR: {err}", file=sys.stderr)
         sys.exit(-1)
@@ -590,14 +598,6 @@ if args.output and not args.output_format:
             file=sys.stderr,
         )
         sys.exit(1)
-
-jigconfig.load_user_config(jigcommon.APP_NAME)
-
-try:
-    cfg, config_text, default_cfg = jigconfig.load_config(args.config)
-except ValueError as err:
-    print(f"ERROR in load config: {err}", file=sys.stderr)
-    sys.exit(-1)
 
 if args.show_paths:
     print('User specific configuration file loaded on startup :',
