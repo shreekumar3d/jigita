@@ -1072,7 +1072,10 @@ if do_pcb_proc:
         subshells["min_z"] = local_min_z
         subshells["front_courtyard"] = smd["front_courtyard"]
         subshells["ref_type"] = "SMD"
-        all_shells.append(subshells)
+
+        # Don't include if SMD isn't enabled
+        if args.enable_smd_shells:
+            all_shells.append(subshells)
         # print(subshells)
 
         if new_body_info:

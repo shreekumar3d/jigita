@@ -653,10 +653,12 @@ def gen_configurable_fp_components(
     ui_refs.sort(reverse=True, key=lambda x: x[1])  # key is the area
     # pprint(ui_refs)
 
+    used_footprints = set() # track used footprints
     fp_scad.write("/* [Include these components in output STL file] */\n")
     for this_ref, area, ref_type in ui_refs:
-        print(this_ref, ref_type)
+        #print(this_ref, ref_type)
         footprint = cfg[ref_type][this_ref]["kicad_footprint"]
+        used_footprints.add(footprint)
         dname_fp = fp_map[footprint]["display_name"]
         dname_ref = cfg[ref_type][this_ref]["display_name"]
         if dname_ref == this_ref:
@@ -667,6 +669,9 @@ def gen_configurable_fp_components(
 
     for alias in cfg["footprint"]:
         footprint = cfg["footprint"][alias]
+        # unclutter UI - skip footprints that are not used
+        if footprint["display_name"] not in used_footprints:
+            continue
         fp_scad.write("/* [Footprint: %s] */\n" % (footprint["display_name"]))
         var_prop_rem = [
             ["Shell_Gap", "shell_gap", "XY Gap in shell for component insertion"],

@@ -382,7 +382,11 @@ def update(cfg, default_cfg, ref_map, fp_map, mh_map):
         if ref not in th_ref_list:
             if ref in cfg["TH"]:
                 cfg["TH"].pop(ref)
-
+    # trim SMD refs from the config tree that are not in the list that will be processed
+    for ref in ref_map:
+        if ref not in smd_ref_list:
+            if ref in cfg["SMD"]:
+                cfg["SMD"].pop(ref)
     # as a result of this trimming, some footprints may not be used at all now.
     # find 'em
     proc_th_footprints = []
