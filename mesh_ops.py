@@ -44,7 +44,7 @@ def load_mesh(cfg, filename, scriptdir, temp_dir=None):
                     filename,
                     fp.name,
                 ],
-                shell=True
+                shell=False # recommend absolute path if run doesn't work
             )
             if cp.returncode != 0:
                 raise RuntimeError("Unable to convert STEP file %s to obj" % (filename))
