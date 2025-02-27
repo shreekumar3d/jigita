@@ -5,6 +5,7 @@ from copy import deepcopy
 from pprint import pprint
 import string
 import appdirs
+import platform
 
 from pathlib import Path
 
@@ -159,7 +160,7 @@ def load_config(configFile):
         transfer_default_values(
             user_cfg,
             default_cfg,
-            keylist=["openscad", "kicad", "3dprinter", "environment"],
+            keylist=["openscad", "kicad", "freecad", "3dprinter", "environment"],
             overwrite=True,
         )
 
@@ -525,6 +526,9 @@ use_manifold = false
 # fix easily. The entire path upto "kicad" is required
 share = '/usr/share/kicad'
 
+[freecad]
+cmd = '%s'
+
 [3dprinter]
 # This is the smallest area your 3d printer
 # can reliably print in square mm
@@ -540,7 +544,11 @@ first_layer_height = 0.2
 # x dim and y dim are in centimeters (not mm)
 bed_x_dim = 25
 bed_y_dim = 20
-"""
+"""%(
+   # on linux it's freecad.cmd, on windows its freecadcmd
+   # mac I support not for now. FIXME unify platform specifics
+   "freecad.cmd" if platform.system()=="Linux" else "freecadcmd"
+)
 
 _inbuilt_config = """
 # All dimensions are specified in millimeters

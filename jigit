@@ -572,6 +572,11 @@ except ValueError as err:
     print(f"ERROR in load config: {err}", file=sys.stderr)
     sys.exit(-1)
 
+# Expand paths
+cfg["openscad"]["binary"] = os.path.expanduser(cfg["openscad"]["binary"])
+cfg["freecad"]["cmd"] = os.path.expanduser(cfg["freecad"]["cmd"])
+cfg["kicad"]["share"] = os.path.expanduser(cfg["kicad"]["share"])
+
 if args.footprint:
     try:
         # FIXME: how do we decide 1.0 is the tesellation resolution?
@@ -606,9 +611,19 @@ if args.show_paths:
     print('Cache directory :', (appdirs.user_cache_dir(jigcommon.APP_NAME)))
     print('KiCAD share directory :', cfg["kicad"]["share"])
     oscad_bin = cfg["openscad"]["binary"]
-    fccmd_bin = "freecad.cmd" if platform.system()=="Linux" else "freecadcmd"
-    print('OpenSCAD binary : %s (if not full path to tool, keep on PATH)'%(oscad_bin))
-    print('FreeCAD cmd : %s (must be on PATH)'%(fccmd_bin))
+    fccmd_bin = cfg["freecad"]["cmd"]
+    print('OpenSCAD binary : %s %s'%(
+            oscad_bin,
+            '' if os.path.isabs(oscad_bin) else
+            '(ensure this is on PATH, else tool may fail)'
+          )
+         )
+    print('FreeCAD cmd : %s %s'%(
+            fccmd_bin,
+            '' if os.path.isabs(fccmd_bin) else
+            '(ensure this is on PATH, else tool may fail)'
+          )
+         )
     sys.exit(0)
 
 if args.pcb:

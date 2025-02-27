@@ -7,7 +7,6 @@ import hashlib
 import copy
 import trimesh
 import pymeshlab
-import platform
 
 mesh_cache = {}
 
@@ -21,7 +20,7 @@ def load_obj_mesh_verts(filename, scale=1.0):
     return mesh
 
 
-def load_mesh(filename, scriptdir, temp_dir=None):
+def load_mesh(cfg, filename, scriptdir, temp_dir=None):
     global mesh_cache
     mesh = None
     if filename in mesh_cache.keys():
@@ -40,9 +39,7 @@ def load_mesh(filename, scriptdir, temp_dir=None):
             # print('Converting STEP file %s to OBJ file %s'%(filename, fp.name))
             cp = subprocess.run(
                 [
-                    # on linux it's freecad.cmd, on windows its freecadcmd
-                    # mac I support not for now. FIXME unify platform specifics
-                    "freecad.cmd" if platform.system()=="Linux" else "freecadcmd",
+                    cfg["freecad"]["cmd"],
                     os.path.join(scriptdir, "stp2obj.py"),  # FIXME:generate at runtime?
                     filename,
                     fp.name,
