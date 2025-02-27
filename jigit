@@ -333,7 +333,7 @@ def load_ref_3d_models(cfg, ref, ref_map):
     for modinfo in comp["models"]:
         model_filename = os.path.expandvars(modinfo["model"])
         modinfo["mesh"], modinfo["mtime"], modinfo["mesh_hash"] = mesh_ops.load_mesh(
-            model_filename, scriptdir, temp_dir
+            cfg, model_filename, scriptdir, temp_dir
         )
         metadata["files"].append(
             {
