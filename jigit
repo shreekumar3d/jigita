@@ -728,8 +728,10 @@ for ver in ["", 6, 7, 8]:  # Hmm - would we need more ?
 # load_3d_models(smd_ref_list, ref_map, 'SMD')
 
 if args.output_format in ["3mf", "stl"]:
+    # FreeCAD 8.0.9 ships with Python 3.11.5
+    # we'll delete the file as cleanup
     fp_scad = tempfile.NamedTemporaryFile(
-        mode="w", suffix=".scad", delete_on_close=False
+        mode="w", suffix=".scad", delete=False
     )
     oscad_filename = fp_scad.name
     out_filename = args.output
@@ -1336,6 +1338,8 @@ if args.output_format in ["3mf", "stl"]:
         print("ERROR: OpenSCAD Failed, exit code %d" % (retcode))
     else:
         print("Done, output : %s" % (out_filename))
+    os.unlink(oscad_filename)
+
 else:
     print("Done, output : %s" % (oscad_filename))
 #
