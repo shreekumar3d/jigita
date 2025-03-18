@@ -1,3 +1,4 @@
+import build123d as bd
 import numpy as np
 import tempfile
 import subprocess
@@ -10,12 +11,11 @@ import pymeshlab
 
 mesh_cache = {}
 
-# returns flat array of xyz coordinates
-def load_obj_mesh_verts(filename, scale=1.0):
+def load_mesh_verts(filename, scale=1.0):
     try:
         mesh = trimesh.load_mesh(filename)
     except ValueError as err:
-        raise ValueError("Unable to load OBJ file %s" % (filename))
+        raise ValueError("Unable to load mesh file %s" % (filename))
     mesh.apply_scale(scale)
     return mesh
 
@@ -29,26 +29,17 @@ def load_mesh(cfg, filename, scriptdir, temp_dir=None):
 
     file_hash = hashlib.md5(open(filename, "rb").read()).hexdigest()
 
+    # FIXME: eliminate temporary file write access when loading different
+    # formats
     if filename.endswith(".obj"):
-        mesh = load_obj_mesh_verts(filename)
+        mesh = load_mesh_verts(filename)
     elif filename.endswith(".step") or filename.endswith(".stp"):
-        with tempfile.NamedTemporaryFile(suffix=".obj", dir=temp_dir) as fp:
-            # On windows, the temporary file can't be written out of process...
-            # delete it so that save_current_mesh won't fail
+        with tempfile.NamedTemporaryFile(suffix=".stl", dir=temp_dir) as fp:
+            # import using build123d, convert to STL and load
+            step_model = bd.import_step(filename)
             os.unlink(fp.name)
-            # print('Converting STEP file %s to OBJ file %s'%(filename, fp.name))
-            cp = subprocess.run(
-                [
-                    cfg["freecad"]["cmd"],
-                    os.path.join(scriptdir, "stp2obj.py"),  # FIXME:generate at runtime?
-                    filename,
-                    fp.name,
-                ],
-                shell=False # recommend absolute path if run doesn't work
-            )
-            if cp.returncode != 0:
-                raise RuntimeError("Unable to convert STEP file %s to obj" % (filename))
-            mesh = load_obj_mesh_verts(fp.name)
+            bd.export_stl(step_model, fp.name)
+            mesh = load_mesh_verts(fp.name)
     elif filename.endswith(".wrl") or filename.endswith(".vrml"):
         with tempfile.NamedTemporaryFile(suffix=".obj", dir=temp_dir) as fp:
             # print('Converting mesh file %s to OBJ file %s'%(filename, fp.name))
@@ -56,7 +47,7 @@ def load_mesh(cfg, filename, scriptdir, temp_dir=None):
             ms.load_new_mesh(filename)
             os.unlink(fp.name)
             ms.save_current_mesh(fp.name)
-            mesh = load_obj_mesh_verts(
+            mesh = load_mesh_verts(
                 fp.name, scale=2.54
             )  # VRML files are in 1/2.54 mm units
     else:
