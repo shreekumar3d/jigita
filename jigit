@@ -240,7 +240,7 @@ def xform_mesh(mesh_in, modinfo):
     return vertices, mesh, min_z, max_z
 
 
-def get_ref_info(fp_list, unity_xform):
+def get_ref_info(process_top_side, fp_list, unity_xform):
     mounting_holes = {}
     ref_map = {}
     fp_map = {}
@@ -259,6 +259,10 @@ def get_ref_info(fp_list, unity_xform):
         fp_rot = fp.GetOrientation().AsDegrees()
         fields = fp.Fields()
         footprint = fields[2].GetText()  # e.g. Package_QFP:LQFP-128_14x14mm_P0.4mm
+        top_side_component = True if fp.GetSide() == 0 else False
+        if top_side_component != process_top_side:
+            #print('Skipping: ', fp.GetReference())
+            continue
         ref_info = {
             "is_th": fp_is_th,
             "footprint": footprint,
@@ -428,6 +432,13 @@ parser.add_argument(
     default=False,
     help="""Generates one shell per footprint used on the PCB design
             given through --pcb.""",
+)
+parser.add_argument(
+    "--bottom-components",
+    action="store_true",
+    default=False,
+    help="""Process components on the bottom side of the PCB. By default
+            we process top side components.""",
 )
 parser.add_argument(
     "--arrange",
@@ -630,7 +641,7 @@ if args.show_paths:
 
 if args.pcb:
     board = pcbnew.LoadBoard(args.pcb)
-    ref_map, fp_map, mh_map = get_ref_info(board.Footprints(), args.pcb_footprints)
+    ref_map, fp_map, mh_map = get_ref_info(not args.bottom_components, board.Footprints(), args.pcb_footprints)
 if args.genconfig:
     jigconfig.generate_config(args.genconfig, ref_map, fp_map)
     print(f"Generated : %{args.genconfig}")
@@ -880,7 +891,13 @@ for this_ref in th_ref_list:
             }
             this_subshell["x"] = th["x"]
             this_subshell["y"] = th["y"]
-            this_subshell["orientation"] = th["orientation"]
+            # Shells of bottom components need rotation around Z
+            # but this is not enough. Z needs to be flipped also, see
+            # gen_scad.py, scale -1 of Z
+            if th['side']:
+                this_subshell["orientation"] = th["orientation"]
+            else:
+                this_subshell["orientation"] = 180+th["orientation"]
             subshells["shell"].append(this_subshell)
             this_subshell["min_x"] = min_x
             this_subshell["max_x"] = max_x
@@ -914,7 +931,10 @@ for this_ref in th_ref_list:
 
     subshells["max_z"] = local_max_z
     subshells["min_z"] = local_min_z
-    subshells["front_courtyard"] = th["front_courtyard"]
+    if th['side']:
+        subshells["courtyard"] = th["front_courtyard"]
+    else:
+        subshells["courtyard"] = th["back_courtyard"]
     subshells["ref_type"] = "TH"
     all_shells.append(subshells)
     if new_body_info:
@@ -953,7 +973,7 @@ if do_pcb_proc:
             new_body_info = {"subshells": []}
         else:
             new_body_info = None
-        # print('Processing SMD :', smd['ref'])
+        # print('Processing SMD :', this_ref)
         # each footprint can have multiple models.
         # each model that is "in contact" with the board will generate
         # a shell
@@ -1063,7 +1083,7 @@ if do_pcb_proc:
                         "x": smd["x"],
                         "y": smd["y"],
                         "orientation": smd["orientation"],
-                        "front_courtyard": smd["front_courtyard"],
+                        "courtyard": smd["front_courtyard" if smd['side'] else "back_courtyard"],
                     }
                 )
             topmost_z = max(topmost_z, max_z)
@@ -1088,7 +1108,10 @@ if do_pcb_proc:
 
         subshells["max_z"] = local_max_z
         subshells["min_z"] = local_min_z
-        subshells["front_courtyard"] = smd["front_courtyard"]
+        if smd['side']:
+            subshells["courtyard"] = smd["front_courtyard"]
+        else:
+            subshells["courtyard"] = smd["back_courtyard"]
         subshells["ref_type"] = "SMD"
 
         # Don't include if SMD isn't enabled
@@ -1293,6 +1316,7 @@ try:
             pcb_max_x,
             pcb_min_y,
             pcb_max_y,
+            not args.bottom_components
         )
 
     elif args.footprint or args.pcb_footprints:

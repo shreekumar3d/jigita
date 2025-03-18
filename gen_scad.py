@@ -517,8 +517,10 @@ def gen_keepout_shape(ref, x, y, rot, min_z, max_z, courtyard_poly):
     ref_smd_clearance_from_shells = ScadValue(f"smd_clearance_from_shells_{ref}")
     ref_smd_gap_from_shells = ScadValue(f"smd_gap_from_shells_{ref}")
     keepout_name = ref2keepout(ref)
-    keepout_solid = translate([0, 0, sv_pcb_thickness])(
-        linear_extrude(sv_max_z[ref] + ref_smd_clearance_from_shells)(
+    # keepout starts from PCB itself. This is required to prevent overhangs in
+    # the output design.
+    keepout_solid = translate([0, 0, 0])(
+        linear_extrude(sv_max_z[ref] + ref_smd_clearance_from_shells + sv_pcb_thickness)(
             offset(ref_smd_gap_from_shells)(polygon(courtyard_poly))
         )
     )
@@ -647,7 +649,7 @@ def gen_configurable_fp_components(
     for subshells in all_shells:
         this_ref = subshells["ref"]
         ref_type = subshells["ref_type"]
-        tris = tripy.earclip(subshells["front_courtyard"])
+        tris = tripy.earclip(subshells["courtyard"])
         area = tripy.calculate_total_area(tris)
         ui_refs.append([this_ref, area, ref_type])
     ui_refs.sort(reverse=True, key=lambda x: x[1])  # key is the area
@@ -973,6 +975,7 @@ def generate_jig(
     pcb_max_x,
     pcb_min_y,
     pcb_max_y,
+    top_component_jig
 ):
     fp_scad.write(
         """// Customizable Jig Generator
@@ -1024,7 +1027,7 @@ def generate_jig(
                 shell_info["fitting_bins"],
                 shell_info["tight_bins"],
             )
-        gen_courtyard_shell_shape(this_ref, subshells["front_courtyard"])
+        gen_courtyard_shell_shape(this_ref, subshells["courtyard"])
 
     for keepout in smd_keepouts:
         gen_keepout_shape(
@@ -1034,7 +1037,7 @@ def generate_jig(
             keepout["orientation"],
             keepout["min_z"],
             keepout["max_z"],
-            keepout["front_courtyard"],
+            keepout["courtyard"],
         )
     # Write out the PCB edge
     pcb_edge_points = np.array(pcb_edge_points)
@@ -1475,6 +1478,25 @@ module style_of_jig() {
 }
 
 orient_to_print=%d;
+"""
+        % (not keep_orientation)
+    )
+
+    # flip Z values if we are creating a jig to hold bottom components
+    # bottom of the PCB is on Z = 0, so also need to move the jig up
+    # by PCB thickness, to properly align the groove that holds the PCB
+    # in the jig
+    # FIXME this is arguably hacky. Ideally, we'd generate proper geometry
+    # rather than this "flip Z" logic.
+    if not top_component_jig:
+        fp_scad.write(
+            """
+translate([0,0,PCB_Thickness])
+scale([1,1,-1]) {
+""")
+
+    fp_scad.write(
+        """
 if(orient_to_print == 1) {
   // Center the PCB around the origin in XY,
   // This helps interaction with OpenSCAD
@@ -1488,9 +1510,11 @@ if(orient_to_print == 1) {
 } else {
     style_of_jig();
 }
-"""
-        % (not keep_orientation)
-    )
+""")
+    if not top_component_jig:
+        fp_scad.write(
+            """
+}""")
 
     fp_scad.write(
         """
@@ -1629,7 +1653,7 @@ def generate_footprints(
                 shell_info["fitting_bins"],
                 shell_info["tight_bins"],
             )
-        gen_courtyard_shell_shape(this_ref, subshells["front_courtyard"])
+        gen_courtyard_shell_shape(this_ref, subshells["courtyard"])
 
         parts.append(subshells)
 
