@@ -161,7 +161,8 @@ def load_footprints(cfg, fp_spec_list, arc_resolution):
             if not pathlib.PurePath(name).match(fp_name):
                 continue
             fp_complete_name = f"{fp_lib_name}:{name}"
-            if not fp.HasThroughHolePads():
+            fp_is_th = True if fp.GetAttributes() & pcbnew.FP_THROUGH_HOLE else False
+            if not fp_is_th:
                 print(f"WARNING: {fp_complete_name} is not a through hole component.")
                 continue
             none_found = False
@@ -170,7 +171,7 @@ def load_footprints(cfg, fp_spec_list, arc_resolution):
             fields = fp.Fields()
             footprint = fields[2].GetText()  # e.g. Package_QFP:LQFP-128_14x14mm_P0.4mm
             ref_info = {
-                "is_th": fp.HasThroughHolePads(),
+                "is_th": fp_is_th,
                 "x": 0,
                 "y": 0,
                 "orientation": 0,
@@ -204,7 +205,7 @@ def load_footprints(cfg, fp_spec_list, arc_resolution):
                     ref_map[this_ref] = copy.copy(ref_info)
                     new_refs.append(this_ref)
             fp_map[fp_complete_name] = {
-                "is_th": fp.HasThroughHolePads(),
+                "is_th": fp_is_th,
                 "refs": new_refs,
                 "alias": this_alias,
                 "footprint": fp,
@@ -247,20 +248,21 @@ def get_ref_info(fp_list, unity_xform):
         ref = fp.GetReference()
         fp_x = units_to_mm(fp.GetX())
         fp_y = -units_to_mm(fp.GetY())
+        fp_is_th = True if fp.GetAttributes() & pcbnew.FP_THROUGH_HOLE else False
         # print(fp.GetReference())
         # print('  Position(mm):', fp_x, fp_y)
         # print('  On side     :', fp.GetSide())
         # print('  Orientation :', fp.GetOrientation().AsDegrees())
         # print('  DNP ?       :', fp.IsDNP())
-        # print('  TH ?        :', fp.HasThroughHolePads())
+        # print('  TH ?        :', fp_is_th)
         models_3d = get_3d_models(fp)
         fp_rot = fp.GetOrientation().AsDegrees()
         fields = fp.Fields()
         footprint = fields[2].GetText()  # e.g. Package_QFP:LQFP-128_14x14mm_P0.4mm
         ref_info = {
-            "is_th": fp.HasThroughHolePads(),
+            "is_th": fp_is_th,
             "footprint": footprint,
-            "side": fp.GetSide(),
+            "side": top_side_component,
             "position": fp.GetPosition(),
             "models": models_3d,
             "kfp": fp,  # Reference if we need more info later
@@ -272,7 +274,7 @@ def get_ref_info(fp_list, unity_xform):
         ref_info["orientation"] = fp_rot if not unity_xform else 0
 
         is_mounting_hole = False
-        if fp.HasThroughHolePads():
+        if fp_is_th:
             could_be_mh = False
             for fn in fp.Fields():
                 if fn.GetText().startswith("MountingHole"):
@@ -305,7 +307,7 @@ def get_ref_info(fp_list, unity_xform):
                 fp_map[footprint]["refs"].append(ref)
             else:
                 fp_map[footprint] = {
-                    "is_th": fp.HasThroughHolePads(),
+                    "is_th": fp_is_th,
                     "refs": [ref],
                     "alias": None,
                     "display_name": None,
@@ -629,7 +631,6 @@ if args.show_paths:
 if args.pcb:
     board = pcbnew.LoadBoard(args.pcb)
     ref_map, fp_map, mh_map = get_ref_info(board.Footprints(), args.pcb_footprints)
-
 if args.genconfig:
     jigconfig.generate_config(args.genconfig, ref_map, fp_map)
     print(f"Generated : %{args.genconfig}")
