@@ -147,8 +147,8 @@ module peri_line_scad(start,end,line_width){
 }
 module fitting_cuts_J1_0(){
 	union() {
-		translate(v = [60.0, -58.96, ((PCB_Thickness - tiny_dimension) + max(2.54, Effective_Shell_Clearance_From_PCB_For_J1))]) {
-			rotate(a = [0, 0, 0.0]) {
+		translate(v = [61.46, -57.2, ((PCB_Thickness - tiny_dimension) + max(2.54, Effective_Shell_Clearance_From_PCB_For_J1))]) {
+			rotate(a = [0, 0, 90.0]) {
 				linear_extrude(height = ((min(((topmost_z + c_Base_Thickness) - c_Base_Line_Height), 8.539479970932007) - max(2.54, Effective_Shell_Clearance_From_PCB_For_J1)) + (2 * tiny_dimension))) {
 					union() {
 						peri_line_scad([0.3193328983662705, -2.8593330119131193],[0.46075425460358, -3.000754368150429],0.4);
@@ -159,15 +159,15 @@ module fitting_cuts_J1_0(){
 				}
 			}
 		}
-		translate(v = [60.0, -58.96, (PCB_Thickness - tiny_dimension)]) {
-			rotate(a = [0, 0, 0.0]) {
+		translate(v = [61.46, -57.2, (PCB_Thickness - tiny_dimension)]) {
+			rotate(a = [0, 0, 90.0]) {
 				linear_extrude(height = (min(((topmost_z + c_Base_Thickness) - c_Base_Line_Height), 8.539479970932007) + (2 * tiny_dimension))) {
 					union();
 				}
 			}
 		}
-		translate(v = [60.0, -58.96, ((PCB_Thickness - tiny_dimension) + max(-2.9997399854660034, Effective_Shell_Clearance_From_PCB_For_J1))]) {
-			rotate(a = [0, 0, 0.0]) {
+		translate(v = [61.46, -57.2, ((PCB_Thickness - tiny_dimension) + max(-2.9997399854660034, Effective_Shell_Clearance_From_PCB_For_J1))]) {
+			rotate(a = [0, 0, 90.0]) {
 				linear_extrude(height = ((min(((topmost_z + c_Base_Thickness) - c_Base_Line_Height), 2.54) - max(-2.9997399854660034, Effective_Shell_Clearance_From_PCB_For_J1)) + (2 * tiny_dimension))) {
 					union() {
 						peri_line_scad([1.2690761204389767, -3.55561725607815],[1.4538520326436606, -3.632153928784291],0.4);
@@ -202,8 +202,8 @@ module fitting_cuts_J1_0(){
 				}
 			}
 		}
-		translate(v = [60.0, -58.96, (PCB_Thickness - tiny_dimension)]) {
-			rotate(a = [0, 0, 0.0]) {
+		translate(v = [61.46, -57.2, (PCB_Thickness - tiny_dimension)]) {
+			rotate(a = [0, 0, 90.0]) {
 				linear_extrude(height = (min(((topmost_z + c_Base_Thickness) - c_Base_Line_Height), 2.54) + (2 * tiny_dimension))) {
 					union();
 				}
@@ -219,8 +219,8 @@ module hullpoly_J1_0_1(){
 }
 module fitting_pocket_J1_0(){
 	union() {
-		translate(v = [60.0, -58.96, ((PCB_Thickness - tiny_dimension) + -2.9997399854660034)]) {
-			rotate(a = [0, 0, 0.0]) {
+		translate(v = [61.46, -57.2, ((PCB_Thickness - tiny_dimension) + -2.9997399854660034)]) {
+			rotate(a = [0, 0, 90.0]) {
 				linear_extrude(height = (5.539739985466003 + (2 * tiny_dimension))) {
 					offset(r = Effective_Shell_Gap_For_J1) {
 						union() {
@@ -230,8 +230,8 @@ module fitting_pocket_J1_0(){
 				}
 			}
 		}
-		translate(v = [60.0, -58.96, ((PCB_Thickness - tiny_dimension) + 2.54)]) {
-			rotate(a = [0, 0, 0.0]) {
+		translate(v = [61.46, -57.2, ((PCB_Thickness - tiny_dimension) + 2.54)]) {
+			rotate(a = [0, 0, 90.0]) {
 				linear_extrude(height = (5.999479970932007 + (2 * tiny_dimension))) {
 					offset(r = Effective_Shell_Gap_For_J1) {
 						union() {
@@ -249,8 +249,8 @@ module ref_J1_0(){
 	}
 }
 module wiggle_pocket_J1_0(){
-	translate(v = [60.0, -58.96, (PCB_Thickness + min_z_J1)]) {
-		rotate(a = [0, 0, 0.0]) {
+	translate(v = [61.46, -57.2, (PCB_Thickness + min_z_J1)]) {
+		rotate(a = [0, 0, 90.0]) {
 			linear_extrude(height = (max_z_J1 - min_z_J1)) {
 				offset(r = Effective_Shell_Gap_For_J1) {
 					union() {
@@ -263,8 +263,8 @@ module wiggle_pocket_J1_0(){
 }
 module perimeter_J1_0(){
 	union() {
-		translate(v = [60.0, -58.96, (PCB_Thickness + Effective_Shell_Clearance_From_PCB_For_J1)]) {
-			rotate(a = [0, 0, 0.0]) {
+		translate(v = [61.46, -57.2, (PCB_Thickness + Effective_Shell_Clearance_From_PCB_For_J1)]) {
+			rotate(a = [0, 0, 90.0]) {
 				linear_extrude(height = ((topmost_z - Effective_Shell_Clearance_From_PCB_For_J1) + c_Base_Thickness)) {
 					offset(r = (Effective_Shell_Gap_For_J1 + Effective_Shell_Thickness_For_J1)) {
 						union() {
@@ -274,8 +274,8 @@ module perimeter_J1_0(){
 				}
 			}
 		}
-		translate(v = [60.0, -58.96, (((PCB_Thickness + topmost_z) + c_Base_Thickness) - Wrapper_Height_For_J1)]) {
-			rotate(a = [0, 0, 0.0]) {
+		translate(v = [61.46, -57.2, (((PCB_Thickness + topmost_z) + c_Base_Thickness) - Wrapper_Height_For_J1)]) {
+			rotate(a = [0, 0, 90.0]) {
 				linear_extrude(height = Wrapper_Height_For_J1) {
 					difference() {
 						offset(r = ((Effective_Shell_Gap_For_J1 + Effective_Shell_Thickness_For_J1) + Wrapper_Thickness_For_J1)) {
@@ -296,8 +296,8 @@ module perimeter_J1_0(){
 }
 module fitting_flower_J1_0(){
 	union() {
-		translate(v = [60.0, -58.96, ((PCB_Thickness + max(-2.9997399854660034, Effective_Shell_Clearance_From_PCB_For_J1)) - tiny_dimension)]) {
-			rotate(a = [0, 0, 0.0]) {
+		translate(v = [61.46, -57.2, ((PCB_Thickness + max(-2.9997399854660034, Effective_Shell_Clearance_From_PCB_For_J1)) - tiny_dimension)]) {
+			rotate(a = [0, 0, 90.0]) {
 				linear_extrude(height = ((max_z_J1 - max(-2.9997399854660034, Effective_Shell_Clearance_From_PCB_For_J1)) + (2 * tiny_dimension))) {
 					difference() {
 						offset(r = (Effective_Shell_Gap_For_J1 + Effective_Shell_Thickness_For_J1)) {
@@ -314,8 +314,8 @@ module fitting_flower_J1_0(){
 				}
 			}
 		}
-		translate(v = [60.0, -58.96, ((PCB_Thickness + max(2.54, Effective_Shell_Clearance_From_PCB_For_J1)) - tiny_dimension)]) {
-			rotate(a = [0, 0, 0.0]) {
+		translate(v = [61.46, -57.2, ((PCB_Thickness + max(2.54, Effective_Shell_Clearance_From_PCB_For_J1)) - tiny_dimension)]) {
+			rotate(a = [0, 0, 90.0]) {
 				linear_extrude(height = ((max_z_J1 - max(2.54, Effective_Shell_Clearance_From_PCB_For_J1)) + (2 * tiny_dimension))) {
 					difference() {
 						offset(r = (Effective_Shell_Gap_For_J1 + Effective_Shell_Thickness_For_J1)) {
@@ -332,8 +332,8 @@ module fitting_flower_J1_0(){
 				}
 			}
 		}
-		translate(v = [60.0, -58.96, (((PCB_Thickness + topmost_z) + c_Base_Thickness) - Wrapper_Height_For_J1)]) {
-			rotate(a = [0, 0, 0.0]) {
+		translate(v = [61.46, -57.2, (((PCB_Thickness + topmost_z) + c_Base_Thickness) - Wrapper_Height_For_J1)]) {
+			rotate(a = [0, 0, 90.0]) {
 				linear_extrude(height = Wrapper_Height_For_J1) {
 					difference() {
 						offset(r = ((Effective_Shell_Gap_For_J1 + Effective_Shell_Thickness_For_J1) + Wrapper_Thickness_For_J1)) {
@@ -350,8 +350,8 @@ module fitting_flower_J1_0(){
 				}
 			}
 		}
-		translate(v = [60.0, -58.96, (PCB_Thickness + max_z_J1)]) {
-			rotate(a = [0, 0, 0.0]) {
+		translate(v = [61.46, -57.2, (PCB_Thickness + max_z_J1)]) {
+			rotate(a = [0, 0, 90.0]) {
 				linear_extrude(height = ((topmost_z - max_z_J1) + c_Base_Thickness)) {
 					offset(r = (Effective_Shell_Gap_For_J1 + Effective_Shell_Thickness_For_J1)) {
 						union() {
@@ -369,8 +369,8 @@ module shape_J1_0_0(){
 	}
 }
 module keepout_volume_J1_0_0(){
-	translate(v = [60.0, -58.96, (PCB_Thickness + max(-2.9997399854660034, Effective_Shell_Clearance_From_PCB_For_J1))]) {
-		rotate(a = [0, 0, 0.0]) {
+	translate(v = [61.46, -57.2, (PCB_Thickness + max(-2.9997399854660034, Effective_Shell_Clearance_From_PCB_For_J1))]) {
+		rotate(a = [0, 0, 90.0]) {
 			linear_extrude(height = ((2.539479970932007 - max(-2.9997399854660034, Effective_Shell_Clearance_From_PCB_For_J1)) + tiny_dimension)) {
 				offset(r = Effective_Shell_Gap_For_J1) {
 					union() {
@@ -388,8 +388,8 @@ module shape_J1_0_1(){
 	}
 }
 module keepout_volume_J1_0_1(){
-	translate(v = [60.0, -58.96, (PCB_Thickness + max(-2.9997399854660034, Effective_Shell_Clearance_From_PCB_For_J1))]) {
-		rotate(a = [0, 0, 0.0]) {
+	translate(v = [61.46, -57.2, (PCB_Thickness + max(-2.9997399854660034, Effective_Shell_Clearance_From_PCB_For_J1))]) {
+		rotate(a = [0, 0, 90.0]) {
 			linear_extrude(height = ((8.539479970932007 - max(-2.9997399854660034, Effective_Shell_Clearance_From_PCB_For_J1)) + tiny_dimension)) {
 				offset(r = Effective_Shell_Gap_For_J1) {
 					union() {
@@ -402,8 +402,8 @@ module keepout_volume_J1_0_1(){
 }
 module tight_perimeter_J1_0(){
 	union() {
-		translate(v = [60.0, -58.96, (PCB_Thickness + Effective_Shell_Clearance_From_PCB_For_J1)]) {
-			rotate(a = [0, 0, 0.0]) {
+		translate(v = [61.46, -57.2, (PCB_Thickness + Effective_Shell_Clearance_From_PCB_For_J1)]) {
+			rotate(a = [0, 0, 90.0]) {
 				linear_extrude(height = ((topmost_z - Effective_Shell_Clearance_From_PCB_For_J1) + c_Base_Thickness)) {
 					offset(r = (Effective_Shell_Gap_For_J1 + Effective_Shell_Thickness_For_J1)) {
 						union() {
@@ -413,8 +413,8 @@ module tight_perimeter_J1_0(){
 				}
 			}
 		}
-		translate(v = [60.0, -58.96, (((PCB_Thickness + topmost_z) + c_Base_Thickness) - Wrapper_Height_For_J1)]) {
-			rotate(a = [0, 0, 0.0]) {
+		translate(v = [61.46, -57.2, (((PCB_Thickness + topmost_z) + c_Base_Thickness) - Wrapper_Height_For_J1)]) {
+			rotate(a = [0, 0, 90.0]) {
 				linear_extrude(height = Wrapper_Height_For_J1) {
 					difference() {
 						offset(r = ((Effective_Shell_Gap_For_J1 + Effective_Shell_Thickness_For_J1) + Wrapper_Thickness_For_J1)) {
@@ -440,7 +440,7 @@ module tight_pocket_J1_0(){
 	}
 }
 module courtyard_J1(){
-	polygon(points = [[61.795, -57.165], [61.795, -63.305], [58.205, -63.305], [58.205, -57.165]]);
+	polygon(points = [[65.805, -55.405], [65.805, -58.995], [59.665, -58.995], [59.665, -55.405]]);
 }
 module courtyard_pocket_J1(){
 	translate(v = [0, 0, PCB_Thickness]) {
@@ -544,12 +544,9 @@ module base_mesh(){
 	translate(v = [0, 0, mesh_start_z]) {
 		intersection() {
 			union() {
-				wide_line([np.float64(54.5), np.float64(-54.5)],[np.float64(70.0), np.float64(50.0)]);
+				wide_line([np.float64(62.730000000000004), np.float64(-57.2)],[np.float64(70.0), np.float64(50.0)]);
 				wide_line([np.float64(70.0), np.float64(50.0)],[np.float64(50.0), np.float64(50.0)]);
-				wide_line([np.float64(50.0), np.float64(50.0)],[np.float64(54.5), np.float64(-54.5)]);
-				wide_line([np.float64(54.5), np.float64(-54.5)],[np.float64(60.0), np.float64(-60.230000000000004)]);
-				wide_line([np.float64(60.0), np.float64(-60.230000000000004)],[np.float64(70.0), np.float64(50.0)]);
-				wide_line([np.float64(70.0), np.float64(50.0)],[np.float64(54.5), np.float64(-54.5)]);
+				wide_line([np.float64(50.0), np.float64(50.0)],[np.float64(62.730000000000004), np.float64(-57.2)]);
 				wide_line([np.float64(70.0), np.float64(70.0)],[np.float64(50.0), np.float64(70.0)]);
 				wide_line([np.float64(50.0), np.float64(70.0)],[np.float64(50.0), np.float64(50.0)]);
 				wide_line([np.float64(50.0), np.float64(50.0)],[np.float64(70.0), np.float64(70.0)]);
@@ -567,18 +564,16 @@ module base_minmesh(){
 	translate(v = [0, 0, mesh_start_z]) {
 		intersection() {
 			union() {
+				wide_line([50.0, 50.0],[62.730000000000004, -57.2]);
+				wide_line([62.730000000000004, -57.2],[70.0, 50.0]);
+				wide_line([70.0, 50.0],[70.0, 70.0]);
+				wide_line([70.0, 70.0],[50.0, 70.0]);
 				wide_line([50.0, 50.0],[50.0, 70.0]);
-				wide_line([50.0, 70.0],[70.0, 70.0]);
-				wide_line([70.0, 70.0],[70.0, 50.0]);
-				wide_line([70.0, 50.0],[60.0, -60.230000000000004]);
-				wide_line([60.0, -60.230000000000004],[54.5, -54.5]);
-				wide_line([50.0, 50.0],[54.5, -54.5]);
 				wide_line([50.0, 50.0],[50.0, -50.0]);
-				wide_line([50.0, 70.0],[50.0, -50.0]);
-				wide_line([70.0, 70.0],[70.0, -50.0]);
+				wide_line([62.730000000000004, -57.2],[62.730000000000004, -50.0]);
 				wide_line([70.0, 50.0],[70.0, -50.0]);
-				wide_line([60.0, -60.230000000000004],[60.0, -70.0]);
-				wide_line([54.5, -54.5],[54.5, -50.0]);
+				wide_line([70.0, 70.0],[70.0, -50.0]);
+				wide_line([50.0, 70.0],[50.0, -50.0]);
 			}
 			union() {
 				base_volume();
@@ -706,7 +701,7 @@ module base_x_lines() {
     intersection() {
       union() {
         if(Include_J1_in_Jig) {
-          wide_line([pcb_min_x, -60.230000000000004],[pcb_max_x, -60.230000000000004]);
+          wide_line([pcb_min_x, -57.2],[pcb_max_x, -57.2]);
         }
         base_frame_xy_lines();
       }
@@ -719,7 +714,7 @@ module base_y_lines() {
     intersection() {
       union() {
         if(Include_J1_in_Jig) {
-          wide_line([60.0, pcb_min_y],[60.0, pcb_max_y]);
+          wide_line([62.730000000000004, pcb_min_y],[62.730000000000004, pcb_max_y]);
         }
         base_frame_xy_lines();
       }
@@ -735,29 +730,17 @@ module base_griddish() {
 }
 module mounting_hole_bolt_shells() {
   translate([0,0,0]) {
-    translate([54.5,-54.5,PCB_Thickness+SMD_Clearance_From_Shells]) {
-      linear_extrude(topmost_z+c_Base_Thickness-SMD_Clearance_From_Shells) {
-        difference() {
-          circle(r=2.9000000000000004);
-          circle(r=1.7000000000000002);
-        }
-      }
-    }
   }
 }
 module mounting_hole_keepout_volume() {
   translate([0,0,PCB_Thickness]) {
     linear_extrude(topmost_z+c_Base_Thickness) {
-      translate([54.5,-54.5,0]) {
-        circle(r=1.7000000000000002);
-      }
     }
   }
 }
 module base_connect_mounting_hole_lines() {
   translate([0,0,mesh_start_z]) {
     union() {
-      wide_line([54.5, -54.5],[54.5, -50.0]);
      }
   }
 }
@@ -773,22 +756,9 @@ module mounting_hole_jig_spacers() {
   spacer_gap = c_Spacer_Is_Fused ? 0: 2*tiny_dimension;
   translate([0,0,PCB_Thickness+MH_Spacer_End+2*tiny_dimension]) {
     linear_extrude(MH_Spacer_Start-MH_Spacer_End-spacer_gap) {
-      translate([54.5,-54.5,0]) {
-        difference() {
-          circle(r=2.9000000000000004);
-          if (Bolt_Is_External) {
-            circle(r=1.7000000000000002);
-          }
-        }
-      }
     }
   }
   if (!Bolt_Is_External) {
-      translate([54.5,-54.5,0]) {
-        linear_extrude(PCB_Thickness+topmost_z+c_Base_Thickness) {
-          circle(r=1.5);
-        }
-      }
   }
 }
 
@@ -910,6 +880,7 @@ module style_of_jig() {
 }
 
 orient_to_print=1;
+
 if(orient_to_print == 1) {
   // Center the PCB around the origin in XY,
   // This helps interaction with OpenSCAD
@@ -943,6 +914,9 @@ use_manifold = false
 # The default here is for Linux. If this is seen on windows, we can ask users to
 # fix easily. The entire path upto "kicad" is required
 share = '/usr/share/kicad'
+
+[freecad]
+cmd = 'freecad.cmd'
 
 [3dprinter]
 # This is the smallest area your 3d printer

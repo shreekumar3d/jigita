@@ -1,5 +1,5 @@
 This directory contains a minimal "hello" example.  It's a PCB with a single
-2 pin berg header and an M3 mounting hole.
+2 pin berg header (one on each side of the board) and an M3 mounting hole.
 
 The "gen" subdirectory contains example outputs from various commands, ready to
 use with your slicer, FreeCAD and OpenSCAD. This can be used for demonstration
