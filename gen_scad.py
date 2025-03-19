@@ -713,25 +713,6 @@ def gen_configurable_fp_components(
             'Insert_%s_From="%s"; // [top,bottom]\n'
             % (this_ref, cfg[ref_type][this_ref]["insertion_direction"])
         )
-        fp_scad.write(
-            "//Delta(+/-) thickness for shell, additional to footprint setting\n"
-        )
-        fp_scad.write(
-            "Delta_Shell_Thickness_For_%s=%s; //[%s]\n"
-            % (this_ref, cfg[ref_type][this_ref]["delta_shell_thickness"], shell_thickness_range)
-        )
-        fp_scad.write(
-            "//Delta XY gap to allow insertion of this component into its shell\n"
-        )
-        fp_scad.write(
-            "Delta_Shell_Gap_For_%s=%s; //[%s]\n"
-            % (this_ref, cfg[ref_type][this_ref]["delta_shell_gap"],shell_gap_range)
-        )
-        fp_scad.write("//Delta Z clearance from the shell to PCB\n")
-        fp_scad.write(
-            "Delta_Shell_Clearance_From_PCB_For_%s=%s;//[%s]\n"
-            % (this_ref, cfg[ref_type][this_ref]["delta_shell_clearance_from_pcb"], shell_clearance_range)
-        )
         fp_scad.write("//Wrapper thickness\n")
         fp_scad.write(
             "Wrapper_Thickness_For_%s=%s; // [0:0.1:10.0]\n"
@@ -746,6 +727,32 @@ def gen_configurable_fp_components(
                 topmost_z,
             )  # FIXME: this needs to take shell shell clearance into account
         )
+        fp_scad.write(
+            "//Use tuned shell parameters specified at component level, overriding footprint\n"
+        )
+        fp_scad.write(
+            'Tune_%s=false; // [true,false]\n'
+            % (this_ref)
+        )
+        fp_scad.write(
+            "//Thickness for shell, if overriding footprint setting\n"
+        )
+        fp_scad.write(
+            "Shell_Thickness_For_%s=%s; //[%s]\n"
+            % (this_ref, cfg[ref_type][this_ref]["shell_thickness"], shell_thickness_range)
+        )
+        fp_scad.write(
+            "//XY gap for shell, if overriding footprint setting\n"
+        )
+        fp_scad.write(
+            "Shell_Gap_For_%s=%s; //[%s]\n"
+            % (this_ref, cfg[ref_type][this_ref]["shell_gap"],shell_gap_range)
+        )
+        fp_scad.write("//Z clearance from the shell, if overriding footprint\n")
+        fp_scad.write(
+            "Shell_Clearance_From_PCB_For_%s=%s;//[%s]\n"
+            % (this_ref, cfg[ref_type][this_ref]["shell_clearance_from_pcb"], shell_clearance_range)
+        )
 
     fp_scad.write("// } End of configurable parameters\n")
 
@@ -759,11 +766,11 @@ def gen_configurable_fp_components(
     # Effective values for each ref
     for this_ref, area, ref_type in ui_refs:
         footprint = ref_map[this_ref]["footprint"]
-        alias = fp_map[footprint]["alias"]
+        fp_alias = fp_map[footprint]["alias"]
         for this_var in ["Shell_Thickness", "Shell_Gap", "Shell_Clearance_From_PCB"]:
             fp_scad.write(
-                "Effective_%s_For_%s = %s_For_%s + Delta_%s_For_%s;\n"
-                % (this_var, this_ref, this_var, alias, this_var, this_ref)
+                "Effective_%s_For_%s = Tune_%s? %s_For_%s : %s_For_%s;\n"
+                % (this_var, this_ref, this_ref, this_var, this_ref, this_var, fp_alias)
             )
 
 

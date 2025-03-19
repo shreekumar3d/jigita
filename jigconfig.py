@@ -38,11 +38,9 @@ TH_ref_params = [
     "min_petal_length",
     "petal_support_length",
     "corner_cut_depth",
-]
-TH_ref_params2 = [
-    "delta_shell_gap",
-    "delta_shell_thickness",
-    "delta_shell_clearance_from_pcb",
+    "shell_gap",
+    "shell_thickness",
+    "shell_clearance_from_pcb",
 ]
 
 SMD_ref_params = [
@@ -55,11 +53,9 @@ SMD_ref_params = [
     "min_petal_length",
     "petal_support_length",
     "corner_cut_depth",
-]
-SMD_ref_params2 = [
-    "delta_shell_gap",
-    "delta_shell_thickness",
-    "delta_shell_clearance_from_pcb",
+    "shell_gap",
+    "shell_thickness",
+    "shell_clearance_from_pcb",
 ]
 
 _user_cfg = None
@@ -332,17 +328,11 @@ def update(cfg, default_cfg, ref_map, fp_map, mh_map):
             for param in TH_ref_params:
                 if param not in cfg[ref_type][ref]:
                     cfg[ref_type][ref][param] = cfg["footprint"][footprint_alias][param]
-            for param in TH_ref_params2:
-                if param not in cfg["TH"][ref]:
-                    cfg["TH"][ref][param] = 0
         else:  # SMD
             # FIXME : possibility of merging code with above block
             for param in SMD_ref_params:
                 if param not in cfg[ref_type][ref]:
                     cfg[ref_type][ref][param] = cfg["footprint"][footprint_alias][param]
-            for param in SMD_ref_params2:
-                if param not in cfg["SMD"][ref]:
-                    cfg["SMD"][ref][param] = 0
 
     if len(cfg["TH"]["refs_process_only_these"]) > 0:
         rtp_list = expand_refs(
@@ -414,7 +404,7 @@ def update(cfg, default_cfg, ref_map, fp_map, mh_map):
     # expand SMD tree with refs
     for ref in smd_ref_list:
         if ref in cfg["SMD"]:
-            for key, value in enumerate(default_cfg["SMD"]):
+            for key, value in default_cfg["SMD"]["component_shell"].items():
                 if key not in cfg["SMD"][ref]:
                     cfg["SMD"][ref][key] = value
         else:
@@ -461,8 +451,8 @@ def generate_config(configFile, ref_map, fp_map):
 #   force_smd
 #
 # Each component inherits values from the footprint it uses.
-# Numerical values can be tweaked by a delta value (+/-) applied to
-# the footprint properties.
+# The inherited value may be changed to tweak values for each
+# component
 #
 # It is recommended that you specify a user friendly 'display_name',
 # if possible. The kicad reference designator is the default.
@@ -474,9 +464,9 @@ def generate_config(configFile, ref_map, fp_map):
 #
 #   insertion_direction
 #   shell_type
-#   delta_shell_thickness
-#   delta_shell_gap
-#   delta_shell_clearance_from_pcb
+#   shell_thickness
+#   shell_gap
+#   shell_clearance_from_pcb
 #   force_smd
 #
 # Below, bare-bones configuration for footprints and components
@@ -824,9 +814,7 @@ corner_cut_depth = 0.2
 # force_smd = true # some components (typically modules) like Pico are TH by default
 
 # Any values that left unspecified here will derive from TH.component_shell
-#
-# Same properties can then be provided on a per component (ref) level, but
-# as deltas. Thus the final value can be different between components that
+# Thus the final value can be different between components that
 # have the same footprint
 #
 # This scheme is easy to understand, apply overrides, and helps keep a level
