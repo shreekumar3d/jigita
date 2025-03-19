@@ -675,18 +675,22 @@ def gen_configurable_fp_components(
         if footprint["display_name"] not in used_footprints:
             continue
         fp_scad.write("/* [Footprint: %s] */\n" % (footprint["display_name"]))
+        shell_gap_range = "0:0.05:1"
+        shell_thickness_range = "0.25:0.05:4"
+        shell_clearance_range = "0:0.1:2"
         var_prop_rem = [
-            ["Shell_Gap", "shell_gap", "XY Gap in shell for component insertion"],
-            ["Shell_Thickness", "shell_thickness", "Thickness of shell"],
+            ["Shell_Gap", "shell_gap", "XY Gap in shell for component insertion", shell_gap_range],
+            ["Shell_Thickness", "shell_thickness", "Thickness of shell", shell_thickness_range],
             [
                 "Shell_Clearance_From_PCB",
                 "shell_clearance_from_pcb",
                 "Z distance from start of shell to PCB",
+                shell_clearance_range
             ],
         ]
-        for var, prop, rem in var_prop_rem:
+        for var, prop, rem, var_range in var_prop_rem:
             fp_scad.write("//%s\n" % (rem))
-            fp_scad.write("%s_For_%s = %s;\n" % (var, alias, footprint[prop]))
+            fp_scad.write("%s_For_%s = %s; //[%s]\n" % (var, alias, footprint[prop], var_range))
 
     valid_shell_types = ",".join(jigconfig.valid_shell_types)
     for this_ref, area, ref_type in ui_refs:
@@ -713,20 +717,20 @@ def gen_configurable_fp_components(
             "//Delta(+/-) thickness for shell, additional to footprint setting\n"
         )
         fp_scad.write(
-            "Delta_Shell_Thickness_For_%s=%s;\n"
-            % (this_ref, cfg[ref_type][this_ref]["delta_shell_thickness"])
+            "Delta_Shell_Thickness_For_%s=%s; //[%s]\n"
+            % (this_ref, cfg[ref_type][this_ref]["delta_shell_thickness"], shell_thickness_range)
         )
         fp_scad.write(
             "//Delta XY gap to allow insertion of this component into its shell\n"
         )
         fp_scad.write(
-            "Delta_Shell_Gap_For_%s=%s;\n"
-            % (this_ref, cfg[ref_type][this_ref]["delta_shell_gap"])
+            "Delta_Shell_Gap_For_%s=%s; //[%s]\n"
+            % (this_ref, cfg[ref_type][this_ref]["delta_shell_gap"],shell_gap_range)
         )
         fp_scad.write("//Delta Z clearance from the shell to PCB\n")
         fp_scad.write(
-            "Delta_Shell_Clearance_From_PCB_For_%s=%s;\n"
-            % (this_ref, cfg[ref_type][this_ref]["delta_shell_clearance_from_pcb"])
+            "Delta_Shell_Clearance_From_PCB_For_%s=%s;//[%s]\n"
+            % (this_ref, cfg[ref_type][this_ref]["delta_shell_clearance_from_pcb"], shell_clearance_range)
         )
         fp_scad.write("//Wrapper thickness\n")
         fp_scad.write(
