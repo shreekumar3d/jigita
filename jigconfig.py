@@ -30,6 +30,7 @@ SMD_default_value_keys = ["clearance_from_shells", "gap_from_shells"]
 TH_ref_params = [
     "kicad_footprint",
     "force_smd",
+    "flip_side",
     "shell_type",
     "shell_wrapper_thickness",
     "shell_wrapper_height",
@@ -100,7 +101,7 @@ inheritable_footprint_keys_smd = [
     "corner_cut_depth",
 ]
 
-inheritable_footprint_keys_th = inheritable_footprint_keys_smd + ["force_smd"]
+inheritable_footprint_keys_th = inheritable_footprint_keys_smd + ["force_smd", "flip_side"]
 
 valid_footprint_keys_th = [
     "kicad_footprint",
@@ -425,9 +426,11 @@ def update(cfg, default_cfg, ref_map, fp_map, mh_map):
 
 
 def generate_config(configFile, ref_map, fp_map):
-    cfg, config_text, used_th_fp, th_ref_list, smd_ref_list = load(
-        None, ref_map, fp_map
+    cfg, config_text, default_cfg = load_config(None)
+    cfg, used_th_fp, th_ref_list, smd_ref_list = update(
+        cfg, default_cfg, ref_map, fp_map, {}
     )
+
     fp_cfg = open(configFile, "w")
     fp_cfg.write(config_text)
     fp_cfg.write(
@@ -755,6 +758,11 @@ corner_cut_depth = 0.2
 
 # Force footprints to SMD
 force_smd = false
+
+# Set flip_side to true if 3D model is flipped in the footprint - e.g.
+# top mounted component is actually bottom mount.
+# (This is the reverse of KiCAD convention for TH components.)
+flip_side = false
 
 [SMD]
 # Parameters for SMD components

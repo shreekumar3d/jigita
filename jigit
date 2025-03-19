@@ -220,7 +220,7 @@ def load_footprints(cfg, fp_spec_list, arc_resolution):
     return ref_map, fp_map
 
 
-def xform_mesh(mesh_in, modinfo):
+def xform_mesh(mesh_in, modinfo, flip_side=False, pcb_thickness=1.6):
     mesh = mesh_in.copy()  # don't change source mesh
     mesh.apply_scale(modinfo["scale"])
     # FIXME: Hrrmph! why should I need to reverse these
@@ -234,13 +234,25 @@ def xform_mesh(mesh_in, modinfo):
     mesh.apply_translation(
         [modinfo["offset"][0], modinfo["offset"][1], modinfo["offset"][2]]
     )
+    if flip_side:
+        # flip mesh
+        flip_mat = trimesh.transformations.euler_matrix(
+                0, np.radians(180), 0)
+        mesh.apply_transform(flip_mat)
+        # FIXME: this is getting a bit ugly. A flipped part
+        # would be oriented to properly align with PCB edge on the
+        # opposite side, implicitly accounting for PCB thickness.
+        # we need to reverse this by...
+        # reversing the compensation for PCB thickness
+        mesh.apply_translation([0,0,-pcb_thickness])
+
     vertices = np.array(mesh.vertices)
     min_z = min(vertices[:, 2])
     max_z = max(vertices[:, 2])
     return vertices, mesh, min_z, max_z
 
 
-def get_ref_info(process_top_side, fp_list, unity_xform):
+def get_ref_info(fp_list, unity_xform):
     mounting_holes = {}
     ref_map = {}
     fp_map = {}
@@ -260,9 +272,6 @@ def get_ref_info(process_top_side, fp_list, unity_xform):
         fields = fp.Fields()
         footprint = fields[2].GetText()  # e.g. Package_QFP:LQFP-128_14x14mm_P0.4mm
         top_side_component = True if fp.GetSide() == 0 else False
-        if top_side_component != process_top_side:
-            #print('Skipping: ', fp.GetReference())
-            continue
         ref_info = {
             "is_th": fp_is_th,
             "footprint": footprint,
@@ -369,14 +378,15 @@ def load_3d_models(ref_list, ref_map, desc):
         load_ref_3d_models(cfg, ref, ref_map)
 
 
-def body_id(cfg, ref):
+def body_id(cfg, ref, flip_side=False, pcb_thickness=1.6):
     model_names = []
     for modinfo in ref["models"]:
         model_names.append(
             [modinfo["model"], modinfo["rotation"], modinfo["offset"], modinfo["scale"]]
         )
 
-    full_name = ""
+    # FIXME PCB thickness here is ultra ugly, but safe!
+    full_name = '%s_%s_'%(flip_side, pcb_thickness)
     for values in model_names:
         for x in values:
             full_name += str(x)
@@ -641,10 +651,10 @@ if args.show_paths:
 
 if args.pcb:
     board = pcbnew.LoadBoard(args.pcb)
-    ref_map, fp_map, mh_map = get_ref_info(not args.bottom_components, board.Footprints(), args.pcb_footprints)
+    ref_map, fp_map, mh_map = get_ref_info(board.Footprints(), args.pcb_footprints)
 if args.genconfig:
     jigconfig.generate_config(args.genconfig, ref_map, fp_map)
-    print(f"Generated : %{args.genconfig}")
+    print(f"Generated : {args.genconfig}")
     sys.exit(0)
 
 try:
@@ -655,6 +665,34 @@ except ValueError as err:
     print(f"ERROR in validate config: {err}", file=sys.stderr)
     sys.exit(-1)
 # pprint(cfg)
+
+if args.pcb:
+    # Remove components on side of the PCB that we aren't interested in...
+    cull_th_refs = []
+    cull_smd_refs = []
+    for ref in ref_map:
+        ref_info = ref_map[ref]
+        if not ref_info["is_th"]:
+            if ref_info['side'] != (not args.bottom_components):
+                cull_smd_refs.append(ref)
+            continue
+        if cfg["TH"][ref]['flip_side']:
+            ref_info['side'] = not ref_info['side']
+        if ref_info['side'] != (not args.bottom_components):
+            # on other side, so add to cull list
+            cull_th_refs.append(ref)
+    #print("Culling TH ", cull_th_refs)
+    #print("Culling SMD ", cull_th_refs)
+    for ref in cull_th_refs:
+        ref_map.pop(ref)
+        th_ref_list.remove(ref)
+    for ref in cull_smd_refs:
+        ref_map.pop(ref)
+        smd_ref_list.remove(ref)
+    used_th_fp = []
+    for ref in th_ref_list:
+        used_th_fp.append(cfg["TH"][ref]["kicad_footprint"])
+    used_th_fp = list(set(used_th_fp))
 
 if args.pcb and args.pcb_footprints:
     # trim th_ref_list. Keep only one component per footprint
@@ -799,8 +837,8 @@ for this_ref in th_ref_list:
     local_min_z = float("inf")
     subshells = {"ref": this_ref, "shell": [], "courtyard": None}
     th = ref_map[this_ref]
-
-    this_bid = body_id(cfg, th)
+    th_flip_side = cfg["TH"][this_ref]["flip_side"]
+    this_bid = body_id(cfg, th, th_flip_side, cfg['pcb']['thickness'])
     all_bids.append(this_bid)
     body_info = shape_cache.get_cached_bid(cfg, "th", this_bid, th["footprint"])
     if not body_info:
@@ -822,7 +860,7 @@ for this_ref in th_ref_list:
                 )
 
         if not body_info:
-            mverts, mesh, min_z, max_z = xform_mesh(mesh, modinfo)
+            mverts, mesh, min_z, max_z = xform_mesh(mesh, modinfo, th_flip_side, cfg['pcb']['thickness'])
             min_x = min(mverts[:, 0])
             max_x = max(mverts[:, 0])
             min_y = min(mverts[:, 1])
@@ -869,7 +907,7 @@ for this_ref in th_ref_list:
             c_bins = ss_info["c_bins"]
 
         if min_z > 0:
-            print("  Mesh %s is NOT mounted on board. Skipping." % (modinfo["model"]))
+            print("  Mesh %s is NOT mounted on board. min_z = %s; Skipping." % (modinfo["model"], min_z))
         else:
             shell_ident = "%s_%d" % (this_ref, idx)
             # compute the center now, post cache. x, y, and orientation
