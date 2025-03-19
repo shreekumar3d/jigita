@@ -668,6 +668,7 @@ except ValueError as err:
 
 if args.pcb:
     # Remove components on side of the PCB that we aren't interested in...
+    # Also, reorient flip_side components
     cull_th_refs = []
     cull_smd_refs = []
     for ref in ref_map:
@@ -678,6 +679,7 @@ if args.pcb:
             continue
         if cfg["TH"][ref]['flip_side']:
             ref_info['side'] = not ref_info['side']
+            ref_info['orientation'] = 180+ref_info['orientation']
         if ref_info['side'] != (not args.bottom_components):
             # on other side, so add to cull list
             cull_th_refs.append(ref)

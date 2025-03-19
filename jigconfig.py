@@ -354,6 +354,7 @@ def update(cfg, default_cfg, ref_map, fp_map, mh_map):
         for rtp in rtp_x_list:
             if rtp in th_ref_list:
                 th_ref_list.remove(rtp)
+                ref_map.pop(rtp)
             elif rtp in mh_map:
                 mh_map.pop(rtp)
 
@@ -471,6 +472,7 @@ def generate_config(configFile, ref_map, fp_map):
 #   shell_gap
 #   shell_clearance_from_pcb
 #   force_smd
+#   flip_side
 #
 # Below, bare-bones configuration for footprints and components
 # are provided.  All components that use a footprint are
