@@ -1,0 +1,31 @@
+# Use with
+#
+# project-piCo/KiCad Projects/Pico C/RPI-PICO-R3a-PUBLIC.kicad_pcb
+#
+# from https://github.com/sabogalc/project-piCo
+#
+# Check README.md for detailed instructions.
+[jig]
+type = "component_fitting"
+
+[holder.base]
+# to make the frame chunky and strong, increase line_width and
+# line_height to 5.0 and 4.0, respectively
+line_width = 2.0
+line_height = 1.0
+# thickness = 0.0 lets us see pins from the bottom of the jig
+# set thickness to 10 for something that can be inserted into
+# a PCB vise
+thickness = 0.0
+
+[TH.component_shell]
+shell_thickness = 1.2
+shell_gap = 0.15
+shell_type = "fitting"
+shell_clearance_from_pcb = 1.0
+
+[TH.J2]
+flip_side = true
+
+[TH.J1]
+flip_side = true
