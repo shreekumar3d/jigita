@@ -1089,7 +1089,6 @@ if do_pcb_proc:
             c_pt = rz2.apply(c_pt)
             c_pt = c_pt + [smd["x"], smd["y"], 0]
             c_pt = [c_pt[0][0], c_pt[0][1]]
-            fp_centers.append(c_pt)
             this_subshell = {
                 "name": shell_ident,
                 "min_z": min_z,
@@ -1114,6 +1113,7 @@ if do_pcb_proc:
             # FIXME: perhaps SMD keepouts should be applied in
             # a different order ?
             if args.enable_smd_shells:
+                fp_centers.append(c_pt)
                 subshells["shell"].append(this_subshell)
                 print(
                     "  Generating shell %s for ref %s with mesh %s"
