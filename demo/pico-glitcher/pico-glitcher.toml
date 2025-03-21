@@ -1,0 +1,27 @@
+# Use with
+#
+# fault-injection-library/schematics/kicad/pico-glitcher-v1/pico-glitcher-v1.1.kicad_pcb
+#
+# from https://github.com/MKesenheimer/fault-injection-library
+#
+# Check README.md for detailed instructions.
+[jig]
+type = "TH_soldering"
+
+[holder.base]
+type = "minmesh" # components are closer to edge, so we get bare insides
+line_width = 2.0
+line_height = 1.0
+# thickness = 0.0 lets us see pins from the bottom of the jig
+thickness = 0.0
+
+[TH.component_shell]
+shell_thickness = 1.2
+shell_gap = 0.15
+shell_type = "fitting"
+shell_clearance_from_pcb = 1.0
+
+[SMD]
+refs_do_not_process = [
+  'S_RST0', # 3d models missing, error if we don't exclude this
+]
