@@ -22,11 +22,17 @@ def is_up_to_date(cfg, metadata):
         csum = props["hash"]
         full_path = os.path.expandvars(filename)
         if c_algo == "timestamp":
-            f_mtime = os.path.getmtime(full_path)
+            try:
+                f_mtime = os.path.getmtime(full_path)
+            except FileNotFoundError:
+                f_mtime = 0
             if f_mtime != ts:  # mismatch is a good test. before/after is moot
                 return False
         elif c_algo == "hash":
-            f_md5 = hashlib.md5(open(full_path, "rb").read()).hexdigest()
+            try:
+                f_md5 = hashlib.md5(open(full_path, "rb").read()).hexdigest()
+            except FileNotFoundError:
+                f_md5 = ""
             if f_md5 != csum:  # mismatch is proof with checksum
                 return False
     return True

@@ -347,9 +347,15 @@ def load_ref_3d_models(cfg, ref, ref_map):
 
     for modinfo in comp["models"]:
         model_filename = os.path.expandvars(modinfo["model"])
-        modinfo["mesh"], modinfo["mtime"], modinfo["mesh_hash"] = mesh_ops.load_mesh(
-            cfg, model_filename, scriptdir, temp_dir
-        )
+        try:
+            modinfo["mesh"], modinfo["mtime"], modinfo["mesh_hash"] = mesh_ops.load_mesh(
+                cfg, model_filename, scriptdir, temp_dir
+            )
+        except FileNotFoundError as e:
+            modinfo['mesh'] = mesh_ops.empty_mesh()
+            modinfo['mtime'] = 0
+            modinfo['mesh_hash'] = ""
+            print(f'WARNING: 3d model file ${model_filename} not found')
         metadata["files"].append(
             {
                 "file": modinfo["model"],
@@ -1025,9 +1031,10 @@ if do_pcb_proc:
                 mverts = np.array(mesh.vertices)
                 if mverts.shape[0] == 0:
                     print(
-                        "  WARNING: Mesh %s is empty on import. Watch out for un-intended side effects. SKIPPING!"
-                        % (modinfo["model"])
+                        "  WARNING: Component %s, Mesh %s is empty on import. Watch out for un-intended side effects. SKIPPING!"
+                        % (this_ref, modinfo["model"])
                     )
+                    # FIXME: XXX empty meshes cause errors and need to be handled properly
 
             if not body_info:
                 mverts, mesh, min_z, max_z = xform_mesh(mesh, modinfo)

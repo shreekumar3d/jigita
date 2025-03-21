@@ -11,6 +11,9 @@ import pymeshlab
 
 mesh_cache = {}
 
+def empty_mesh():
+    return trimesh.Trimesh()
+
 def load_mesh_verts(filename, scale=1.0):
     try:
         mesh = trimesh.load_mesh(filename)
