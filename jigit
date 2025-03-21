@@ -271,6 +271,12 @@ def get_ref_info(fp_list, unity_xform):
         fp_rot = fp.GetOrientation().AsDegrees()
         fields = fp.Fields()
         footprint = fields[2].GetText()  # e.g. Package_QFP:LQFP-128_14x14mm_P0.4mm
+        if len(footprint)==0:
+            # If we don't get a footprint, use FPID
+            # (some boards don't have this - e.g. mixolydian-4x4)
+            # FIXME is there an implicit bug here ? figure out this mystery and
+            # crack what is what. is there an implicit override order here?
+            footprint = fp.GetFPIDAsString()
         top_side_component = True if fp.GetSide() == 0 else False
         ref_info = {
             "is_th": fp_is_th,
