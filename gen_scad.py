@@ -1062,11 +1062,23 @@ def generate_jig(
     sm_mounted_smd_keepouts = module("mounted_smd_keepouts", combined_keepouts)
 
     @exportReturnValueAsModule
-    def wide_line(start, end):
+    def wide_line2(start, end):
+        # FIXME: wide_line2 shows up in scad, which is not so nice
+        # need to relook howto make scad output more readable
         return solid2.hull()(
             translate(start)(cylinder(h=sv_base_line_height, d=sv_base_line_width))
             + translate(end)(cylinder(h=sv_base_line_height, d=sv_base_line_width))
         )
+
+    def list_to_sane_float(lin):
+        if type(lin) is ScadValue:
+            return lin
+        return [float(x) if type(x) is not ScadValue else x for x in lin]
+
+    def wide_line(start, end):
+        start = list_to_sane_float(start)
+        end = list_to_sane_float(end)
+        return wide_line2(start, end)
 
     base_solid = translate([0, 0, sv_pcb_thickness + sv_topmost_z])(
         linear_extrude(sv_base_thickness)(
@@ -1196,8 +1208,8 @@ def generate_jig(
         fp_scad.write("        if(Include_%s_in_Jig) {\n" % (this_ref))
         for shell_info in subshells["shell"]:
             ref_x, ref_y = shell_info["fp_center"]
-            h_start = "[pcb_min_x, %s]" % (ref_y)
-            h_end = "[pcb_max_x, %s]" % (ref_y)
+            h_start = "[pcb_min_x, %f]" % (ref_y)
+            h_end = "[pcb_max_x, %f]" % (ref_y)
             fp_scad.write("          wide_line(%s,%s);\n" % (h_start, h_end))
         fp_scad.write("        }\n")
     fp_scad.write("        base_frame_xy_lines();\n")
@@ -1216,8 +1228,8 @@ def generate_jig(
         fp_scad.write("        if(Include_%s_in_Jig) {\n" % (this_ref))
         for shell_info in subshells["shell"]:
             ref_x, ref_y = shell_info["fp_center"]
-            v_start = "[%s, pcb_min_y]" % (ref_x)
-            v_end = "[%s, pcb_max_y]" % (ref_x)
+            v_start = "[%f, pcb_min_y]" % (ref_x)
+            v_end = "[%f, pcb_max_y]" % (ref_x)
             fp_scad.write("          wide_line(%s,%s);\n" % (v_start, v_end))
         fp_scad.write("        }\n")
     fp_scad.write("        base_frame_xy_lines();\n")
@@ -1299,8 +1311,8 @@ def generate_jig(
         nd = pcb_edge_ls.project(Point(mh_pos[0], mh_pos[1]))
         nearest = pcb_edge_ls.interpolate(nd)
         # print('Mounting hole ', mh_pos, ' connected to ', nearest, ' distance =', nd)
-        l_start = "[%s, %s]" % (mh_pos[0], mh_pos[1])
-        l_end = "[%s, %s]" % (nearest.x, nearest.y)
+        l_start = "[%f, %f]" % (mh_pos[0], mh_pos[1])
+        l_end = "[%f, %f]" % (nearest.x, nearest.y)
         fp_scad.write("      wide_line(%s,%s);\n" % (l_start, l_end))
     fp_scad.write("     }\n")
     fp_scad.write("  }\n")
