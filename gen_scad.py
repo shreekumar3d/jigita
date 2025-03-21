@@ -1062,9 +1062,7 @@ def generate_jig(
     sm_mounted_smd_keepouts = module("mounted_smd_keepouts", combined_keepouts)
 
     @exportReturnValueAsModule
-    def wide_line2(start, end):
-        # FIXME: wide_line2 shows up in scad, which is not so nice
-        # need to relook howto make scad output more readable
+    def wide_line(start, end):
         return solid2.hull()(
             translate(start)(cylinder(h=sv_base_line_height, d=sv_base_line_width))
             + translate(end)(cylinder(h=sv_base_line_height, d=sv_base_line_width))
@@ -1075,10 +1073,10 @@ def generate_jig(
             return lin
         return [float(x) if type(x) is not ScadValue else x for x in lin]
 
-    def wide_line(start, end):
+    def wide_line_scad(start, end):
         start = list_to_sane_float(start)
         end = list_to_sane_float(end)
-        return wide_line2(start, end)
+        return wide_line(start, end)
 
     base_solid = translate([0, 0, sv_pcb_thickness + sv_topmost_z])(
         linear_extrude(sv_base_thickness)(
@@ -1096,20 +1094,20 @@ def generate_jig(
 
     mesh_lines = union()
     for start, end in mesh_line_segments:
-        mesh_lines += wide_line(start, end)
+        mesh_lines += wide_line_scad(start, end)
 
     minmesh_lines = union()
     if len(minmesh_path) > 0:
         for start, end in zip(minmesh_path, minmesh_path[1:]):
-            minmesh_lines += wide_line(start, end)
+            minmesh_lines += wide_line_scad(start, end)
         # close the path
-        minmesh_lines += wide_line(minmesh_path[0], minmesh_path[-1])
+        minmesh_lines += wide_line_scad(minmesh_path[0], minmesh_path[-1])
         # connect every point to the edge
         pcb_edge_ls = LineString(pcb_edge_points)
         for pt in minmesh_path:
             nd = pcb_edge_ls.project(Point(pt[0], pt[1]))
             nearest = pcb_edge_ls.interpolate(nd)
-            minmesh_lines += wide_line(pt, [nearest.x, nearest.y])
+            minmesh_lines += wide_line_scad(pt, [nearest.x, nearest.y])
 
     base_mesh_volume = linear_extrude(sv_base_line_height)(
         offset(sv_pcb_holder_perimeter + sv_pcb_gap)(sm_pcb_edge())
