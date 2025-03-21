@@ -804,7 +804,6 @@ seg_shapes = []
 
 if do_pcb_proc:
     edge_cuts.load(board, pcb_segments, pcb_filled_shapes)
-
     if not edge_cuts.coalesce_segments(pcb_segments, seg_shapes):
         print("ERROR: Please check the edge cuts layer in KiCAD.")
         print("ERROR: There are incomplete outlines. DRC or 3D View should help")
@@ -823,7 +822,7 @@ if do_pcb_proc:
     # PCB outline
     pcb_filled_shapes.sort(key=lambda x: x["area"], reverse=True)
     # And hence these are the vertices
-    pcb_edge_points = pcb_filled_shapes[0]["vertices"]
+    pcb_edge_points = copy.deepcopy(pcb_filled_shapes[0]["vertices"])
     # Fix Y immediately - don't let the disease spread :)
     # FIXME I really need some coordinated way of setting up the coordinate
     # system
@@ -1274,9 +1273,13 @@ if do_pcb_proc:
     else:
         minmesh_path = dt_centers
 
-    groove_lines = edge_cuts.compute_grooves(
+    groove_lines = copy.deepcopy(edge_cuts.compute_grooves(
         arc_resolution, pcb_filled_shapes[0], groove_size
-    )
+    ))
+    # Align to 3D Y coordinates
+    for gl_start,gl_end in groove_lines:
+        gl_start[1] = -gl_start[1]
+        gl_end[1] = -gl_end[1]
 
 if do_pcb_proc and cfg["jig"]["mounting_hole_spacer_end"] == 0:
     #
