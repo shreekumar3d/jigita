@@ -20,8 +20,3 @@ shell_thickness = 1.2
 shell_gap = 0.15
 shell_type = "fitting"
 shell_clearance_from_pcb = 1.0
-
-[SMD]
-refs_do_not_process = [
-  'S_RST0', # 3d models missing, error if we don't exclude this
-]

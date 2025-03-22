@@ -90,6 +90,14 @@ def get_3d_models(fp):
     models_3d = []
     for mod3d in fp.Models():
         if mod3d.m_Show:  # Don't consider hidden models
+            # Skip adding this model, it if we can't find the file.
+            model_filename = os.path.expandvars(mod3d.m_Filename)
+            try:
+                os.path.getmtime(model_filename)
+            except:
+                print(f'WARNING: 3d model file not found {mod3d.m_Filename}')
+                print(f'                                 => {model_filename}')
+                continue
             # NOTE XXX don't hold references to internal vectors - they can get
             # messed up! Make copies!
             models_3d.append(
@@ -168,6 +176,8 @@ def load_footprints(cfg, fp_spec_list, arc_resolution):
             none_found = False
             this_alias = "FP%d" % (alias_idx)
             models_3d = get_3d_models(fp)
+            if len(models_3d)==0:
+                raise ValueError(f"No usable 3d models in footprint: {fp_complete_name}")
             fields = fp.Fields()
             footprint = fields[2].GetText()  # e.g. Package_QFP:LQFP-128_14x14mm_P0.4mm
             ref_info = {
@@ -268,6 +278,9 @@ def get_ref_info(fp_list, unity_xform):
         # print('  DNP ?       :', fp.IsDNP())
         # print('  TH ?        :', fp_is_th)
         models_3d = get_3d_models(fp)
+        if len(models_3d)==0:
+            print(f"WARNING: {ref} has no meshes. Removed from configuration.")
+            continue
         fp_rot = fp.GetOrientation().AsDegrees()
         fields = fp.Fields()
         footprint = fields[2].GetText()  # e.g. Package_QFP:LQFP-128_14x14mm_P0.4mm
@@ -607,6 +620,21 @@ except ValueError as err:
     print(f"ERROR in load config: {err}", file=sys.stderr)
     sys.exit(-1)
 
+# Setup environment for file name expansion
+# First take from user config
+for env_var_name in cfg["environment"]:
+    os.environ[env_var_name] = cfg["environment"][env_var_name]
+if args.pcb:
+    os.environ["KIPRJMOD"] = os.path.split(args.pcb)[0]
+
+path_sys_3dmodels = os.path.join(cfg["kicad"]["share"], "3dmodels")
+
+# Now add onto it, this allows overrides from user config
+for ver in ["", 6, 7, 8]:  # Hmm - would we need more ?
+    env_var_name = "KICAD%s_3DMODEL_DIR" % (ver)
+    if env_var_name not in os.environ:
+        os.environ[env_var_name] = path_sys_3dmodels
+
 # Expand paths
 cfg["openscad"]["binary"] = os.path.expanduser(cfg["openscad"]["binary"])
 cfg["freecad"]["cmd"] = os.path.expanduser(cfg["freecad"]["cmd"])
@@ -772,22 +800,6 @@ if jig_type_component_fitting:
             % (shell_clearance)
         )
 
-
-# Setup environment for file name expansion
-# First take from user config
-for env_var_name in cfg["environment"]:
-    os.environ[env_var_name] = cfg["environment"][env_var_name]
-if args.pcb:
-    os.environ["KIPRJMOD"] = os.path.split(args.pcb)[0]
-
-path_sys_3dmodels = os.path.join(cfg["kicad"]["share"], "3dmodels")
-
-# Now add onto it, this allows overrides from user config
-for ver in ["", 6, 7, 8]:  # Hmm - would we need more ?
-    env_var_name = "KICAD%s_3DMODEL_DIR" % (ver)
-    if env_var_name not in os.environ:
-        os.environ[env_var_name] = path_sys_3dmodels
-
 # load_3d_models(th_ref_list, ref_map, 'Through Hole')
 # load_3d_models(smd_ref_list, ref_map, 'SMD')
 
@@ -866,11 +878,11 @@ for this_ref in th_ref_list:
             mesh = modinfo["mesh"]
             mverts = np.array(mesh.vertices)
             if mverts.shape[0] == 0:
-                # FIXME: this must actually be treated as an error
                 print(
-                    "  WARNING: Mesh %s is empty on import. Watch out for un-expected side effects. SKIPPING!"
-                    % (modinfo["model"])
+                    "ERROR: Component %s, Mesh %s is empty on import. Please fix, or exclude this component."
+                    % (this_ref, modinfo["model"], this_ref)
                 )
+                sys.exit(1)
 
         if not body_info:
             mverts, mesh, min_z, max_z = xform_mesh(mesh, modinfo, th_flip_side, cfg['pcb']['thickness'])
@@ -1036,10 +1048,10 @@ if do_pcb_proc:
                 mverts = np.array(mesh.vertices)
                 if mverts.shape[0] == 0:
                     print(
-                        "  WARNING: Component %s, Mesh %s is empty on import. Watch out for un-intended side effects. SKIPPING!"
+                        "ERROR: Component %s, Mesh %s is empty on import. Please fix, or exclude this component."
                         % (this_ref, modinfo["model"])
                     )
-                    # FIXME: XXX empty meshes cause errors and need to be handled properly
+                    sys.exit(1)
 
             if not body_info:
                 mverts, mesh, min_z, max_z = xform_mesh(mesh, modinfo)
