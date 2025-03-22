@@ -290,7 +290,6 @@ def append_groove_lines_for_line(groove_lines, groove_size, min_gap, a, b):
         by1 = b[1] - dy
         groove_lines.append([[bx1, by1], b])
 
-
 def append_groove_lines_for_arc(
     arc_resolution, groove_lines, center, radius, start_angle, angle, start_pt, end_pt
 ):
@@ -372,28 +371,10 @@ def compute_grooves(arc_resolution, filled_shape, groove_size):
     elif fs["type"] in ["Rect", "Polygon"]:
         # add first one to end to make loop easier
         verts = fs["vertices"] + [fs["vertices"][0]]
-        # pprint(verts)
         for i in range(len(verts) - 1):
             a = verts[i]
             b = verts[i + 1]
             append_groove_lines_for_line(groove_lines, groove_size, min_gap, a, b)
-            # classic distance formula
-            len_ab = math.sqrt(math.pow(a[0] - b[0], 2) + math.pow(a[1] - b[1], 2))
-            if groove_size >= len_ab - min_gap:
-                groove_lines.append([a, b])
-            else:
-                # compute a segment on either end
-                frac = (groove_size * 0.5) / len_ab
-                dx = (b[0] - a[0]) * frac
-                dy = (b[1] - a[1]) * frac
-
-                # half groove length on either side
-                ax1 = a[0] + dx
-                ay1 = a[1] + dy
-                groove_lines.append([a, [ax1, ay1]])
-                bx1 = b[0] - dx
-                by1 = b[1] - dy
-                groove_lines.append([[bx1, by1], b])
     elif fs["type"] == "Composite":
         for seg in fs["shape"]["segments"]:
             if seg["type"] == "Line":

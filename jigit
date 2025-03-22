@@ -1291,13 +1291,11 @@ if do_pcb_proc:
     else:
         minmesh_path = dt_centers
 
-    groove_lines = copy.deepcopy(edge_cuts.compute_grooves(
+    groove_lines = edge_cuts.compute_grooves(
         arc_resolution, pcb_filled_shapes[0], groove_size
-    ))
-    # Align to 3D Y coordinates
-    for gl_start,gl_end in groove_lines:
-        gl_start[1] = -gl_start[1]
-        gl_end[1] = -gl_end[1]
+    )
+    # Align to 3D Y coordinates by negating
+    groove_lines = [[[line[0][0],-line[0][1]],[line[1][0],-line[1][1]]] for line in groove_lines]
 
 if do_pcb_proc and cfg["jig"]["mounting_hole_spacer_end"] == 0:
     #
