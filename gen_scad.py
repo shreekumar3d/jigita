@@ -310,11 +310,11 @@ def gen_shell_shape(cfg, ref, ref_type, ident, x, y, rot, min_z, max_z, h_bins, 
     for this_bin in h_bins:
         # tiny_dimension ensures overlap across adjacent shells - important for boolean ops
         fitting_pocket += translate(
-            [x, y, sv_pcb_thickness - sv_tiny_dimension + this_bin["start_z"]]
+            [x, y, - sv_tiny_dimension + this_bin["start_z"]]
         )(
             rotate([0, 0, shell_rot_z])(
                 linear_extrude(
-                    this_bin["end_z"] - this_bin["start_z"] + 2 * sv_tiny_dimension
+                    this_bin["end_z"] - this_bin["start_z"] + 2 * sv_tiny_dimension + sv_pcb_thickness
                 )(offset(sv_ref_shell_gap)(this_bin["hull_poly"]()))
             )
         )
@@ -325,9 +325,9 @@ def gen_shell_shape(cfg, ref, ref_type, ident, x, y, rot, min_z, max_z, h_bins, 
     mod_map[ident] = module(mod_name, h_bins[0]["hull_poly"])
 
     wiggle_pocket_name = ref2wiggle_pocket(ident)
-    wiggle_pocket = translate([x, y, sv_pcb_thickness + sv_ref_min_z])(
+    wiggle_pocket = translate([x, y, sv_ref_min_z])(
         rotate([0, 0, shell_rot_z])(
-            linear_extrude(sv_ref_max_z - sv_ref_min_z)(
+            linear_extrude(sv_ref_max_z - sv_ref_min_z + sv_pcb_thickness)(
                 offset(sv_ref_shell_gap)(mod_map[ident]())
             )
         )
@@ -385,7 +385,8 @@ def gen_shell_shape(cfg, ref, ref_type, ident, x, y, rot, min_z, max_z, h_bins, 
 
     # NOTE FIXME: start and end in c_bin have opposite meaning here. "start" is the
     # higher point, end is the lower point w.r.t PCB.
-    shell_end = openscad_functions.max(c_bins[0]["z_end"], sv_ref_shell_clearance)
+    # shell has to end at the top of the PCB (and cut through the PCB thickness)
+    shell_end = openscad_functions.max(c_bins[0]["z_end"], 0)
     for idx, this_bin in enumerate(c_bins):
         overall_shape = union()
         for shape in this_bin["shapes"]:
@@ -393,9 +394,9 @@ def gen_shell_shape(cfg, ref, ref_type, ident, x, y, rot, min_z, max_z, h_bins, 
         this_bin["scad_poly"] = module(f"shape_{ident}_{idx}", overall_shape)
         this_bin["keepout_volume"] = module(
             f"keepout_volume_{ident}_{idx}",
-            translate([x, y, sv_pcb_thickness + shell_end])(
+            translate([x, y, shell_end])(
                 rotate([0, 0, shell_rot_z])(
-                    linear_extrude(this_bin["z_start"] - shell_end + sv_tiny_dimension)(
+                    linear_extrude(this_bin["z_start"] - shell_end + sv_tiny_dimension + sv_pcb_thickness)(
                         solid2.offset(sv_ref_shell_gap)(this_bin["scad_poly"]())
                     )
                 )
@@ -469,9 +470,9 @@ def gen_courtyard_shell_shape(ref, courtyard_poly):
     courtyard_map[ref] = module(courtyard_name, polygon(courtyard_poly))
 
     courtyard_pocket_name = ref2courtyard_pocket(ref)
-    courtyard_pocket = translate([0, 0, sv_pcb_thickness])(
+    courtyard_pocket = translate([0, 0, 0])(
         translate([0, 0, sv_ref_min_z])(
-            linear_extrude(sv_ref_max_z - sv_ref_min_z)(
+            linear_extrude(sv_ref_max_z - sv_ref_min_z + sv_pcb_thickness)(
                 offset(sv_ref_shell_gap)(courtyard_map[ref]())
             )
         )
