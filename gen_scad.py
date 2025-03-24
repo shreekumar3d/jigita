@@ -40,7 +40,7 @@ sv_base_thickness = ScadValue("c_Base_Thickness")
 sv_base_line_width = ScadValue("Base_Line_Width")
 sv_base_line_height = ScadValue("c_Base_Line_Height")
 sv_mesh_start_z = ScadValue("mesh_start_z")
-sv_smd_clearance_from_shells = ScadValue("SMD_Clearance_From_Shells")
+sv_smd_clearance_from_pcb = ScadValue("SMD_Clearance_From_PCB")
 sv_smd_gap_from_shells = ScadValue("SMD_Gap_From_Shells")
 
 
@@ -515,13 +515,13 @@ def gen_courtyard_shell_shape(ref, courtyard_poly):
 
 def gen_keepout_shape(ref, x, y, rot, min_z, max_z, courtyard_poly):
     sv_max_z[ref] = ScadValue("max_z_%s" % (ref))
-    ref_smd_clearance_from_shells = ScadValue(f"smd_clearance_from_shells_{ref}")
+    ref_smd_clearance_from_pcb = ScadValue(f"smd_clearance_from_pcb_{ref}")
     ref_smd_gap_from_shells = ScadValue(f"smd_gap_from_shells_{ref}")
     keepout_name = ref2keepout(ref)
     # keepout starts from PCB itself. This is required to prevent overhangs in
     # the output design.
     keepout_solid = translate([0, 0, 0])(
-        linear_extrude(sv_max_z[ref] + ref_smd_clearance_from_shells + sv_pcb_thickness)(
+        linear_extrude(sv_max_z[ref] + ref_smd_clearance_from_pcb + sv_pcb_thickness)(
             offset(ref_smd_gap_from_shells)(polygon(courtyard_poly))
         )
     )
@@ -606,7 +606,7 @@ Base_Line_Height = %s;
 /* [SMD Keepout] */
 
 // SMD keepout volume extension in Z
-SMD_Clearance_From_Shells=%s;
+SMD_Clearance_From_PCB=%s;
 
 // SMD keepout volume extension in XY
 SMD_Gap_From_Shells=%s;
@@ -826,7 +826,7 @@ def gen_computed_values(
             )
             ref = keepout_info["ref"]
             fp_scad.write(
-                "smd_clearance_from_shells_%s= SMD_Clearance_From_Shells;\n"
+                "smd_clearance_from_pcb_%s= SMD_Clearance_From_PCB;\n"
                 % (keepout_info["name"])
             )
             fp_scad.write(
@@ -1086,8 +1086,8 @@ def generate_jig(
     )
     sm_base_solid = module("base_solid", base_solid)
 
-    base_solid_fill = translate([0, 0, sv_pcb_thickness + sv_smd_clearance_from_shells])(
-        linear_extrude(sv_topmost_z+sv_base_thickness-sv_smd_clearance_from_shells)(
+    base_solid_fill = translate([0, 0, sv_pcb_thickness + sv_smd_clearance_from_pcb])(
+        linear_extrude(sv_topmost_z+sv_base_thickness-sv_smd_clearance_from_pcb)(
             offset(sv_pcb_holder_perimeter + sv_pcb_gap)(sm_pcb_edge())
         )
     )
@@ -1260,8 +1260,8 @@ def generate_jig(
             or (mh_pos[1] > pcb_min_y)
             and (mh_pos[1] < pcb_max_y)
         ):
-            mh_level = "PCB_Thickness+SMD_Clearance_From_Shells"
-            mh_height = "topmost_z+c_Base_Thickness-SMD_Clearance_From_Shells"
+            mh_level = "PCB_Thickness+SMD_Clearance_From_PCB"
+            mh_height = "topmost_z+c_Base_Thickness-SMD_Clearance_From_PCB"
         else:
             mh_level = "0"
             mh_height = "topmost_z+c_Base_Thickness+PCB_Thickness"
