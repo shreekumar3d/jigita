@@ -538,6 +538,14 @@ def gen_params_generic(fp_scad, cfg):
     # so we choose a value half of that, 0.05 mm
     # This should give a decent balance of smooth shapes
     # and file sizes, and processing needs.
+    groove_short = "At PCB Corners: %.2f mm"%(cfg["holder"]["groove_size"])
+    groove_full = "All Around PCB Edge"
+    if cfg["holder"]["groove_size"] > 0.0:
+        groove_options = [groove_short, groove_full]
+        groove_ui_options = '"%s","%s"'%(groove_short, groove_full)
+    else:
+        groove_options = [groove_full]
+        groove_ui_options = '"%s"'%(groove_full)
     fp_scad.write(
         """
 // { These are configurable parameters
@@ -581,7 +589,7 @@ PCB_Holder_Perimeter=%s;
 // Height of solid perimeter at the base
 Lower_Perimeter_Height = %s;
 
-Groove="At PCB Corners: %s mm"; //["At PCB Corners: %s mm", "All Around PCB Edge"]
+Groove="%s"; //[%s]
 
 Mounting_Hole_Jig=%s; //[false, true]
 MH_Spacer_End=%s;
@@ -618,8 +626,8 @@ SMD_Gap_From_Shells=%s;
             cfg["holder"]["pcb_overlap"],
             cfg["holder"]["perimeter"],
             cfg["holder"]["base"]["perimeter_height"],
-            cfg["holder"]["groove_size"],
-            cfg["holder"]["groove_size"],
+            groove_options[0],
+            groove_ui_options,
             "true" if cfg["jig"]["mounting_hole_jig"] else "false",
             cfg["jig"]["mounting_hole_spacer_end"],
             cfg["jig"]["mounting_hole_spacer_start"],
