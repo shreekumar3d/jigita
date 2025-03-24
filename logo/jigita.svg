@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="80mm"
+   height="25mm"
+   viewBox="0 0 80 25"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="jigita.svg"
+   inkscape:version="1.4 (1:1.4+202410161351+e7c3feb100)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     showguides="false"
+     inkscape:zoom="1.7007198"
+     inkscape:cx="135.53085"
+     inkscape:cy="94.665797"
+     inkscape:window-width="1646"
+     inkscape:window-height="894"
+     inkscape:window-x="66"
+     inkscape:window-y="32"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:export-bgcolor="#ffffffff" />
+  <defs
+     id="defs1" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <text
+       xml:space="preserve"
+       style="font-size:11.2889px;line-height:1.25;font-family:'Palatino Linotype';-inkscape-font-specification:'Palatino Linotype';text-align:start;letter-spacing:0.529167px;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#800000;stroke:none;stroke-width:0.2"
+       x="50.312462"
+       y="169.44623"
+       id="text1-0"><tspan
+         sodipodi:role="line"
+         id="tspan1-4"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:11.2889px;font-family:'Noto Sans';-inkscape-font-specification:'Noto Sans';stroke:none;stroke-width:0.2"
+         x="0"
+         y="0"><tspan
+           style="fill:#999999;stroke:none"
+           id="tspan4-7" /></tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:11.2889px;line-height:1.25;font-family:'Palatino Linotype';-inkscape-font-specification:'Palatino Linotype';text-align:start;letter-spacing:0.529167px;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#800000;stroke:none;stroke-width:0.2"
+       x="7.5185766"
+       y="16.749475"
+       id="text1"><tspan
+         sodipodi:role="line"
+         id="tspan1"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:11.2889px;font-family:'Noto Sans';-inkscape-font-specification:'Noto Sans';fill:#800000;fill-opacity:1;stroke:none;stroke-width:0.2"
+         x="7.5185766"
+         y="16.749475"><tspan
+           style="font-weight:bold;fill:#800000;fill-opacity:1"
+           id="tspan7">Jig</tspan><tspan
+           style="fill:#400000;fill-opacity:1"
+           id="tspan4"><tspan
+   style="fill:#600000;fill-opacity:1"
+   id="tspan5">it</tspan>a</tspan></tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:14.1111px;line-height:1.25;font-family:'Noto Sans Kannada';-inkscape-font-specification:'Noto Sans Kannada';text-align:start;letter-spacing:0.529167px;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#800000;stroke:none;stroke-width:0.2"
+       x="42.872101"
+       y="16.688959"
+       id="text2"><tspan
+         sodipodi:role="line"
+         id="tspan2"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Noto Sans Kannada';-inkscape-font-specification:'Noto Sans Kannada';stroke:none;stroke-width:0.2"
+         x="42.872101"
+         y="16.688959">ಜಿಗಿತ </tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.0167px;line-height:1.25;font-family:'Noto Sans';-inkscape-font-specification:'Noto Sans';text-align:start;letter-spacing:0.563283px;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#800000;stroke:#000000;stroke-width:0.212894;fill-opacity:1"
+       x="39.988823"
+       y="14.981158"
+       id="text3"
+       transform="scale(0.9247355,1.0813903)"><tspan
+         sodipodi:role="line"
+         id="tspan3"
+         style="fill:#800000;stroke-width:0.212894;fill-opacity:1"
+         x="39.988823"
+         y="14.981158">|</tspan></text>
+  </g>
+</svg>
