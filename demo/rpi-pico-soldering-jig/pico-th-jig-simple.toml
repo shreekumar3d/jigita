@@ -1,0 +1,30 @@
+# Use with
+#
+# pico-th-jig/pico-th-jig.kicad_pcb
+#
+# Check README.md for detailed instructions.
+[jig]
+type = "component_fitting"
+
+[holder.base]
+type = "x_lines"
+line_width = 4.0
+line_height = 5.0
+thickness = 0.0
+
+[TH]
+extra_mounting_holes = [
+# In KiCAD layout, refer drawing on User.1 layer
+# M3 adjacent to debug
+  [110.5, 103, 3.0],
+# M3 adjacent to micro-USB connector
+  [110.5, 46, 3.0]
+]
+# 1.2 is the default thickness, but that makes things
+# a bit tight near the micro-USB connector
+mounting_hole_shell_thickness = 0.8
+
+[TH.component_shell]
+shell_thickness = 1.2
+shell_gap = 0.15
+shell_type = "fitting"

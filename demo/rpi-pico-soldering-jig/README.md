@@ -21,6 +21,8 @@ advantages. This is suitable, especially if:
   painless as possible!
 * You are a perfectionist who wants to (with proof!) solder perfectly vertical
   headers :smiley:
+* You are running a training or learning program where attendees have to solder
+  and achieve good results without needing high skill.
 
 To generate the soldering jig, we need a model of Raspberry Pi Pico. Raspberry
 Pi does not provide KiCAD files for Pico variants. Luckily, there a couple of
@@ -62,9 +64,23 @@ And then printing it ! This is how you will use the 3D printed jig:
 Don't be surprised that the main PCB above doesn't look like a Rasperry Pi
 Pico ! piCo is a clone with USB-C connector, with a slightly longer
 PCB. That doesn't impact the long headers that we are interested in.
-The resulting jig works just fine with a real Pico. If you
-use FreeCAD, you may also checkout the fitting in the file
+With FreeCAD, you may also checkout the fitting in the file
 [fitting/project-piCo-with-soldering-jig.FCStd](fitting/project-piCo-with-soldering-jig.FCStd).
+
+The printed jig works very well with a real Pico(2). It clearly reveals the
+perfect fitment of the connectors at a glance, as you can see below:
+
+![Jig from piCo](images/pico-on-jig.jpg)
+
+The jig is also efficient - consuming less than 2 grams of filament, and
+printing in less than 15 minutes on my Prusa i3 MK2 at 0.2 mm layer height
+with a 0.4mm nozzle. . For comparison, with the same settings on my printer
+(these may change for you):
+
+* [this jig on Printables](https://www.printables.com/model/739038-pico-soldering-jig) consumes
+  8 grams of filament, with an estimated print time of about an hour
+* Jig mentioned in this [Toms Hardware article](https://www.tomshardware.com/news/maker-creates-raspberry-pi-pico-3d-printed-soldering-jig)
+  is less than 7 grams, with an estimated prints time of about half an hour
 
 The settings in project-piCo.toml setup jigit to treat J1 and J2 as components
 mounted on the bottom side (flip_side=false). You may tweak the other paramaters
@@ -94,16 +110,25 @@ as follows:
         -c pico-th-jig.toml \
         -o jigs/pico-all-soldering-jig.3mf
 
-Note that resulting jig lets you solder the 3 pin connector on either side of
+This jig lets you solder the 3 pin connector on either side of
 the Pico. To mount the debug connector on the top side, solder it in first,
 with the PCB facing down. Then reverse the PCB and solder the two 20
-pin headers.
+pin headers. The component shells are of the "tight" type (holes for every pin!),
+which provides the best fit and the least chance of movement of component in
+its place, at the cost of increased print time and material.
 
-The component shells are of the "tight" type (holes for every pin!), which
-provides the best fit and the least chance of movement of component in its
-place, at the cost of increased print time and material. (You can, of course,
-change the shell type by editing the config file and regenerating the model.
-Alternatively, generate the OpenSCAD output and play around interactively!)
+This jig prints in about 50 minutes, consuming about 6 grams of filament.
+
+![Comparison of soldering jigs](images/all-soldering-jig-compared.png)
+
+If you need a slightly simpler model that prints easier, faster and consumes
+less material, then you can set the shell type to "fitting". This results
+in a simpler model. Use this command:
+
+    jigit \
+        -i pico-th-jig/pico-th-jig.kicad_pcb \
+        -c pico-th-jig-simple.toml \
+        -o jigs/pico-all-soldering-jig-simple.3mf
 
 This jig also has a provision to hold the PCB securely on the board using
 a couple of M3 bolts and nuts. Perhaps this last part is a bit of
