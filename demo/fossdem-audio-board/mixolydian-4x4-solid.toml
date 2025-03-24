@@ -1,0 +1,51 @@
+# Use with
+#
+# mixolydian-4x4/mixolydian-4x4.kicad_pcb
+#
+# from https://git.sr.ht/~martijnbraam/mixolydian-4x4
+#
+# Check README.md for detailed instructions.
+[jig]
+type = "TH_soldering"
+
+[holder]
+groove_size = 0 # This gives us a groove all along the PCB edge
+
+[holder.base]
+type = "solid_fill" # generates a "solid" jig with component pockets
+line_width = 2.0
+line_height = 1.0
+thickness = 0.0
+
+[TH.component_shell]
+shell_thickness = 1.2
+shell_gap = 0.15
+shell_type = "fitting"
+shell_clearance_from_pcb = 1.0
+
+[footprint.FP1]
+kicad_footprint = 'Library:Jack_XLR_Neutrik_NC3MAH_Horizontal'
+display_name = 'Library:Jack_XLR_Neutrik_NC3MAH_Horizontal'
+shell_gap = 0.2
+shell_type = "tight"
+
+[footprint.FP2]
+kicad_footprint = 'Library:Jack_XLR_Neutrik_NC3FAH1_Horizontal'
+display_name = 'Library:Jack_XLR_Neutrik_NC3FAH1_Horizontal'
+shell_gap = 0.2
+shell_type = "tight"
+
+# J6, J4, J1 are FP2
+# J14, J9 are FP1
+#
+# In case you want to override anything!
+#[TH.J6]
+#shell_type = "tight"
+#[TH.J4]
+#shell_type = "tight"
+#[TH.J1]
+#shell_type = "tight"
+#[TH.J14]
+#shell_type = "tight"
+#[TH.J9]
+#shell_type = "tight"
