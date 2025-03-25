@@ -190,6 +190,10 @@ def tight_pockets(mesh, z_bin_size, printable_threshold):
     # continue all the way
     zbins[-1]["z"] = min_mesh[2]
 
+    # The first section may turn empty due to mesh topology (e.g. edge vertex
+    # or line being lowest point). Regardless, our first bin must start at max Z
+    zbins[0]['z'] = max_mesh[2]
+
     for this_bin in zbins:
         bin_shapes = this_bin["shapes"]
         bin_area = 0
