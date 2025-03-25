@@ -201,10 +201,8 @@ def update(cfg, default_cfg, ref_map, fp_map, mh_map):
     for key in cfg["TH"]["component_shell"]:
         if key in default_cfg["TH"]["component_shell"].keys():
             continue
-        if key in TH_ref_names:
-            continue
         raise ValueError(
-            f"Can't use TH.component_shell.{key}. No such TH component on the board."
+            f"Can't use TH.component_shell.{key}. Unsupported key."
         )
 
     # Check that the user doesn't have invalid values in the footprint tree
