@@ -690,15 +690,16 @@ def gen_configurable_fp_components(
             fp_scad.write("//%s ( %s, %s)\n" % (dname_ref, this_ref, dname_fp))
         fp_scad.write("Include_%s_in_Jig=true; // [false,true]\n" % (this_ref))
 
+    shell_thickness_range = "0.25:0.05:4"
+    shell_clearance_range = "0:0.1:2"
+    shell_gap_range = "0:0.05:1"
+
     for alias in cfg["footprint"]:
         footprint = cfg["footprint"][alias]
         # unclutter UI - skip footprints that are not used
-        if footprint["display_name"] not in used_footprints:
+        if footprint["kicad_footprint"] not in used_footprints:
             continue
         fp_scad.write("/* [Footprint: %s] */\n" % (footprint["display_name"]))
-        shell_gap_range = "0:0.05:1"
-        shell_thickness_range = "0.25:0.05:4"
-        shell_clearance_range = "0:0.1:2"
         var_prop_rem = [
             ["Shell_Gap", "shell_gap", "XY Gap in shell for component insertion", shell_gap_range],
             ["Shell_Thickness", "shell_thickness", "Thickness of shell", shell_thickness_range],
