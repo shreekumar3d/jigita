@@ -278,9 +278,6 @@ def get_ref_info(fp_list, unity_xform):
         # print('  DNP ?       :', fp.IsDNP())
         # print('  TH ?        :', fp_is_th)
         models_3d = get_3d_models(fp)
-        if len(models_3d)==0:
-            print(f"WARNING: {ref} has no meshes. Removed from configuration.")
-            continue
         fp_rot = fp.GetOrientation().AsDegrees()
         fields = fp.Fields()
         footprint = fields[2].GetText()  # e.g. Package_QFP:LQFP-128_14x14mm_P0.4mm
@@ -306,7 +303,7 @@ def get_ref_info(fp_list, unity_xform):
         ref_info["orientation"] = fp_rot if not unity_xform else 0
 
         is_mounting_hole = False
-        if fp_is_th:
+        if fp.HasThroughHolePads():
             could_be_mh = False
             for fn in fp.Fields():
                 if fn.GetText().startswith("MountingHole"):
@@ -331,7 +328,11 @@ def get_ref_info(fp_list, unity_xform):
                     is_mounting_hole = True
                     break
         ref_info["is_mounting_hole"] = is_mounting_hole
-        ref_map[ref] = ref_info
+        if len(models_3d)==0:
+            if not is_mounting_hole:
+                print(f"WARNING: {ref} has no meshes. Removed from configuration.")
+        else:
+            ref_map[ref] = ref_info
 
         # remember that this footprint has this ref
         if not is_mounting_hole:
