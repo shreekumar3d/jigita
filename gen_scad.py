@@ -17,6 +17,7 @@ fitting_flower_map = {}
 tight_map = {}
 tight_perimeter_map = {}
 tight_pocket_map = {}
+wiggle_minus_pocket_map = {}
 perimeter_map = {}
 
 courtyard_map = {}
@@ -46,12 +47,13 @@ sv_smd_gap_from_shells = ScadValue("SMD_Gap_From_Shells")
 
 # generate module names used in oscad
 def ref2outline(ref):
-    return "ref_%s" % (ref)
-
+    return "outline_%s" % (ref)
 
 def ref2wiggle_pocket(ref):
     return "wiggle_pocket_%s" % (ref)
 
+def ref2wiggle_minus_pocket(ref):
+    return "wiggle_minus_pocket_%s" % (ref)
 
 def ref2fitting_pocket(ref):
     return "fitting_pocket_%s" % (ref)
@@ -343,6 +345,7 @@ def gen_shell_shape(cfg, ref, ref_type, ident, x, y, rot, min_z, max_z, h_bins, 
         )
     )
 
+
     # Add wrapper
     wrapper = translate(
         [
@@ -452,6 +455,15 @@ def gen_shell_shape(cfg, ref, ref_type, ident, x, y, rot, min_z, max_z, h_bins, 
         tight_pocket_name, tight_pocket, comment=f"Tight pocket for {ident}"
     )
 
+    wiggle_minus_pocket_name = ref2wiggle_minus_pocket(ident)
+    wiggle_minus_pocket = translate([x, y, sv_ref_min_z])(
+        rotate([0, 0, shell_rot_z])(
+            linear_extrude(sv_ref_max_z - sv_ref_min_z + sv_pcb_thickness)(
+                offset(sv_ref_shell_gap)(c_bins[0]["scad_poly"]())
+            )
+        )
+    )
+    wiggle_minus_pocket_map[ident] = module(wiggle_minus_pocket_name, wiggle_minus_pocket)
 
 def gen_courtyard_shell_shape(ref, courtyard_poly):
     sv_ref_max_z = ScadValue("max_z_%s" % (ref))
@@ -896,7 +908,13 @@ def gen_included_component_shells(fp_scad, all_shells):
         for shell_info in subshells["shell"]:
             this_name = shell_info["name"]
             fp_scad.write("      %s();\n" % (ref2fitting_flower(this_name)))
-        fp_scad.write("    } else {\n")
+        fp_scad.write(
+            '    } else if(Shell_Type_For_%s=="wiggle_minus") {\n' % (this_ref)
+        )
+        for shell_info in subshells["shell"]:
+            this_name = shell_info["name"]
+            fp_scad.write("      %s();\n" % (ref2tight_perimeter(this_name)))
+        fp_scad.write("    } else {\n") # wiggle
         for shell_info in subshells["shell"]:
             this_name = shell_info["name"]
             fp_scad.write("      %s();\n" % (ref2perimeter(this_name)))
@@ -957,6 +975,10 @@ def gen_included_component_pockets(fp_scad, all_shells):
         for shell_info in subshells["shell"]:
             this_name = shell_info["name"]
             fp_scad.write("      %s();\n" % (ref2wiggle_pocket(this_name)))
+        fp_scad.write('    } else if(Shell_Type_For_%s=="wiggle_minus") {\n' % (this_ref))
+        for shell_info in subshells["shell"]:
+            this_name = shell_info["name"]
+            fp_scad.write("      %s();\n" % (ref2wiggle_minus_pocket(this_name)))
         fp_scad.write('    } else if(Shell_Type_For_%s=="tight") {\n' % (this_ref))
         for shell_info in subshells["shell"]:
             this_name = shell_info["name"]

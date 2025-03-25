@@ -9,7 +9,7 @@ import platform
 
 from pathlib import Path
 
-valid_shell_types = ["wiggle", "fitting", "fitting_flower", "tight", "courtyard"]
+valid_shell_types = ["wiggle", "wiggle_minus", "fitting", "fitting_flower", "tight", "courtyard"]
 valid_jig_types = ["TH_soldering", "component_fitting"]
 valid_base_types = ["x_lines", "y_lines", "griddish", "mesh", "minmesh", "solid", "solid_fill"]
 valid_insertions = ["top", "bottom"]
@@ -686,8 +686,10 @@ extra_mounting_holes = [
 #                     the component in place, thus reducing wiggle room
 # - fitting_flower => Same as fitting, except each level creates a vertical
 #                     shell
-# - tight          => step-well of concave hulls. Provides the tightest fit, but
-#                     also requires the most accuracy in dimensions and printing
+# - tight          => step-wells closely following 3d shape. Provides the closest fit,
+#                     but also requires the most accuracy in dimensions and printing
+# - wiggle_minus   => Tighter than wiggle. Reduces wiggle room using the single topmost
+#                     tight shell
 # - courtyard      => the "courtyard" of the component is used as the shape of the
 #                     shell. In almost all cases, this will allow the component
 #                     to move around freely in the shell. This is potentially
