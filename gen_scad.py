@@ -804,9 +804,9 @@ tiny_dimension = 0.0001;
 base_z =  PCB_Thickness+topmost_z+Base_Thickness+2*tiny_dimension;
 
 c_Spacer_Is_Fused = Bolt_Is_External ? Spacer_Is_Fused : true; // can't have separate bolt with internal bolt
-c_Base_Thickness = Mounting_Hole_Jig ? first_layer_height: Base_Thickness;
+c_Base_Thickness = Base_Thickness;
 c_MH_Jig_Second_Level_Height = first_layer_height+2*layer_height;
-c_Base_Line_Height = Mounting_Hole_Jig ? topmost_z-MH_Spacer_End+c_MH_Jig_Second_Level_Height+c_Base_Thickness: Base_Line_Height;
+c_Base_Line_Height = Mounting_Hole_Jig ? topmost_z-MH_Spacer_Start+c_MH_Jig_Second_Level_Height+c_Base_Thickness+Base_Line_Height: Base_Line_Height;
 c_Lower_Perimeter_Height = Mounting_Hole_Jig ? c_Base_Line_Height:Lower_Perimeter_Height;
 mesh_start_z = PCB_Thickness+topmost_z+c_Base_Thickness-c_Base_Line_Height;
 """
@@ -1349,9 +1349,9 @@ def generate_jig(
     fp_scad.write("}\n")
 
     fp_scad.write("module mounting_hole_jig_keepout() {\n")
-    fp_scad.write("  translate([0,0,PCB_Thickness+MH_Spacer_End-tiny_dimension]) {\n")
+    fp_scad.write("  translate([0,0,PCB_Thickness+MH_Spacer_Start-tiny_dimension]) {\n")
     fp_scad.write(
-        "    linear_extrude(MH_Spacer_Start-MH_Spacer_End+2*tiny_dimension) {\n"
+        "    linear_extrude(MH_Spacer_End-MH_Spacer_Start+2*tiny_dimension) {\n"
     )
     fp_scad.write("      offset(1000)\n")  # Lazy me!
     fp_scad.write("        pcb_edge();\n")
@@ -1365,8 +1365,8 @@ def generate_jig(
     # Make spacers where they are supposed to go, but create a tiny gap so that
     # the objects clearly separate with Slicer option "split to objects"
     fp_scad.write("  spacer_gap = c_Spacer_Is_Fused ? 0: 2*tiny_dimension;\n")
-    fp_scad.write("  translate([0,0,PCB_Thickness+MH_Spacer_End+2*tiny_dimension]) {\n")
-    fp_scad.write("    linear_extrude(MH_Spacer_Start-MH_Spacer_End-spacer_gap) {\n")
+    fp_scad.write("  translate([0,0,PCB_Thickness+MH_Spacer_Start+2*tiny_dimension]) {\n")
+    fp_scad.write("    linear_extrude(MH_Spacer_End-MH_Spacer_Start-spacer_gap) {\n")
     spacer_offset = 0
     for mh_name in mh_map:
         mh_pos = [mh_map[mh_name]["x"], mh_map[mh_name]["y"]]

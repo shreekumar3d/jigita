@@ -1306,7 +1306,6 @@ if do_pcb_proc and cfg["jig"]["mounting_hole_spacer_end"] == 0:
     # board, or the second support ring of any component that comes
     # lower.
     z_second_highest = -1
-    spacer_start = 0
     h2_z_name = ""
     z_list = []
     #  little margin of error, to compensate for mis-aligned bergs ?
@@ -1320,7 +1319,6 @@ if do_pcb_proc and cfg["jig"]["mounting_hole_spacer_end"] == 0:
                         z_second_highest = tmz
                         h2_z_name = this_ref
                     elif tmz >= thresh and tmz < topmost_z:
-                        spacer_start = max(spacer_start, tmz)
                         print(
                             "WARNING: you have component %s at z=%s that is being ignored as it is too close to top height %s"
                             % (this_ref, tmz, topmost_z)
@@ -1329,17 +1327,17 @@ if do_pcb_proc and cfg["jig"]["mounting_hole_spacer_end"] == 0:
     # unique
     z_list = list(set(z_list))
     z_list.sort()
+    z_list = list(filter(lambda x: x>=0.0, z_list))
     print("Unique Zs are = ", z_list)
 
-    mh_spacer_end = (
-        z_second_highest
-        + cfg["3dprinter"]["first_layer_height"]
-        + cfg["3dprinter"]["layer_height"]
-    )
+    spacer_start = z_list[1]
+    extra_layers = cfg["3dprinter"]["first_layer_height"] \
+                   + cfg["3dprinter"]["layer_height"]
+    mh_spacer_end = z_second_highest - extra_layers
     cfg["jig"]["mounting_hole_spacer_end"] = mh_spacer_end
 
     # one extra layer to have at-least one line show up
-    spacer_start -= cfg["3dprinter"]["layer_height"]
+    spacer_start += extra_layers
     if cfg["jig"]["mounting_hole_spacer_start"] == 0:
         cfg["jig"]["mounting_hole_spacer_start"] = spacer_start
 
@@ -1349,7 +1347,7 @@ if do_pcb_proc and cfg["jig"]["mounting_hole_spacer_end"] == 0:
     )
     print(
         "Mounting hole spacer start = %s, height= %s"
-        % (spacer_start, spacer_start - mh_spacer_end)
+        % (spacer_start, mh_spacer_end - spacer_start)
     )
 
 if (
