@@ -1,0 +1,218 @@
+
+# All dimensions are specified in millimeters
+#
+# Please see documentation for meaning of "gap", "overlap", and "perimeter"
+#
+[pcb]
+thickness = 1.6
+tesellate_edge_cuts_curve = 0.1
+
+[holder]
+pcb_overlap = 0.3
+pcb_gap = 0.3
+groove_size = 15
+forced_grooves = [
+  #  [ X, Y ] coordinates from KiCAD PCB
+]
+
+# Holder will have a solid border around the edge points of the PCB. This
+# provides rigidity to the jig structure.
+perimeter = 1.6
+
+[holder.base]
+type = "mesh"
+thickness = 0.4 # if 0, then the Pico headers can even be inserted from bottom
+perimeter_height = 1
+line_width = 1.6
+line_height = 1.0
+
+[TH]
+# There is no mounting hole in one corner. Add that in the jig
+# to allow fastening if needed.
+extra_mounting_holes = [
+  # Corner near Pico debug connector is close to (117.5, 156)
+  # the M3 nut is ~6 mm. Plastic around PCB edges will be
+  # 1.2 to 1.6, max 2 mm. So, we can use a clearance of 6x6
+  [ 114.5, 159, 3.2 ],
+]
+
+# Remove some mounting holes that aren't useful in the jig
+refs_do_not_process = [
+#  Uncomment to exclude specific mounting holes
+   'H1', 'H2', 'H4', # Pi HAT holes
+#  'H3', # Pi HAT hole closer to left corner  
+#  'TP6', # PTH on center right corner
+#  'TP2' # PTH on bottom right corner
+#  'TP1', 'TP4', # Plated TH on top border edge
+]
+
+[TH.component_shell]
+shell_type = "fitting"
+insertion_direction = "top"
+shell_thickness = 1.2
+#
+# 0.25 mm was found cleanly avoid flexing of a 2x20 header
+# 0.3 mm was loose
+# 0.2 mm caused a slight bow, and smaller values caused noticeable flex
+# along the long axis
+shell_gap = 0.25
+# vertical gap lets you see components from the side
+shell_clearance_from_pcb = 1
+
+[SMD]
+clearance_from_shells = 0.5
+gap_from_shells = 0.5
+
+[jig]
+type = "TH_soldering"
+
+[footprint.FP11]
+kicad_footprint='Connector_PinHeader_2.54mm:PinHeader_2x05_P2.54mm_Vertical'
+display_name='Header 2x5'
+# components ['J4']
+
+[footprint.FP10]
+kicad_footprint='Connector_PinHeader_2.54mm:PinHeader_2x10_P2.54mm_Vertical'
+display_name='Header 2x10'
+# components ['J10']
+
+[footprint.FP3]
+kicad_footprint='Connector_PinHeader_2.54mm:PinHeader_2x03_P2.54mm_Vertical'
+display_name='Header 2x3'
+# components ['J3']
+
+[footprint.FP1]
+kicad_footprint='Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical'
+display_name='Header 1x5'
+# components ['J7', 'J5', 'J9']
+
+[footprint.FP2]
+kicad_footprint='Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical'
+display_name='Header 1x4'
+# components ['J1']
+
+[footprint.FP8]
+kicad_footprint='Connector_PinHeader_2.54mm:PinHeader_2x20_P2.54mm_Vertical'
+display_name='Header 2x20'
+# components ['J12']
+
+[footprint.FP4]
+kicad_footprint='Connector_PinHeader_2.54mm:PinHeader_1x10_P2.54mm_Vertical'
+display_name='Header 1x10'
+# components ['J6']
+
+[footprint.FP6]
+kicad_footprint='Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical'
+display_name='Header 1x3'
+# components ['J13', 'J8', 'J11']
+
+[footprint.FP12]
+kicad_footprint='RPi_Pico:RPi_Pico_SMD_TH'
+display_name='RPi Pico'
+# components ['U1']
+
+[footprint.FP9]
+kicad_footprint='Connector_USB:USB_Micro-B_Molex-105017-0001'
+display_name='USB Connector'
+# components : J2
+
+[footprint.FP7]
+kicad_footprint='project_lib:Mini360_step-down'
+display_name='Mini 360'
+# components : U5, U4
+
+[footprint.FP5]
+kicad_footprint='Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical'
+display_name='Header 1x2'
+# components : JP3, JP2, JP4, JP1
+
+#
+# The individual components on the board
+# Each has a friendly display name that is visible in openscad customizer
+# That way you don't have to refer back to your PCB design to figure out
+# what J1 is. Also great for others to refer to!
+#
+# kicad_footprint line is retained for reference in each case, but
+# commented out to show it's not necessary
+#
+
+[TH.J4]
+display_name='I2C+SPI Header'
+#kicad_footprint='Connector_PinHeader_2.54mm:PinHeader_2x05_P2.54mm_Vertical'
+
+[TH.J10]
+display_name='GPIOx14'
+#kicad_footprint='Connector_PinHeader_2.54mm:PinHeader_2x10_P2.54mm_Vertical'
+
+[TH.J3]
+display_name='BOOT UART'
+#kicad_footprint='Connector_PinHeader_2.54mm:PinHeader_2x03_P2.54mm_Vertical'
+
+[TH.J7]
+display_name='PWM'
+#kicad_footprint='Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical'
+
+[TH.J5]
+display_name='JTAG'
+#kicad_footprint='Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical'
+
+[TH.J9]
+display_name='SPI1'
+#kicad_footprint='Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical'
+
+[TH.J1]
+display_name='J1'
+#kicad_footprint='Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical'
+
+[TH.J12]
+display_name='RPi HAT'
+#kicad_footprint='Connector_PinHeader_2.54mm:PinHeader_2x20_P2.54mm_Vertical'
+
+[TH.J6]
+display_name='Pico GPIO'
+#kicad_footprint='Connector_PinHeader_2.54mm:PinHeader_1x10_P2.54mm_Vertical'
+
+[TH.J13]
+display_name='I2C0'
+#kicad_footprint='Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical'
+
+[TH.J8]
+display_name='Pico Debug'
+#kicad_footprint='Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical'
+
+[TH.J11]
+display_name='UART1'
+#kicad_footprint='Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical'
+
+[TH.U1]
+display_name='Pico'
+#kicad_footprint='RPi_Pico:RPi_Pico_SMD_TH'
+
+[TH.J2]
+display_name='USB Power'
+#kicad_footprint='Connector_USB:USB_Micro-B_Molex-105017-0001'
+
+[TH.U5]
+display_name='1.2V DCDC'
+#kicad_footprint='project_lib:Mini360_step-down'
+
+[TH.U4]
+display_name='3.3V DCDC'
+#kicad_footprint='project_lib:Mini360_step-down'
+
+[TH.JP3]
+display_name='JP3'
+#kicad_footprint='Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical'
+
+[TH.JP2]
+display_name='1.2V'
+#kicad_footprint='Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical'
+
+[TH.JP4]
+display_name='JP4'
+#kicad_footprint='Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical'
+
+[TH.JP1]
+display_name='3.3V'
+#kicad_footprint='Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical'
+
