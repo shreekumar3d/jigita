@@ -1,0 +1,1137 @@
+(kicad_sch
+	(version 20231120)
+	(generator "eeschema")
+	(generator_version "8.0")
+	(uuid "d076291e-3b54-4fec-8e44-342c8993fc75")
+	(paper "A4")
+	(lib_symbols
+		(symbol "Connector_Generic:Conn_01x10"
+			(pin_names
+				(offset 1.016) hide)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "J"
+				(at 0 12.7 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "Conn_01x10"
+				(at 0 -15.24 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" "Generic connector, single row, 01x10, script generated (kicad-library-utils/schlib/autogen/connector/)"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_keywords" "connector"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_fp_filters" "Connector*:*_1x??_*"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(symbol "Conn_01x10_1_1"
+				(rectangle
+					(start -1.27 -12.573)
+					(end 0 -12.827)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start -1.27 -10.033)
+					(end 0 -10.287)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start -1.27 -7.493)
+					(end 0 -7.747)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start -1.27 -4.953)
+					(end 0 -5.207)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start -1.27 -2.413)
+					(end 0 -2.667)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start -1.27 0.127)
+					(end 0 -0.127)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start -1.27 2.667)
+					(end 0 2.413)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start -1.27 5.207)
+					(end 0 4.953)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start -1.27 7.747)
+					(end 0 7.493)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start -1.27 10.287)
+					(end 0 10.033)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start -1.27 11.43)
+					(end 1.27 -13.97)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+				(pin passive line
+					(at -5.08 10.16 0)
+					(length 3.81)
+					(name "Pin_1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -5.08 -12.7 0)
+					(length 3.81)
+					(name "Pin_10"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "10"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -5.08 7.62 0)
+					(length 3.81)
+					(name "Pin_2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -5.08 5.08 0)
+					(length 3.81)
+					(name "Pin_3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -5.08 2.54 0)
+					(length 3.81)
+					(name "Pin_4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -5.08 0 0)
+					(length 3.81)
+					(name "Pin_5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -5.08 -2.54 0)
+					(length 3.81)
+					(name "Pin_6"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "6"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -5.08 -5.08 0)
+					(length 3.81)
+					(name "Pin_7"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "7"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -5.08 -7.62 0)
+					(length 3.81)
+					(name "Pin_8"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "8"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -5.08 -10.16 0)
+					(length 3.81)
+					(name "Pin_9"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "9"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector_Generic:Conn_01x10")
+		(at 91.44 58.42 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "5447b3d5-9364-4e0f-ab01-a52714fa1f73")
+		(property "Reference" "J4"
+			(at 89.916 43.942 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "Conn_01x10"
+			(at 93.98 60.9599 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x10_P2.54mm_Vertical"
+			(at 91.44 58.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 91.44 58.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Generic connector, single row, 01x10, script generated (kicad-library-utils/schlib/autogen/connector/)"
+			(at 91.44 58.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "9"
+			(uuid "7f8548f6-d941-43df-a8e0-06426b37b604")
+		)
+		(pin "8"
+			(uuid "1be4f7ae-6d35-40f9-81c3-9a17b0182c20")
+		)
+		(pin "1"
+			(uuid "60e421a4-ff2c-43fd-bc95-4962376b6053")
+		)
+		(pin "7"
+			(uuid "be91bc3d-04b8-43a4-b178-1b93cd527231")
+		)
+		(pin "3"
+			(uuid "b3e256a9-5cb6-4792-a352-aa3f1df59d64")
+		)
+		(pin "6"
+			(uuid "b802e4a6-1fa6-4ac5-8012-4a6e5b2e1f6b")
+		)
+		(pin "2"
+			(uuid "c8fc6f5e-417d-4185-b6df-6d7471ffb442")
+		)
+		(pin "5"
+			(uuid "0b3c5dbd-55e3-43a1-b5f3-6cdcabcfb602")
+		)
+		(pin "4"
+			(uuid "c3c48226-30ca-43df-9d9f-115030484beb")
+		)
+		(pin "10"
+			(uuid "8364d547-8ec2-447a-a67d-aa4cdde3d845")
+		)
+		(instances
+			(project "gridfinity-base"
+				(path "/d076291e-3b54-4fec-8e44-342c8993fc75"
+					(reference "J4")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector_Generic:Conn_01x10")
+		(at 62.23 58.42 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "678410a7-a152-496d-afee-89c5f4fb201a")
+		(property "Reference" "J1"
+			(at 60.706 43.942 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "Conn_01x10"
+			(at 64.77 60.9599 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x10_P2.54mm_Vertical"
+			(at 62.23 58.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 62.23 58.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Generic connector, single row, 01x10, script generated (kicad-library-utils/schlib/autogen/connector/)"
+			(at 62.23 58.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "9"
+			(uuid "8c2128c5-e8c2-428f-9c6a-21f103bf50c7")
+		)
+		(pin "8"
+			(uuid "6e018533-fc8f-4257-978e-4d36bc6febe1")
+		)
+		(pin "1"
+			(uuid "42243a95-520e-4698-b517-a172b6c884d9")
+		)
+		(pin "7"
+			(uuid "6b3a51fd-93ff-492e-ba43-8bacf8f4eddd")
+		)
+		(pin "3"
+			(uuid "fa64829e-f086-4d88-b07a-96de3175f757")
+		)
+		(pin "6"
+			(uuid "5a6d0672-219c-43e3-9bd5-337591e456d1")
+		)
+		(pin "2"
+			(uuid "e71f24bf-9b2d-4ca8-9fcf-a13645b9e594")
+		)
+		(pin "5"
+			(uuid "92b56f99-992c-490d-afe5-20c43359ad42")
+		)
+		(pin "4"
+			(uuid "77333ef6-b38f-4e6b-aa46-e44978ca1b50")
+		)
+		(pin "10"
+			(uuid "08b308f1-97c3-40b0-991b-b6d120aeae98")
+		)
+		(instances
+			(project ""
+				(path "/d076291e-3b54-4fec-8e44-342c8993fc75"
+					(reference "J1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector_Generic:Conn_01x10")
+		(at 73.66 88.9 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "6b47a785-75b7-42a9-932a-1b98a402adcd")
+		(property "Reference" "J8"
+			(at 72.136 74.422 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "Conn_01x10"
+			(at 76.2 91.4399 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x10_P2.54mm_Vertical"
+			(at 73.66 88.9 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 73.66 88.9 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Generic connector, single row, 01x10, script generated (kicad-library-utils/schlib/autogen/connector/)"
+			(at 73.66 88.9 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "9"
+			(uuid "fb1d3b35-9d00-483f-9461-1945031a9df0")
+		)
+		(pin "8"
+			(uuid "580f924f-eb24-443e-a967-0a8b33a37737")
+		)
+		(pin "1"
+			(uuid "19b04c20-5009-475d-b7de-834780928d51")
+		)
+		(pin "7"
+			(uuid "dd239223-4ec7-4023-8d19-50c9d2e63593")
+		)
+		(pin "3"
+			(uuid "f3b128e1-8af5-48fd-be3f-d2c5ebc1072e")
+		)
+		(pin "6"
+			(uuid "247c1140-f558-4abf-852d-0f1b4706965f")
+		)
+		(pin "2"
+			(uuid "22dc137c-0298-4b90-ab2a-01ae58d70b01")
+		)
+		(pin "5"
+			(uuid "4a280dd0-f434-4086-82f7-0445e804f92f")
+		)
+		(pin "4"
+			(uuid "3b8f80c6-ccb3-47a9-804d-3e587ef289de")
+		)
+		(pin "10"
+			(uuid "79425c31-0dac-4bea-928c-b28288524cf0")
+		)
+		(instances
+			(project "gridfinity-base"
+				(path "/d076291e-3b54-4fec-8e44-342c8993fc75"
+					(reference "J8")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector_Generic:Conn_01x10")
+		(at 62.23 88.9 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "aa983d87-0b77-4755-bafb-35f149fa9bf4")
+		(property "Reference" "J7"
+			(at 60.706 74.422 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "Conn_01x10"
+			(at 64.77 91.4399 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x10_P2.54mm_Vertical"
+			(at 62.23 88.9 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 62.23 88.9 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Generic connector, single row, 01x10, script generated (kicad-library-utils/schlib/autogen/connector/)"
+			(at 62.23 88.9 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "9"
+			(uuid "43d252f5-53e3-406c-a9a0-dd6efb882541")
+		)
+		(pin "8"
+			(uuid "9bbc8d1b-1556-47af-9d67-293fe1e01c1a")
+		)
+		(pin "1"
+			(uuid "66fc90fb-54b7-402d-a900-3c2f11e62edf")
+		)
+		(pin "7"
+			(uuid "f513010b-474c-47cc-b4fa-f5b4a752233b")
+		)
+		(pin "3"
+			(uuid "f7cf18a7-51a6-4012-803b-a0ca3dfb76ad")
+		)
+		(pin "6"
+			(uuid "00b0cd1e-95f8-4e17-837a-40ceff481f43")
+		)
+		(pin "2"
+			(uuid "6e51ea8c-8ed4-45bc-bb30-6b707fb5449e")
+		)
+		(pin "5"
+			(uuid "b7b8062e-1fb0-4581-8716-d6231177f916")
+		)
+		(pin "4"
+			(uuid "128b9bd7-06d8-4cd5-ad1e-f61fbfb1c6b2")
+		)
+		(pin "10"
+			(uuid "9c3e5c10-edf0-4bdc-8f62-e22cfd4d9a0b")
+		)
+		(instances
+			(project "gridfinity-base"
+				(path "/d076291e-3b54-4fec-8e44-342c8993fc75"
+					(reference "J7")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector_Generic:Conn_01x10")
+		(at 72.39 58.42 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "c6a3e8b9-126e-4d5e-adc6-17a32b927401")
+		(property "Reference" "J2"
+			(at 70.866 43.942 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "Conn_01x10"
+			(at 74.93 60.9599 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x10_P2.54mm_Vertical"
+			(at 72.39 58.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 72.39 58.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Generic connector, single row, 01x10, script generated (kicad-library-utils/schlib/autogen/connector/)"
+			(at 72.39 58.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "9"
+			(uuid "6854429a-e81d-4da0-b35e-eb2fde38695f")
+		)
+		(pin "8"
+			(uuid "b93004fc-2ff3-498e-8404-b529f4c14a08")
+		)
+		(pin "1"
+			(uuid "6e12a235-15c2-4007-bb3f-e636e7053a35")
+		)
+		(pin "7"
+			(uuid "7e6f7016-62a4-48c5-8259-188a9bc3e4e0")
+		)
+		(pin "3"
+			(uuid "5446464c-1fbb-4616-8afc-3e622c715add")
+		)
+		(pin "6"
+			(uuid "844d64a8-da6b-4180-b49b-f24b9d9da3e6")
+		)
+		(pin "2"
+			(uuid "0661168b-6b06-4143-9418-f4abfcb4cbe3")
+		)
+		(pin "5"
+			(uuid "b78d77cf-456c-4f16-afb1-51683001caae")
+		)
+		(pin "4"
+			(uuid "cb7beeaf-fc45-47ff-9e75-7c8e79f30811")
+		)
+		(pin "10"
+			(uuid "108acd01-a011-4cfa-be21-d4fee7e2f7fe")
+		)
+		(instances
+			(project "gridfinity-base"
+				(path "/d076291e-3b54-4fec-8e44-342c8993fc75"
+					(reference "J2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector_Generic:Conn_01x10")
+		(at 82.55 58.42 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "d831fe82-3187-486c-bdeb-0c2ad9aca2b0")
+		(property "Reference" "J3"
+			(at 81.026 43.942 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "Conn_01x10"
+			(at 85.09 60.9599 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x10_P2.54mm_Vertical"
+			(at 82.55 58.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 82.55 58.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Generic connector, single row, 01x10, script generated (kicad-library-utils/schlib/autogen/connector/)"
+			(at 82.55 58.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "9"
+			(uuid "5a26aaea-d587-47e1-8623-e787a7b5eb71")
+		)
+		(pin "8"
+			(uuid "c1b74957-4452-4b05-897d-f89eb630d8b0")
+		)
+		(pin "1"
+			(uuid "95220439-3112-4b51-bb43-ed68ac2dc136")
+		)
+		(pin "7"
+			(uuid "22748053-0b3f-4350-895e-9e0ac0420bb1")
+		)
+		(pin "3"
+			(uuid "198a6987-ae22-4f7c-b818-4ffd54d9a249")
+		)
+		(pin "6"
+			(uuid "434eb9f7-f5c2-4180-8c5d-9b373c80959c")
+		)
+		(pin "2"
+			(uuid "6b0d5c91-fe17-4040-a82f-a3fea803e24a")
+		)
+		(pin "5"
+			(uuid "b6c8a3e1-7b02-4e23-b277-6e75cbfa97e2")
+		)
+		(pin "4"
+			(uuid "0aacf5a4-ae04-486a-a965-82e0e5304d40")
+		)
+		(pin "10"
+			(uuid "6d7ad602-c0c1-45c2-9d5f-4875b69548a9")
+		)
+		(instances
+			(project "gridfinity-base"
+				(path "/d076291e-3b54-4fec-8e44-342c8993fc75"
+					(reference "J3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector_Generic:Conn_01x10")
+		(at 100.33 58.42 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "eca8c8bf-09c6-44d7-81fb-7283d7525fd4")
+		(property "Reference" "J5"
+			(at 98.806 43.942 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "Conn_01x10"
+			(at 102.87 60.9599 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x10_P2.54mm_Vertical"
+			(at 100.33 58.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 100.33 58.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Generic connector, single row, 01x10, script generated (kicad-library-utils/schlib/autogen/connector/)"
+			(at 100.33 58.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "9"
+			(uuid "ceb3254c-339a-4f75-9897-5c6f889db2d7")
+		)
+		(pin "8"
+			(uuid "88f8ffad-951a-4a15-b578-6d3ed948120c")
+		)
+		(pin "1"
+			(uuid "309cd65d-8521-42d8-9f10-da803dde09d3")
+		)
+		(pin "7"
+			(uuid "dd7bcdb2-a458-4248-b7fa-25902bffd355")
+		)
+		(pin "3"
+			(uuid "90a804a7-a9e8-4850-9eea-be34ad30c779")
+		)
+		(pin "6"
+			(uuid "3c481a2d-b658-41f9-842c-b60cdfdf64cf")
+		)
+		(pin "2"
+			(uuid "352cd1ab-8676-4d9b-bc2d-41d268a7b73c")
+		)
+		(pin "5"
+			(uuid "e056cb06-0a55-4f9b-88ee-4099dd844342")
+		)
+		(pin "4"
+			(uuid "94394952-80de-400f-bac7-1fde38e31261")
+		)
+		(pin "10"
+			(uuid "9bdaaaa4-6ac6-4daf-8d3a-0644c03daec8")
+		)
+		(instances
+			(project "gridfinity-base"
+				(path "/d076291e-3b54-4fec-8e44-342c8993fc75"
+					(reference "J5")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector_Generic:Conn_01x10")
+		(at 110.49 58.42 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "f48d3c6c-daa8-4138-900a-953d298f4faa")
+		(property "Reference" "J6"
+			(at 108.966 43.942 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "Conn_01x10"
+			(at 113.03 60.9599 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x10_P2.54mm_Vertical"
+			(at 110.49 58.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 110.49 58.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Generic connector, single row, 01x10, script generated (kicad-library-utils/schlib/autogen/connector/)"
+			(at 110.49 58.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "9"
+			(uuid "39dc1512-a755-4dc1-bd47-c8dd22faa70f")
+		)
+		(pin "8"
+			(uuid "b37f08bc-1f08-4376-8baa-ebb3ec2a6d07")
+		)
+		(pin "1"
+			(uuid "f92c2940-1368-47b9-a330-0a59dcf30c7f")
+		)
+		(pin "7"
+			(uuid "6453f189-3389-413e-897b-192dc290c931")
+		)
+		(pin "3"
+			(uuid "a3440c0d-c886-43cc-972e-99a193f8f23e")
+		)
+		(pin "6"
+			(uuid "d34fe3f6-b066-48f5-92ff-ab769cb8a4e1")
+		)
+		(pin "2"
+			(uuid "30b0ab8f-f14b-4c5d-8648-fdf0c31a3dec")
+		)
+		(pin "5"
+			(uuid "db6d8ff0-26dc-40d8-acbf-821d77a21606")
+		)
+		(pin "4"
+			(uuid "7503959e-4b4e-4d51-ad84-40749c6a0451")
+		)
+		(pin "10"
+			(uuid "cbd4435b-2615-4dbc-85bc-fe7b915642d1")
+		)
+		(instances
+			(project "gridfinity-base"
+				(path "/d076291e-3b54-4fec-8e44-342c8993fc75"
+					(reference "J6")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(sheet_instances
+		(path "/"
+			(page "1")
+		)
+	)
+)
