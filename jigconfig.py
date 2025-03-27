@@ -30,6 +30,7 @@ SMD_default_value_keys = ["clearance_from_shells", "gap_from_shells"]
 TH_ref_params = [
     "kicad_footprint",
     "force_smd",
+    "force_mount",
     "flip_side",
     "shell_type",
     "shell_wrapper_thickness",
@@ -101,7 +102,7 @@ inheritable_footprint_keys_smd = [
     "corner_cut_depth",
 ]
 
-inheritable_footprint_keys_th = inheritable_footprint_keys_smd + ["force_smd", "flip_side"]
+inheritable_footprint_keys_th = inheritable_footprint_keys_smd + ["force_smd", "force_mount", "flip_side"]
 
 valid_footprint_keys_th = [
     "kicad_footprint",
@@ -715,11 +716,12 @@ shell_thickness = 1.2
 # you 3D. Consider both to set this up.
 shell_gap = 0.1
 
-# If you have SMD components on the board, you may need a gap between the
-# shells and the PCB. The gap ensures SMD components don't touch the shells.
+# shell_clearance_from_pcb is as a vertical "keep-out" distance between the PCB and the
+# shells. Shells start this distance below PCB. This gap may be used to visually
+# verify the component fitment.
 #
-# Think of this as a vertical "keep-out" distance between the PCB and the
-# shells
+# If the component doesn't touch the PCB (min_z>0, due to force_mount) then this is
+# taken as the extra distance to trim from the top
 shell_clearance_from_pcb = 1
 
 # For dimensional accuracy, inner corners in the 3d model can be
@@ -760,6 +762,9 @@ corner_cut_depth = 0.2
 
 # Force footprints to SMD
 force_smd = false
+
+# Force mount component even if the 3d shape doesn't intersect PCB
+force_mount = false
 
 # Set flip_side to true if 3D model is flipped in the footprint - e.g.
 # top mounted component is actually bottom mount.

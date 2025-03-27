@@ -312,11 +312,11 @@ def gen_shell_shape(cfg, ref, ref_type, ident, x, y, rot, min_z, max_z, h_bins, 
     for this_bin in h_bins:
         # tiny_dimension ensures overlap across adjacent shells - important for boolean ops
         fitting_pocket += translate(
-            [x, y, - sv_tiny_dimension + this_bin["start_z"]]
+            [x, y, -sv_tiny_dimension]
         )(
             rotate([0, 0, shell_rot_z])(
                 linear_extrude(
-                    this_bin["end_z"] - this_bin["start_z"] + 2 * sv_tiny_dimension + sv_pcb_thickness
+                    this_bin["end_z"] + 2 * sv_tiny_dimension + sv_pcb_thickness
                 )(offset(sv_ref_shell_gap)(this_bin["hull_poly"]()))
             )
         )
@@ -327,9 +327,11 @@ def gen_shell_shape(cfg, ref, ref_type, ident, x, y, rot, min_z, max_z, h_bins, 
     mod_map[ident] = module(mod_name, h_bins[0]["hull_poly"])
 
     wiggle_pocket_name = ref2wiggle_pocket(ident)
-    wiggle_pocket = translate([x, y, sv_ref_min_z])(
+    # start pocket at 0 even if component may start below that...
+    sv_ref_min_z2 = openscad_functions.max(sv_ref_min_z, 0)
+    wiggle_pocket = translate([x, y, sv_ref_min_z2])(
         rotate([0, 0, shell_rot_z])(
-            linear_extrude(sv_ref_max_z - sv_ref_min_z + sv_pcb_thickness)(
+            linear_extrude(sv_ref_max_z - sv_ref_min_z2 + sv_pcb_thickness)(
                 offset(sv_ref_shell_gap)(mod_map[ident]())
             )
         )
@@ -389,7 +391,7 @@ def gen_shell_shape(cfg, ref, ref_type, ident, x, y, rot, min_z, max_z, h_bins, 
     # NOTE FIXME: start and end in c_bin have opposite meaning here. "start" is the
     # higher point, end is the lower point w.r.t PCB.
     # shell has to end at the top of the PCB (and cut through the PCB thickness)
-    shell_end = openscad_functions.max(c_bins[0]["z_end"], 0)
+    shell_end = openscad_functions.min(c_bins[0]["z_end"], 0)
     for idx, this_bin in enumerate(c_bins):
         overall_shape = union()
         for shape in this_bin["shapes"]:
@@ -456,9 +458,9 @@ def gen_shell_shape(cfg, ref, ref_type, ident, x, y, rot, min_z, max_z, h_bins, 
     )
 
     wiggle_minus_pocket_name = ref2wiggle_minus_pocket(ident)
-    wiggle_minus_pocket = translate([x, y, sv_ref_min_z])(
+    wiggle_minus_pocket = translate([x, y, 0])(
         rotate([0, 0, shell_rot_z])(
-            linear_extrude(sv_ref_max_z - sv_ref_min_z + sv_pcb_thickness)(
+            linear_extrude(sv_ref_max_z + sv_pcb_thickness)(
                 offset(sv_ref_shell_gap)(c_bins[0]["scad_poly"]())
             )
         )
@@ -483,8 +485,8 @@ def gen_courtyard_shell_shape(ref, courtyard_poly):
 
     courtyard_pocket_name = ref2courtyard_pocket(ref)
     courtyard_pocket = translate([0, 0, 0])(
-        translate([0, 0, sv_ref_min_z])(
-            linear_extrude(sv_ref_max_z - sv_ref_min_z + sv_pcb_thickness)(
+        translate([0, 0, 0])(
+            linear_extrude(sv_ref_max_z + sv_pcb_thickness)(
                 offset(sv_ref_shell_gap)(courtyard_map[ref]())
             )
         )
@@ -672,13 +674,13 @@ def gen_configurable_fp_components(
         ref_type = subshells["ref_type"]
         tris = tripy.earclip(subshells["courtyard"])
         area = tripy.calculate_total_area(tris)
-        ui_refs.append([this_ref, area, ref_type])
+        ui_refs.append([this_ref, area, ref_type, subshells])
     ui_refs.sort(reverse=True, key=lambda x: x[1])  # key is the area
     # pprint(ui_refs)
 
     used_footprints = set() # track used footprints
     fp_scad.write("/* [Include these components in output STL file] */\n")
-    for this_ref, area, ref_type in ui_refs:
+    for this_ref, area, ref_type, subshells in ui_refs:
         #print(this_ref, ref_type)
         footprint = cfg[ref_type][this_ref]["kicad_footprint"]
         used_footprints.add(footprint)
@@ -715,7 +717,7 @@ def gen_configurable_fp_components(
             fp_scad.write("%s_For_%s = %s; //[%s]\n" % (var, alias, footprint[prop], var_range))
 
     valid_shell_types = ",".join(jigconfig.valid_shell_types)
-    for this_ref, area, ref_type in ui_refs:
+    for this_ref, area, ref_type, subshells in ui_refs:
         footprint = cfg[ref_type][this_ref]["kicad_footprint"]
         dname_fp = fp_map[footprint]["display_name"]
         dname_ref = cfg[ref_type][this_ref]["display_name"]
@@ -752,8 +754,9 @@ def gen_configurable_fp_components(
         fp_scad.write(
             "//Use tuned shell parameters specified at component level, overriding footprint\n"
         )
+        # We propagate values, so keep tune on
         fp_scad.write(
-            'Tune_%s=false; // [true,false]\n'
+            'Tune_%s=true; // [true,false]\n'
             % (this_ref)
         )
         fp_scad.write(
@@ -786,14 +789,25 @@ def gen_configurable_fp_components(
     fp_scad.write("layer_height = %s;\n" % (cfg["3dprinter"]["layer_height"]))
 
     # Effective values for each ref
-    for this_ref, area, ref_type in ui_refs:
+    for this_ref, area, ref_type, subshells in ui_refs:
         footprint = ref_map[this_ref]["footprint"]
         fp_alias = fp_map[footprint]["alias"]
-        for this_var in ["Shell_Thickness", "Shell_Gap", "Shell_Clearance_From_PCB"]:
+        for this_var in ["Shell_Thickness", "Shell_Gap"]:
             fp_scad.write(
                 "Effective_%s_For_%s = Tune_%s? %s_For_%s : %s_For_%s;\n"
                 % (this_var, this_ref, this_ref, this_var, this_ref, this_var, fp_alias)
             )
+        this_var = "Shell_Clearance_From_PCB"
+        fp_scad.write(
+            "_Effective_%s_For_%s = Tune_%s? %s_For_%s : %s_For_%s;\n"
+            % (this_var, this_ref, this_ref, this_var, this_ref, this_var, fp_alias)
+        )
+        # if component does not touch PCB (min_z <= 0), then shell_clearance will cut
+        fp_scad.write(
+            "Effective_%s_For_%s = (%f <= 0.0)? _Effective_%s_For_%s : %f + _Effective_%s_For_%s;\n"
+            % (this_var, this_ref, subshells["min_z"], this_var, this_ref, subshells["min_z"], this_var, this_ref)
+        )
+
 
 
 def gen_computed_values_jig(fp_scad):

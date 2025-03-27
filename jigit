@@ -404,15 +404,15 @@ def load_3d_models(ref_list, ref_map, desc):
         load_ref_3d_models(cfg, ref, ref_map)
 
 
-def body_id(cfg, ref, flip_side=False, pcb_thickness=1.6):
+def body_id(cfg, ref, flip_side=False, pcb_thickness=1.6, force_mount=False):
     model_names = []
     for modinfo in ref["models"]:
         model_names.append(
             [modinfo["model"], modinfo["rotation"], modinfo["offset"], modinfo["scale"]]
         )
 
-    # FIXME PCB thickness here is ultra ugly, but safe!
-    full_name = '%s_%s_'%(flip_side, pcb_thickness)
+    # FIXME PCB thickness and force_mount here are ultra ugly, but safe!
+    full_name = '%s_%s_%s_'%(flip_side, pcb_thickness, force_mount)
     for values in model_names:
         for x in values:
             full_name += str(x)
@@ -864,7 +864,9 @@ for this_ref in th_ref_list:
     subshells = {"ref": this_ref, "shell": [], "courtyard": None}
     th = ref_map[this_ref]
     th_flip_side = cfg["TH"][this_ref]["flip_side"]
-    this_bid = body_id(cfg, th, th_flip_side, cfg['pcb']['thickness'])
+    th_force_mount = cfg["TH"][this_ref]['force_mount']
+    print(this_ref, 'force_mount=', th_force_mount)
+    this_bid = body_id(cfg, th, th_flip_side, cfg['pcb']['thickness'], th_force_mount)
     all_bids.append(this_bid)
     body_info = shape_cache.get_cached_bid(cfg, "th", this_bid, th["footprint"])
     if not body_info:
@@ -932,7 +934,7 @@ for this_ref in th_ref_list:
             h_bins = ss_info["h_bins"]
             c_bins = ss_info["c_bins"]
 
-        if min_z > 0:
+        if (not th_force_mount) and min_z > 0:
             print("  Mesh %s is NOT mounted on board. min_z = %s; Skipping." % (modinfo["model"], min_z))
         else:
             shell_ident = "%s_%d" % (this_ref, idx)
