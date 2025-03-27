@@ -1,0 +1,30 @@
+[jig]
+type = "component_fitting"
+
+[holder]
+# ensure dimensions of base shape is unchanged
+# e.g. 41.5 mm rounded square will be output as is.
+pcb_overlap = 0.0
+pcb_gap = 0.0
+perimeter = 0
+
+[holder.base]
+# thin base to help align with gridfinity base
+type = "solid"
+thickness = 0.2
+
+[TH.component_shell]
+shell_thickness = 1.2
+shell_gap = 0.15
+shell_type = "tight"
+shell_clearance_from_pcb = 0.0 # don't cut into shell
+force_mount = true # ensure parts under PCB don't get ignored!
+
+[TH.M2_AllenKey1]
+shell_clearance_from_pcb = 1.0
+
+[TH.M3_AllenKey1]
+shell_clearance_from_pcb = 1.5
+
+[TH.M4_AllenKey1]
+shell_clearance_from_pcb = 2.0

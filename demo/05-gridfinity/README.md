@@ -39,8 +39,8 @@ to create a complete gridfinity container.
 
 [Gridfinity Generator](https://gridfinity.perplexinglabs.com/pr/gridfinity-rebuilt/0/0)
 provides a convenient way to generate gridfinity compatible base designs.
-Setting height to 1 mm provides a convenient building block with an almost
-flat top.
+Setting height to 1 mm, and disabling the "stackiing lip" provides a convenient
+building block with an almost flat top.
 
 <img src="images/gridfinity-generator.png" width="800" >
 
@@ -48,6 +48,8 @@ I have download and saved this file as
 [base/base-gridfinity-1x1.stl](base/base-gridfinity-1x1.stl).
 
 To merge the models, let's fire up the slicer (Prusa Slicer in my case).
+We'll follow a workflow following the steps in
+[this article](https://help.prusa3d.com/article/how-to-lift-object-from-the-print-bed_245192).
 First we'll load the base model.  Then we'll right click on the model,
 choose "Add Part...", then "Load". Then we'll select the generated jig file.
 The jig will get added at unexpected positions. You'll need to match the
@@ -58,11 +60,56 @@ you'll end up with this:
 <img src="images/slicer-add-part-load-workflow.png" width="800" >
 
 You can now print the resulting file, or save it, say as
-[containers/gridfinity-container-8x10pin-header.stl](containers/gridfinity-container-8x10pin-header.stl). There you have it - gridfinity containers
-for your own components are just a few minutes away.
+[containers/gridfinity-container-8x10pin-header.stl](containers/gridfinity-container-8x10pin-header.stl).
+There you have it - gridfinity containers for your own components are just
+a few minutes away.
 
-I use FreeCAD with the 
+I use FreeCAD with the
 [KiCAD StepUp mod](https://www.kicad.org/external-tools/stepup/) workbench for
 drawing the PCB outlines to the correct dimension and shape. The container
 shapes are in
 [gridfinity-container-shapes.FCStd](gridfinity-container-shapes.FCStd)
+
+# Beyond Electronic Components...
+
+KiCAD allows you to load mutiple 3D models into a footprint. These models are
+thus not restricted to being electronics components... they can be anything
+else too!  After arranging these models in your desired arrangement, you can
+then use Jigit to generate generic holders.
+
+Using KiCAD this way is somewhat unusual... but possible! JigIt doesn't have
+a UI (yet!) so KiCAD is basically a round-about way to place objects in 3D,
+and then have JigIt do its work.
+
+Here is an example of a gridfinity container holding three allen keys -
+ M2, M3 and M4:
+
+<img src="images/gridfinity-container-allen-keys.gif" width="600" >
+
+The relevant files are:
+
+  * KiCAD Design file:
+    [allen-keys/allen-keys.kicad_pcb](allen-keys/allen-keys.kicad_pcb)
+  * Allen Key 3D models were generated using the Fasteners workbench in FreeCAD,
+    and are in [allen-keys/3dmodels](allen-keys/3dmodels)
+  * Configuration file to generate jig : [allen-keys.toml](allen-keys.toml)
+  * Generated Jig : [jigs/allen-keys.3mf](jigs/allen-keys.3mf)
+  * Merged Gridfinity container : [containers/gridfinity-container-allen-keys.stl](containers/gridfinity-container-allen-keys.stl)
+  * Gridfinity container base: [base/base-gridfinity-2x1.stl](base/base-gridfinity-2x1.stl)
+
+The workflow is same as earlier, except 3D models of allen keys are assigned
+to KiCAD footprints. 3D models also positioned on the same side as the PCB.
+If you lookup the design you'll find that they are positioned that the allen
+keys are at the same level, despite their differing sizes. Jigit would
+ordinarily ignore those; force_mount" is set to true in the config file to
+include those.
+
+The jig was generated (as you might expect) using this command:
+
+    jigit \
+      -i allen-keys/allen-keys.kicad_pcb \
+      -c allen-keys.toml \
+      -o jigs/allen-keys.3mf
+
+This feature may be used in many ways. Shipping a kit of components and some
+extra hardware ? Use it to add some polish to your kit!
