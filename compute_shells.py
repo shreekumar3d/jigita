@@ -224,7 +224,7 @@ def tight_pockets(mesh, z_bin_size, printable_threshold):
                     "z_start": zbins[zbin_start]["z"],
                     "area": zbins[idx - 1]["area"],
                     "shapes": zbins[idx - 1]["shapes"],
-                    "z_end": zbins[idx - 1]["z"],
+                    "z_end": zbins[idx]["z"],
                 }
             )
             zbin_start = idx
