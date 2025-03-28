@@ -74,7 +74,6 @@ def ref2tight_perimeter(ref):
 def ref2fitting_cuts(ref):
     return "fitting_cuts_%s" % (ref)
 
-
 def ref2fitting_flower(ref):
     return "fitting_flower_%s" % (ref)
 
@@ -122,6 +121,119 @@ def peri_line(start, end, line_width):
 
     return peri_line_scad(start_pt, end_pt, line_width)
 
+def generate_cuts(
+        cfg_ref,
+        sv_ref_shell_thickness, sv_ref_shell_gap,
+        shape, corner_segments, encl_poly):
+
+    cut_width = cfg_ref["corner_cut_width"]
+    cut_depth = cfg_ref["corner_cut_depth"]
+    min_petal_length = cfg_ref["min_petal_length"]
+    support_len = cfg_ref["petal_support_length"]
+
+    this_hull = Polygon(shape)
+    cut_shape = union()
+    cut_to_top_shape = union()
+    for segment, tangents_start, tangents_end in corner_segments:
+        corner_pt = segment[0]
+        t1 = tangents_start[0]
+        t2 = tangents_start[1]
+        inner_pt1, outer_pt1, walk_vec1, dist1 = geom_ops.find_exterior_pt(
+            this_hull, corner_pt, t1, t2, encl_poly
+        )
+
+        if cut_depth != 0:
+            this_cut_depth = cut_depth
+        else:
+            this_cut_depth = dist1 + sv_ref_shell_thickness + sv_ref_shell_gap
+        # now, we have an inner point, a vector, and a distance
+        # we we walk shell_thickness more, we are guaranteed to be out of
+        # the entire shell...
+        cut_start = peri_line(
+            inner_pt1,
+            [
+                inner_pt1[0] + this_cut_depth * walk_vec1[0],
+                inner_pt1[1] + this_cut_depth * walk_vec1[1],
+            ],
+            cut_width,
+        )
+
+        # But, if the segment is short, there will be two ugly scoring marks, and small things
+        # to print unnecessarily. So, process the end point also in this case
+        this_seg = LineString(segment)
+        if this_seg.length < min_petal_length:
+            corner_pt = segment[-1]
+            t1 = tangents_end[0]
+            t2 = tangents_end[1]
+            inner_pt2, outer_pt2, walk_vec2, dist2 = geom_ops.find_exterior_pt(
+                this_hull, corner_pt, t1, t2, encl_poly
+            )
+            if cut_depth != 0:
+                this_cut_depth = cut_depth
+            else:
+                this_cut_depth = (
+                    dist2 + sv_ref_shell_thickness + sv_ref_shell_gap
+                )
+            cut_end = peri_line(
+                inner_pt2,
+                [
+                    inner_pt2[0] + this_cut_depth * walk_vec2[0],
+                    inner_pt2[1] + this_cut_depth * walk_vec2[1],
+                ],
+                cut_width,
+            )
+            cut_shape += solid2.hull()(cut_start + cut_end)
+        else:
+            cut_shape += cut_start
+            # if it's long, let's try cutting a bit
+            # FIXME what if this is the only single long curve (e.g. circle) ?
+            # we might be cutting important support points out
+            if this_seg.length > (support_len * 2) + 2 * cut_width:
+                # print('Long seg ', this_seg.length)
+                cs_pt, cs_t1, cs_t2 = geom_ops.cut_line(this_seg, support_len)
+                ce_pt, ce_t1, ce_t2 = geom_ops.cut_line(
+                    this_seg, this_seg.length - support_len
+                )
+                cs_in_pt, cs_out_pt, cs_walk_vec, cs_dist = (
+                    geom_ops.find_exterior_pt(
+                        this_hull, [cs_pt.x, cs_pt.y], cs_t1, cs_t2, encl_poly
+                    )
+                )
+                ce_in_pt, ce_out_pt, ce_walk_vec, ce_dist = (
+                    geom_ops.find_exterior_pt(
+                        this_hull, [ce_pt.x, ce_pt.y], ce_t1, ce_t2, encl_poly
+                    )
+                )
+                trim_start = peri_line(
+                    cs_in_pt,
+                    [
+                        cs_in_pt[0]
+                        + (cs_dist + sv_ref_shell_thickness + sv_ref_shell_gap)
+                        * cs_walk_vec[0],
+                        cs_in_pt[1]
+                        + (cs_dist + sv_ref_shell_thickness + sv_ref_shell_gap)
+                        * cs_walk_vec[1],
+                    ],
+                    cut_width,
+                )
+                trim_end = peri_line(
+                    ce_in_pt,
+                    [
+                        ce_in_pt[0]
+                        + (ce_dist + sv_ref_shell_thickness + sv_ref_shell_gap)
+                        * ce_walk_vec[0],
+                        ce_in_pt[1]
+                        + (ce_dist + sv_ref_shell_thickness + sv_ref_shell_gap)
+                        * ce_walk_vec[1],
+                    ],
+                    cut_width,
+                )
+                # these cut all the way to the top. The cuts aren't exactly aligned across layers, so
+                # _not_ cutting all the way through can cause hanging bridges.
+                # FIXME : this will possible not work for all cases. We need some corner sensitivity
+                # across layers
+                cut_to_top_shape += solid2.hull()(trim_start + trim_end)
+    return cut_shape, cut_to_top_shape
 
 def gen_shell_shape(cfg, ref, ref_type, ident, x, y, rot, min_z, max_z, h_bins, c_bins):
     sv_tiny_dimension = ScadValue("tiny_dimension")
@@ -147,115 +259,14 @@ def gen_shell_shape(cfg, ref, ref_type, ident, x, y, rot, min_z, max_z, h_bins, 
 
     encl_poly = Polygon(h_bins[0]["hull"])
     cut_width = cfg[ref_type][ref]["corner_cut_width"]
-    cut_depth = cfg[ref_type][ref]["corner_cut_depth"]
-    min_petal_length = cfg[ref_type][ref]["min_petal_length"]
-    support_len = cfg[ref_type][ref]["petal_support_length"]
 
-    cut_volume = union()
+    fitting_cut_volume = union()
     if cut_width >= 0:
         for bin_idx, this_bin in enumerate(reversed(h_bins)):
-            this_hull = Polygon(this_bin["hull"])
-            cut_shape = union()
-            cut_to_top_shape = union()
-            for segment, tangents_start, tangents_end in this_bin["corner_segments"]:
-                corner_pt = segment[0]
-                t1 = tangents_start[0]
-                t2 = tangents_start[1]
-                inner_pt1, outer_pt1, walk_vec1, dist1 = geom_ops.find_exterior_pt(
-                    this_hull, corner_pt, t1, t2, encl_poly
-                )
-
-                if cut_depth != 0:
-                    this_cut_depth = cut_depth
-                else:
-                    this_cut_depth = dist1 + sv_ref_shell_thickness + sv_ref_shell_gap
-                # now, we have an inner point, a vector, and a distance
-                # we we walk shell_thickness more, we are guaranteed to be out of
-                # the entire shell...
-                cut_start = peri_line(
-                    inner_pt1,
-                    [
-                        inner_pt1[0] + this_cut_depth * walk_vec1[0],
-                        inner_pt1[1] + this_cut_depth * walk_vec1[1],
-                    ],
-                    cut_width,
-                )
-
-                # But, if the segment is short, there will be two ugly scoring marks, and small things
-                # to print unnecessarily. So, process the end point also in this case
-                this_seg = LineString(segment)
-                if this_seg.length < min_petal_length:
-                    corner_pt = segment[-1]
-                    t1 = tangents_end[0]
-                    t2 = tangents_end[1]
-                    inner_pt2, outer_pt2, walk_vec2, dist2 = geom_ops.find_exterior_pt(
-                        this_hull, corner_pt, t1, t2, encl_poly
-                    )
-                    if cut_depth != 0:
-                        this_cut_depth = cut_depth
-                    else:
-                        this_cut_depth = (
-                            dist2 + sv_ref_shell_thickness + sv_ref_shell_gap
-                        )
-                    cut_end = peri_line(
-                        inner_pt2,
-                        [
-                            inner_pt2[0] + this_cut_depth * walk_vec2[0],
-                            inner_pt2[1] + this_cut_depth * walk_vec2[1],
-                        ],
-                        cut_width,
-                    )
-                    cut_shape += solid2.hull()(cut_start + cut_end)
-                else:
-                    cut_shape += cut_start
-                    # if it's long, let's try cutting a bit
-                    # FIXME what if this is the only single long curve (e.g. circle) ?
-                    # we might be cutting important support points out
-                    if this_seg.length > (support_len * 2) + 2 * cut_width:
-                        # print('Long seg ', this_seg.length)
-                        cs_pt, cs_t1, cs_t2 = geom_ops.cut_line(this_seg, support_len)
-                        ce_pt, ce_t1, ce_t2 = geom_ops.cut_line(
-                            this_seg, this_seg.length - support_len
-                        )
-                        cs_in_pt, cs_out_pt, cs_walk_vec, cs_dist = (
-                            geom_ops.find_exterior_pt(
-                                this_hull, [cs_pt.x, cs_pt.y], cs_t1, cs_t2, encl_poly
-                            )
-                        )
-                        ce_in_pt, ce_out_pt, ce_walk_vec, ce_dist = (
-                            geom_ops.find_exterior_pt(
-                                this_hull, [ce_pt.x, ce_pt.y], ce_t1, ce_t2, encl_poly
-                            )
-                        )
-                        trim_start = peri_line(
-                            cs_in_pt,
-                            [
-                                cs_in_pt[0]
-                                + (cs_dist + sv_ref_shell_thickness + sv_ref_shell_gap)
-                                * cs_walk_vec[0],
-                                cs_in_pt[1]
-                                + (cs_dist + sv_ref_shell_thickness + sv_ref_shell_gap)
-                                * cs_walk_vec[1],
-                            ],
-                            cut_width,
-                        )
-                        trim_end = peri_line(
-                            ce_in_pt,
-                            [
-                                ce_in_pt[0]
-                                + (ce_dist + sv_ref_shell_thickness + sv_ref_shell_gap)
-                                * ce_walk_vec[0],
-                                ce_in_pt[1]
-                                + (ce_dist + sv_ref_shell_thickness + sv_ref_shell_gap)
-                                * ce_walk_vec[1],
-                            ],
-                            cut_width,
-                        )
-                        # these cut all the way to the top. The cuts aren't exactly aligned across layers, so
-                        # _not_ cutting all the way through can cause hanging bridges.
-                        # FIXME : this will possible not work for all cases. We need some corner sensitivity
-                        # across layers
-                        cut_to_top_shape += solid2.hull()(trim_start + trim_end)
+            cut_shape, cut_to_top_shape = generate_cuts(
+                    cfg[ref_type][ref],
+                    sv_ref_shell_thickness, sv_ref_shell_gap,
+                    this_bin["hull"], this_bin['corner_segments'], encl_poly)
 
             # Cut volumes must not cut into mesh lines. If that happens, then we
             # could end up "island" shells that are unconnected to the rest of the
@@ -269,21 +280,21 @@ def gen_shell_shape(cfg, ref, ref_type, ident, x, y, rot, min_z, max_z, h_bins, 
             start_z = openscad_functions.max(
                 this_bin["start_z"], sv_ref_shell_clearance
             )
-            cut_volume += translate(
+            fitting_cut_volume += translate(
                 [x, y, sv_pcb_thickness - sv_tiny_dimension + start_z]
             )(
                 rotate([0, 0, shell_rot_z])(
                     linear_extrude(end_z - start_z + 2 * sv_tiny_dimension)(cut_shape)
                 )
             )
-            cut_volume += translate([x, y, sv_pcb_thickness - sv_tiny_dimension])(
+            fitting_cut_volume += translate([x, y, sv_pcb_thickness - sv_tiny_dimension])(
                 rotate([0, 0, shell_rot_z])(
                     linear_extrude(end_z + 2 * sv_tiny_dimension)(cut_to_top_shape)
                 )
             )
 
     fitting_cuts_name = ref2fitting_cuts(ident)
-    fitting_cuts_map[ident] = module(fitting_cuts_name, cut_volume)
+    fitting_cuts_map[ident] = module(fitting_cuts_name, fitting_cut_volume)
 
     flower_shell = union()
     for idx, this_bin in enumerate(h_bins):
