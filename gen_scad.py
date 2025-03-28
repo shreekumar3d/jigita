@@ -13,6 +13,7 @@ mod_map = {}
 wiggle_pocket_map = {}
 fitting_pocket_map = {}
 fitting_cuts_map = {}
+tight_cuts_map = {}
 fitting_flower_map = {}
 tight_map = {}
 tight_perimeter_map = {}
@@ -73,6 +74,8 @@ def ref2tight_perimeter(ref):
 
 def ref2fitting_cuts(ref):
     return "fitting_cuts_%s" % (ref)
+def ref2tight_cuts(ref):
+    return "tight_cuts_%s" % (ref)
 
 def ref2fitting_flower(ref):
     return "fitting_flower_%s" % (ref)
@@ -403,6 +406,12 @@ def gen_shell_shape(cfg, ref, ref_type, ident, x, y, rot, min_z, max_z, h_bins, 
     # higher point, end is the lower point w.r.t PCB.
     # shell has to end at the top of the PCB (and cut through the PCB thickness)
     shell_end = openscad_functions.min(c_bins[0]["z_end"], 0)
+    # Don't do cutting calculations if the top level bin has 1 shape
+    if len(c_bins[0]['shapes'])==1:
+        encl_poly = Polygon(c_bins[0]['shapes'][0])
+    else:
+        encl_poly = None
+    tight_cut_volume = union()
     for idx, this_bin in enumerate(c_bins):
         overall_shape = union()
         for shape in this_bin["shapes"]:
@@ -418,6 +427,32 @@ def gen_shell_shape(cfg, ref, ref_type, ident, x, y, rot, min_z, max_z, h_bins, 
                 )
             ),
         )
+        if encl_poly is not None and idx > 0 and len(this_bin["shapes"])==1:
+            cut_shape, cut_to_top_shape = generate_cuts(
+                    cfg[ref_type][ref],
+                    sv_ref_shell_thickness, sv_ref_shell_gap,
+                    this_bin["shapes"][0], this_bin['corner_segments'][0], encl_poly)
+            end_z = openscad_functions.min(
+                sv_topmost_z + sv_base_thickness - sv_base_line_height,
+                this_bin["z_end"],
+            )
+            start_z = openscad_functions.max(
+                this_bin["z_start"], sv_ref_shell_clearance
+            )
+            tight_cut_volume += translate(
+                [x, y, sv_pcb_thickness - sv_tiny_dimension + start_z]
+            )(
+                rotate([0, 0, shell_rot_z])(
+                    linear_extrude(end_z - start_z + 2 * sv_tiny_dimension)(cut_shape)
+                )
+            )
+            tight_cut_volume += translate([x, y, sv_pcb_thickness - sv_tiny_dimension])(
+                rotate([0, 0, shell_rot_z])(
+                    linear_extrude(end_z + 2 * sv_tiny_dimension)(cut_to_top_shape)
+                )
+            )
+    tight_cuts_name = ref2tight_cuts(ident)
+    tight_cuts_map[ident] = module(tight_cuts_name, tight_cut_volume)
 
     tight_perimeter_name = ref2tight_perimeter(ident)
     tight_perimeter_solid = translate(
@@ -973,6 +1008,10 @@ def gen_included_component_cuts(fp_scad, all_shells):
                 '      } else if(Shell_Type_For_%s=="fitting_flower") {\n' % (this_ref)
             )
             fp_scad.write("        %s();\n" % (ref2fitting_cuts(this_name)))
+            fp_scad.write(
+                '      } else if(Shell_Type_For_%s=="tight") {\n' % (this_ref)
+            )
+            fp_scad.write("        %s();\n" % (ref2tight_cuts(this_name)))
             fp_scad.write("      }\n")
         fp_scad.write("    }\n")  # included
         if "shell_pos_x" in subshells:

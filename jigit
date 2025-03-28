@@ -865,7 +865,6 @@ for this_ref in th_ref_list:
     th = ref_map[this_ref]
     th_flip_side = cfg["TH"][this_ref]["flip_side"]
     th_force_mount = cfg["TH"][this_ref]['force_mount']
-    print(this_ref, 'force_mount=', th_force_mount)
     this_bid = body_id(cfg, th, th_flip_side, cfg['pcb']['thickness'], th_force_mount)
     all_bids.append(this_bid)
     body_info = shape_cache.get_cached_bid(cfg, "th", this_bid, th["footprint"])
@@ -911,6 +910,15 @@ for this_ref in th_ref_list:
             # We don't repair meshes here, and it's an open question if we
             # should even try that.
             c_bins = compute_shells.tight_pockets(mesh, 0.5, printable_threshold)
+            for this_bin in c_bins:
+                this_bin['corners'] = []
+                this_bin['corner_segments'] = []
+                for this_shape in this_bin['shapes']:
+                    corners, corner_segments = (
+                        geom_ops.extract_corners_2D(this_shape)
+                    )
+                    this_bin['corners'].append(corners)
+                    this_bin['corner_segments'].append(corner_segments)
             ss_info["min_x"] = min_x
             ss_info["max_x"] = max_x
             ss_info["min_y"] = min_y
@@ -1077,6 +1085,15 @@ if do_pcb_proc:
                         geom_ops.extract_corners_2D(this_bin["hull"])
                     )
                 c_bins = compute_shells.tight_pockets(mesh, 0.5, printable_threshold)
+                for this_bin in c_bins:
+                    this_bin['corners'] = []
+                    this_bin['corner_segments'] = []
+                    for this_shape in this_bin['shapes']:
+                        corners, corner_segments = (
+                            geom_ops.extract_corners_2D(this_shape)
+                        )
+                        this_bin['corners'].append(corners)
+                        this_bin['corner_segments'].append(corner_segments)
                 ss_info["min_x"] = min_x
                 ss_info["max_x"] = max_x
                 ss_info["min_y"] = min_y
