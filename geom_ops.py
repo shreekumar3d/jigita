@@ -49,6 +49,12 @@ def compute_corner(p1, p2, p3):  # (p2,p1) and (p2,p3)
     vec1 = [v / l1 for v in vec1]
     vec2 = [v / l2 for v in vec2]
     dotproduct = vec1[0] * vec2[0] + vec1[1] * vec2[1]
+    # values out of -1 <= dotproduct <= 1 are an error.
+    # computed values can sometimes lie marginally outside, so clamp
+    if dotproduct < -1.0:
+        dotproduct = -1.0
+    elif dotproduct > 1.0:
+        dotproduct = 1.0
     angle = math.acos(dotproduct)
 
     t_angle = -(angle / 2)
@@ -90,27 +96,27 @@ def extract_corners_2D(poly_points, angular_thresh=10.0):
     corner_idx = []
     tl1 = []
     tl2 = []
+    cumulative_deviation = 0.0
     for idx in range(1, len(xy) - 1):
         # FIXME : probably not the best performing code. Do some
         # numpy magic ?
         this_angle, tangent1, tangent2 = compute_corner(
             xy[idx - 1], xy[idx], xy[idx + 1]
         )
+        deviation = 180.0 - this_angle
+        cumulative_deviation += deviation
         angles.append(this_angle)
-        if this_angle < (180 - angular_thresh):
+        if cumulative_deviation > angular_thresh:
             result.append(copy.copy(xy[idx]))
             corner_idx.append(idx)
             tl1.append(tangent1)
             tl2.append(tangent2)
+            cumulative_deviation = 0
     # print(len(corner_idx))
     corner_segments = []
     # operate on consecutive corner indices as start
     # and end pairs. Note end is inclusive
     tangent_idx = 0
-    if len(corner_idx) > 0:
-        corner_idx.append(corner_idx[-1] + 1)
-        tl1.append(tl1[0])
-        tl2.append(tl2[0])
     # print(corner_idx)
     for start, end in zip(corner_idx, corner_idx[1:]):
         corner_segments.append(
@@ -125,6 +131,31 @@ def extract_corners_2D(poly_points, angular_thresh=10.0):
         # print(tl1[tangent_idx])
         # print(tl2[tangent_idx])
         tangent_idx += 1
+    if len(corner_idx) > 0:
+        if corner_idx[0] != 1:
+            # print('first point is NOT a corner')
+            # we need to include everything from last corner to
+            # first corner as a segment
+            newseg = xy[corner_idx[-1]:]+xy[2:corner_idx[0]+1]
+            corner_segments.append(
+                [
+                    copy.copy(newseg),
+                    [tl1[-1], tl2[-1]],
+                    [tl1[0], tl2[0]],
+                ]
+            )
+        else:
+            # first point is a corner, so all the points from the beginning
+            # are accounted for. But we need to account for last points
+            # this also closes the loop to the first point
+            newseg = xy[corner_idx[-1]:]
+            corner_segments.append(
+                [
+                    copy.copy(newseg),
+                    [tl1[-1], tl2[-1]],
+                    [tl1[0], tl2[0]],
+                ]
+            )
     # print('segments = ',len(corner_segments))
     # if tangent_idx != len(tl1)-1:
     #    raise RuntimeError(f"Unexpected tangent index {tangent_idx} expected {len(tl1)}")
