@@ -427,7 +427,7 @@ def gen_shell_shape(cfg, ref, ref_type, ident, x, y, rot, min_z, max_z, h_bins, 
                 )
             ),
         )
-        if encl_poly is not None and idx > 0 and len(this_bin["shapes"])==1:
+        if (cut_width>=0) and encl_poly is not None and idx > 0 and len(this_bin["shapes"])==1:
             cut_shape, cut_to_top_shape = generate_cuts(
                     cfg[ref_type][ref],
                     sv_ref_shell_thickness, sv_ref_shell_gap,

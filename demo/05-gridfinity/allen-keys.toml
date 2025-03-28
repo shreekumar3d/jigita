@@ -19,6 +19,7 @@ shell_gap = 0.15
 shell_type = "tight"
 shell_clearance_from_pcb = 0.0 # don't cut into shell
 force_mount = true # ensure parts under PCB don't get ignored!
+#corner_cut_width = -1 # comment this out to eliminate cuts in shells
 
 [TH.M2_AllenKey1]
 shell_clearance_from_pcb = 1.0
