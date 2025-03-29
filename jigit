@@ -28,6 +28,7 @@ import pathlib
 import hashlib
 import traceback
 import platform
+import shutil
 
 # Local imports
 from jigcommon import *
@@ -638,7 +639,6 @@ for ver in ["", 6, 7, 8]:  # Hmm - would we need more ?
 
 # Expand paths
 cfg["openscad"]["binary"] = os.path.expanduser(cfg["openscad"]["binary"])
-cfg["freecad"]["cmd"] = os.path.expanduser(cfg["freecad"]["cmd"])
 cfg["kicad"]["share"] = os.path.expanduser(cfg["kicad"]["share"])
 
 if args.footprint:
@@ -667,25 +667,49 @@ if args.output and not args.output_format:
             file=sys.stderr,
         )
         sys.exit(1)
+    # We'll invoke openscad later for non-OSCAD files. Check and
+    # inform the user if we can't access it.
+    if out_ext != '.scad':
+        oscad_bin = cfg['openscad']['binary']
+        if not shutil.which(oscad_bin):
+            print(
+                f"Unable to find openscad binary {oscad_bin} . Use --show-paths to resolve.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
 if args.show_paths:
+    config_error = False
     print('User specific configuration file loaded on startup :',
             os.path.join(appdirs.user_config_dir(jigcommon.APP_NAME),"config.toml")
          )
     print('Cache directory :', (appdirs.user_cache_dir(jigcommon.APP_NAME)))
-    print('KiCAD share directory :', cfg["kicad"]["share"])
+    kicad_share_dir = cfg['kicad']['share']
+    if os.path.isdir(kicad_share_dir):
+        if not os.path.isdir(os.path.join(kicad_share_dir,'3dmodels')):
+            kicad_share_staus = \
+                'Found, but potentially incorrect dir. Command may fail ' \
+                'to access important kicad files.'
+            config_error = True
+        else:
+            kicad_share_status = 'OK'
+    else:
+        kicad_share_status = \
+            'Not found. Command may fail to access important kicad files.'
+    print('KiCAD share directory : %s => %s'%(cfg["kicad"]["share"], kicad_share_status))
     oscad_bin = cfg["openscad"]["binary"]
-    fccmd_bin = cfg["freecad"]["cmd"]
-    print('OpenSCAD binary : %s %s'%(
+    oscad_bin_resolved = shutil.which(oscad_bin)
+    if oscad_bin_resolved:
+        msg = oscad_bin_resolved
+    else:
+        if os.path.isabs(oscad_bin):
+            msg = 'Binary not found.'
+        else:
+            msg = 'Not found on PATH.'
+        msg += ' Command will fail to generate STL/3MF files.'
+    print('OpenSCAD binary : %s => %s'%(
             oscad_bin,
-            '' if os.path.isabs(oscad_bin) else
-            '(ensure this is on PATH, else tool may fail)'
-          )
-         )
-    print('FreeCAD cmd : %s %s'%(
-            fccmd_bin,
-            '' if os.path.isabs(fccmd_bin) else
-            '(ensure this is on PATH, else tool may fail)'
+            msg
           )
          )
     sys.exit(0)

@@ -158,7 +158,7 @@ def load_config(configFile):
         transfer_default_values(
             user_cfg,
             default_cfg,
-            keylist=["openscad", "kicad", "freecad", "3dprinter", "environment"],
+            keylist=["openscad", "kicad", "3dprinter", "environment"],
             overwrite=True,
         )
 
@@ -500,6 +500,14 @@ def generate_config(configFile, ref_map, fp_map):
     fp_cfg.close()
     return
 
+if platform.system()=='Linux':
+    # Typically linux has tools on PATH
+    oscad_bin = 'openscad'
+    kicad_share = '/usr/share/kicad'
+else:
+    # FIXME: no Mac paths yet
+    oscad_bin = 'c:\\Program Files\\OpenSCAD\\openscad.exe'
+    kicad_share = 'C:\\Program Files\\KiCad\\8.0\\share\\kicad'
 
 _inbuilt_user_config = """
 [environment]
@@ -510,7 +518,7 @@ enabled = true
 method = 'timestamp'
 
 [openscad]
-binary = 'openscad'
+binary = '%s'
 use_manifold = false
 
 [kicad]
@@ -518,10 +526,7 @@ use_manifold = false
 # the install directory on Windows, and typically /usr/share/kicad/ on Linux.
 # The default here is for Linux. If this is seen on windows, we can ask users to
 # fix easily. The entire path upto "kicad" is required
-share = '/usr/share/kicad'
-
-[freecad]
-cmd = '%s'
+share = '%s'
 
 [3dprinter]
 # This is the smallest area your 3d printer
@@ -539,9 +544,8 @@ first_layer_height = 0.2
 bed_x_dim = 25
 bed_y_dim = 20
 """%(
-   # on linux it's freecad.cmd, on windows its freecadcmd
-   # mac I support not for now. FIXME unify platform specifics
-   "freecad.cmd" if platform.system()=="Linux" else "freecadcmd"
+   oscad_bin,
+   kicad_share,
 )
 
 _inbuilt_config = """

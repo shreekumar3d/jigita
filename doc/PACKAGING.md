@@ -33,7 +33,7 @@ You can roughly use the following sequence to install the dependencies:
 
 pyinstaller can now create a single file redistributable EXE in one step:
 
-    \path\to\KiCad\8.0\bin\scripts\pyinstaller jigit --onefile --collect-all=pymeshlab --collect-all=numpy --add-data=stp2obj.py:.
+    \path\to\KiCad\8.0\bin\scripts\pyinstaller jigit --onefile --collect-all=pymeshlab --collect-all=numpy
 
 The output dist\jigit.exe file can be copied to any windows system.
 
