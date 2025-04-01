@@ -1342,56 +1342,67 @@ if do_pcb_proc:
     groove_lines = [[[line[0][0],-line[0][1]],[line[1][0],-line[1][1]]] for line in groove_lines]
 
 if do_pcb_proc and cfg["jig"]["mounting_hole_spacer_end"] == 0:
-    #
-    # Find the second highest Z, without looking at values that are
-    # too close to the topmost z. Spacer will run from this Z
-    # to almost the bottom of the second tallest component on the
-    # board, or the second support ring of any component that comes
-    # lower.
-    z_second_highest = -1
-    h2_z_name = ""
-    z_list = []
-    #  little margin of error, to compensate for mis-aligned bergs ?
-    thresh = topmost_z - 0.2
-    for subshells in all_shells:
-        this_ref = subshells["ref"]
-        for shell_info in subshells["shell"]:
-            for this_bin in shell_info["fitting_bins"]:
-                for tmz in [this_bin["end_z"], this_bin["start_z"]]:
-                    if tmz < thresh and tmz > z_second_highest:
-                        z_second_highest = tmz
-                        h2_z_name = this_ref
-                    elif tmz >= thresh and tmz < topmost_z:
-                        print(
-                            "WARNING: you have component %s at z=%s that is being ignored as it is too close to top height %s"
-                            % (this_ref, tmz, topmost_z)
-                        )
-                    z_list.append(tmz)
-    # unique
-    z_list = list(set(z_list))
-    z_list.sort()
-    z_list = list(filter(lambda x: x>=0.0, z_list))
-    print("Unique Zs are = ", z_list)
+    if len(all_shells)==0:
+        cfg["jig"]["mounting_hole_spacer_end"] = 0.0
+        cfg["jig"]["mounting_hole_spacer_start"] = 0.0
+        print("NOTE: No shells, spacer jig can't be made.")
+    else:
+        #
+        # Find the second highest Z, without looking at values that are
+        # too close to the topmost z. Spacer will run from this Z
+        # to almost the bottom of the second tallest component on the
+        # board, or the second support ring of any component that comes
+        # lower.
+        z_second_highest = -1
+        h2_z_name = ""
+        z_list = []
+        #  little margin of error, to compensate for mis-aligned bergs ?
+        thresh = topmost_z - 0.2
+        for subshells in all_shells:
+            this_ref = subshells["ref"]
+            for shell_info in subshells["shell"]:
+                for this_bin in shell_info["fitting_bins"]:
+                    for tmz in [this_bin["end_z"], this_bin["start_z"]]:
+                        if tmz < thresh and tmz > z_second_highest:
+                            z_second_highest = tmz
+                            h2_z_name = this_ref
+                        elif tmz >= thresh and tmz < topmost_z:
+                            print(
+                                "WARNING: you have component %s at z=%s that is being ignored as it is too close to top height %s"
+                                % (this_ref, tmz, topmost_z)
+                            )
+                        z_list.append(tmz)
+        # unique
+        z_list = list(set(z_list))
+        z_list.sort()
+        z_list = list(filter(lambda x: x>=0.0, z_list))
+        print("Unique Zs are = ", z_list)
 
-    spacer_start = z_list[1]
-    extra_layers = cfg["3dprinter"]["first_layer_height"] \
-                   + cfg["3dprinter"]["layer_height"]
-    mh_spacer_end = z_second_highest - extra_layers
-    cfg["jig"]["mounting_hole_spacer_end"] = mh_spacer_end
+        # Without a second bin in z_list, results are undefined
+        if len(z_list)>1:
+            spacer_start = z_list[1]
+            extra_layers = cfg["3dprinter"]["first_layer_height"] \
+                           + cfg["3dprinter"]["layer_height"]
+            mh_spacer_end = z_second_highest - extra_layers
+            # one extra layer to have at-least one line show up
+            spacer_start += extra_layers
+            print(
+                "Mounting hole spacer ends at Z=%s, component is %s"
+                % (mh_spacer_end, h2_z_name)
+            )
+            print(
+                "Mounting hole spacer start = %s, height= %s"
+                % (spacer_start, mh_spacer_end - spacer_start)
+            )
+        else:
+            spacer_start = 0.0
+            mh_spacer_end = 0.0
+            print("NOTE: Mounting hole spacer jig is not applicable for this design.")
 
-    # one extra layer to have at-least one line show up
-    spacer_start += extra_layers
-    if cfg["jig"]["mounting_hole_spacer_start"] == 0:
-        cfg["jig"]["mounting_hole_spacer_start"] = spacer_start
+        cfg["jig"]["mounting_hole_spacer_end"] = mh_spacer_end
 
-    print(
-        "Mounting hole spacer ends at Z=%s, component is %s"
-        % (mh_spacer_end, h2_z_name)
-    )
-    print(
-        "Mounting hole spacer start = %s, height= %s"
-        % (spacer_start, mh_spacer_end - spacer_start)
-    )
+        if cfg["jig"]["mounting_hole_spacer_start"] == 0:
+            cfg["jig"]["mounting_hole_spacer_start"] = spacer_start
 
 if (
     not cfg["jig"]["mounting_hole_bolt_is_external"]
