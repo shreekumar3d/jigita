@@ -1,0 +1,13 @@
+[jig]
+type = "TH_soldering"
+
+[holder.base]
+type = "minmesh"
+thickness = 0.2 # this base
+line_height = 2.0 # provides some rigidity
+
+[TH.component_shell]
+shell_thickness = 1.2
+shell_gap = 0.2 # consider increasing this ?
+shell_type = "fitting"
+shell_clearance_from_pcb = 1.0 # cut into shell to see connectors mating from the side
