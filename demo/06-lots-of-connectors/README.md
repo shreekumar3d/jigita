@@ -11,7 +11,7 @@ calls for some method to hold everything in place.
 
 Here is a soldering jig that solves the problem, created with JigIt:
 
-<img src="fitting/ProtoConn-soldering-jig-usage.gif" width="800"/>
+![ProtoConn meets JigIt](fitting/ProtoConn-soldering-jig-usage.gif)
 
 This isn't tested yet, but apart from a USB connector that can't be soldered (it's
 probably set to SMD) there is a good chance it would work.
