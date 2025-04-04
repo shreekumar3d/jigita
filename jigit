@@ -896,6 +896,8 @@ for this_ref in th_ref_list:
     th_flip_side = cfg["TH"][this_ref]["flip_side"]
     th_force_mount = cfg["TH"][this_ref]['force_mount']
     this_bid = body_id(cfg, th, th_flip_side, cfg['pcb']['thickness'], th_force_mount)
+    if this_bid in all_bids:
+        print('Repeated shape: ' , this_ref)
     all_bids.append(this_bid)
     body_info = shape_cache.get_cached_bid(cfg, "th", this_bid, th["footprint"])
     if not body_info:
@@ -1056,7 +1058,6 @@ if args.topmost_z:
         sys.exit(1)
     else:
         topmost_z = args.topmost_z
-
 all_bids = list(set(all_bids))
 print(f"INFO: Board has {len(all_shells)} shells in {len(all_bids)} unique body shapes")
 dup_fp = shape_cache.get_fp_duplicates()
@@ -1064,7 +1065,14 @@ if len(dup_fp) > 0:
     print(f"WARNING: The following footprints have multiple body shapes. Please check")
     for fp_name in dup_fp:
         print(fp_name, " has ", dup_fp[fp_name], " shapes")
-
+unique_fps = []
+for key in fp_map:
+    if fp_map[key]["is_th"] and not fp_map[key]["force_smd"]:
+        unique_fps.append(key)
+    unique_fps = list(set(unique_fps))
+print(f"Number of unique footprints: {len(unique_fps)}")
+unique_fps.sort()
+pprint(unique_fps)
 if do_pcb_proc:
     smd_keepouts = []
     for this_ref in smd_ref_list:
