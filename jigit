@@ -181,13 +181,14 @@ def load_footprints(cfg, fp_spec_list, arc_resolution):
                 raise ValueError(f"No usable 3d models in footprint: {fp_complete_name}")
             fields = fp.Fields()
             footprint = fields[2].GetText()  # e.g. Package_QFP:LQFP-128_14x14mm_P0.4mm
+            top_side_component = True if fp.GetSide() == 0 else False
             ref_info = {
                 "is_th": fp_is_th,
                 "x": 0,
                 "y": 0,
                 "orientation": 0,
                 "footprint": fp_complete_name,
-                "side": fp.GetSide(),
+                "side": top_side_component,
                 "models": models_3d,
                 "kfp": fp,  # Reference if we need more info later
             }
@@ -629,6 +630,8 @@ for env_var_name in cfg["environment"]:
 if args.pcb:
     pcb_dir, pcb_file = os.path.split(args.pcb)
     os.environ["KIPRJMOD"] = '.' if pcb_dir=='' else pcb_dir
+else:
+    os.environ["KIPRJMOD"] = '.'
 
 path_sys_3dmodels = os.path.join(cfg["kicad"]["share"], "3dmodels")
 
@@ -970,6 +973,8 @@ for this_ref in th_ref_list:
         if (not th_force_mount) and min_z > 0:
             print("  Mesh %s is NOT mounted on board. min_z = %s; Skipping." % (modinfo["model"], min_z))
         else:
+            if th_force_mount:
+                min_z = 0.0
             shell_ident = "%s_%d" % (this_ref, idx)
             # compute the center now, post cache. x, y, and orientation
             # are per component
