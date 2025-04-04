@@ -224,6 +224,7 @@ def update(cfg, default_cfg, ref_map, fp_map, mh_map):
             fp_map[kfp]["display_name"] = this_fp["display_name"]
         else:
             fp_map[kfp]["display_name"] = kfp
+            this_fp["display_name"] = kfp # defaults to kicad footprint if not provided
         fp_map[kfp]["alias"] = alias
 
         if "force_smd" in this_fp:
