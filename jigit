@@ -627,7 +627,8 @@ except ValueError as err:
 for env_var_name in cfg["environment"]:
     os.environ[env_var_name] = cfg["environment"][env_var_name]
 if args.pcb:
-    os.environ["KIPRJMOD"] = os.path.split(args.pcb)[0]
+    pcb_dir, pcb_file = os.path.split(args.pcb)
+    os.environ["KIPRJMOD"] = '.' if pcb_dir=='' else pcb_dir
 
 path_sys_3dmodels = os.path.join(cfg["kicad"]["share"], "3dmodels")
 
