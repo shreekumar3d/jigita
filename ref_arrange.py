@@ -253,13 +253,9 @@ def arrange(cfg, fp_map, all_shells, arrange_dir, gap_x, gap_y, grid_x, grid_y):
         footprint = cfg["TH"][this_ref]["kicad_footprint"]
         alias = fp_map[footprint]["alias"]
         fp = cfg["footprint"][alias]
-        # FIXME should we get rid of this delta business? Does it actually
-        # have any utility!? Footprint level customization may be good enough
         this_ref_gap = (
             fp["shell_gap"]
-            + cfg["TH"][this_ref]["delta_shell_gap"]
             + fp["shell_thickness"]
-            + cfg["TH"][this_ref]["delta_shell_thickness"]
         )
         this_ref_gap = max(
             this_ref_gap, fp["shell_wrapper_thickness"] + fp["shell_gap"]
