@@ -151,8 +151,10 @@ def load_footprints(cfg, fp_spec_list, arc_resolution):
         # if the lib name ends with pretty, it's a full filepath, including an
         # (optional) directory
         if not fp_lib.endswith(".pretty"):
-            footprint_path = os.path.join(cfg["kicad"]["share"], "footprints")
-            libpath = os.path.join(footprint_path, f"{fp_lib}.pretty")
+            pretty_dir, pretty_file = os.path.split(fp_lib)
+            # If no base path, then it comes from kicad
+            dir_prepend = os.path.join(cfg['kicad']['share'], "footprints") if pretty_dir=='' else ''
+            libpath = os.path.join(dir_prepend, f"{fp_lib}.pretty")
             fp_lib_name = fp_lib
         else:
             dirname, fname = os.path.split(fp_lib[:-7])  # remove the .pretty
