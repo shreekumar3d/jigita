@@ -24,6 +24,7 @@ perimeter_map = {}
 courtyard_map = {}
 courtyard_pocket_map = {}
 courtyard_perimeter_map = {}
+courtyard_support_map = {}
 
 keepout_map = {}
 
@@ -96,6 +97,8 @@ def ref2courtyard_pocket(ref):
 def ref2courtyard_perimeter(ref):
     return "courtyard_perimeter_%s" % (ref)
 
+def ref2courtyard_support(ref):
+    return "courtyard_support_%s" % (ref)
 
 def ref2keepout(ref):
     return "keepout_%s" % (ref)
@@ -547,6 +550,15 @@ def gen_courtyard_shell_shape(ref, courtyard_poly):
             offset(sv_ref_shell_gap + sv_ref_shell_thickness)(courtyard_map[ref]())
         )
     )
+
+    courtyard_support_name = ref2courtyard_support(ref)
+    courtyard_support = translate(
+        [0, 0, sv_pcb_thickness + sv_ref_max_z]
+    )(
+        linear_extrude(sv_topmost_z - sv_ref_max_z + sv_base_thickness)(
+            offset(sv_ref_shell_gap)(courtyard_map[ref]())
+        )
+    )
     # wrapper
     wrapper = translate(
         [
@@ -570,6 +582,12 @@ def gen_courtyard_shell_shape(ref, courtyard_poly):
         courtyard_perimeter_name,
         courtyard_perimeter_solid,
         comment=f"Courtyard Perimeter for {ref}",
+    )
+
+    courtyard_support_map[ref] = module(
+        courtyard_support_name,
+        courtyard_support,
+        comment=f"Courtyard Support for {ref}",
     )
 
 
@@ -763,6 +781,7 @@ def gen_configurable_fp_components(
             fp_scad.write("%s_For_%s = %s; //[%s]\n" % (var, alias, footprint[prop], var_range))
 
     valid_shell_types = ",".join(jigconfig.valid_shell_types)
+    valid_shell_styles = ",".join(jigconfig.valid_shell_styles)
     for this_ref, area, ref_type, subshells in ui_refs:
         footprint = cfg[ref_type][this_ref]["kicad_footprint"]
         dname_fp = fp_map[footprint]["display_name"]
@@ -776,6 +795,12 @@ def gen_configurable_fp_components(
             'Shell_Type_For_%s="%s"; // [%s]\n'
             % (this_ref, cfg[ref_type][this_ref]["shell_type"], valid_shell_types)
         )
+        fp_scad.write("//Style of shell for this component\n")
+        fp_scad.write(
+            'Shell_Style_For_%s="%s"; // [%s]\n'
+            % (this_ref, cfg[ref_type][this_ref]["shell_style"], valid_shell_styles)
+        )
+
         fp_scad.write(
             "//Insert this component into jig from this side.(Bottom insertion requires wiggle or courtyard shell to work)\n"
         )
@@ -961,7 +986,12 @@ def gen_included_component_shells(fp_scad, all_shells):
                 fp_scad.write("    }\n")
         fp_scad.write("  if(Include_%s_in_Jig) {\n" % (this_ref))
         fp_scad.write('    if(Shell_Type_For_%s=="courtyard") {\n' % (this_ref))
-        fp_scad.write("      %s();\n" % (ref2courtyard_perimeter(this_ref)))
+        # "support" style is supported only for courtyards
+        fp_scad.write('      if(Shell_Style_For_%s=="support") {\n' % (this_ref))
+        fp_scad.write('        %s();\n' % (ref2courtyard_support(this_ref)))
+        fp_scad.write('      } else {\n')
+        fp_scad.write('      %s();\n' % (ref2courtyard_perimeter(this_ref)))
+        fp_scad.write('      }\n')
         fp_scad.write('    } else if(Shell_Type_For_%s=="tight") {\n' % (this_ref))
         for shell_info in subshells["shell"]:
             this_name = shell_info["name"]
@@ -1703,6 +1733,7 @@ def gen_configurable_ref_components(
         fp_scad.write("Include_%s_in_Jig=true; // [false,true]\n" % (this_ref))
 
     valid_shell_types = ",".join(jigconfig.valid_shell_types)
+    valid_shell_styles = ",".join(jigconfig.valid_shell_styles)
     for this_ref in ui_refs:
         fp_name = cfg["TH"][this_ref]["kicad_footprint"]
         alias = fp_map[fp_name]["alias"]
@@ -1728,6 +1759,13 @@ def gen_configurable_ref_components(
             'Shell_Type_For_%s="%s"; // [%s]\n'
             % (this_ref, cfg["TH"][this_ref]["shell_type"], valid_shell_types)
         )
+
+        fp_scad.write("//Style of shell for this component\n")
+        fp_scad.write(
+            'Shell_Style_For_%s="%s"; // [%s]\n'
+            % (this_ref, cfg['TH'][this_ref]["shell_style"], valid_shell_styles)
+        )
+
         fp_scad.write(
             "//Insert this component into jig from this side.(Bottom insertion requires wiggle or courtyard shell to work)\n"
         )

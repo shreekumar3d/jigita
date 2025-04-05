@@ -10,6 +10,7 @@ import platform
 from pathlib import Path
 
 valid_shell_types = ["wiggle", "wiggle_minus", "fitting", "fitting_flower", "tight", "courtyard"]
+valid_shell_styles = ["socket", "support"]
 valid_jig_types = ["TH_soldering", "component_fitting"]
 valid_base_types = ["x_lines", "y_lines", "griddish", "mesh", "minmesh", "solid", "solid_fill"]
 valid_insertions = ["top", "bottom"]
@@ -33,6 +34,7 @@ TH_ref_params = [
     "force_mount",
     "flip_side",
     "shell_type",
+    "shell_style",
     "shell_wrapper_thickness",
     "shell_wrapper_height",
     "insertion_direction",
@@ -90,6 +92,7 @@ def transfer_default_values(default_cfg, cfg, keylist=None, overwrite=False):
 
 inheritable_footprint_keys_smd = [
     "shell_type",
+    "shell_style",
     "shell_gap",
     "shell_thickness",
     "shell_wrapper_thickness",
@@ -191,6 +194,12 @@ def update(cfg, default_cfg, ref_map, fp_map, mh_map):
     if shell_type not in valid_shell_types:
         raise ValueError(
             f"Bad value TH.component_shell.shell_type={shell_type}. Recognized values are:{valid_shell_types}"
+        )
+
+    shell_style = cfg["TH"]["component_shell"]["shell_style"]
+    if shell_style not in valid_shell_styles:
+        raise ValueError(
+            f"Bad value TH.component_shell.shell_style={shell_style}. Recognized values are:{valid_shell_styles}"
         )
 
     insertion = cfg["TH"]["component_shell"]["insertion_direction"]
@@ -708,6 +717,14 @@ extra_mounting_holes = [
 #
 shell_type = "fitting"
 
+#
+# shells can be of one of two styles
+#
+# - socket  - holds components inside a cavity
+# - support - supports components from the bottom
+#
+shell_style = "socket"
+
 # component will typically be inserted from the top side (w.r.t # the PCB, and
 # the jig). However, they can also be inserted from the bottom of the jig.
 # bottom insertion means that base will have a hole to allow the component to
@@ -798,6 +815,7 @@ gap_from_shells = 0.5
 
 [SMD.component_shell]
 shell_type = "fitting"
+shell_style = "socket"
 insertion_direction = "top"
 shell_thickness = 1.2
 shell_gap = 0.1
