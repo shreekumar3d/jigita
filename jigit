@@ -1279,16 +1279,18 @@ if do_pcb_proc:
     dt_centers = pcb_edge_simple_points + fp_centers
 
     pcb_edge_poly = Polygon(pcb_edge_points)
+    inner_mh_centers = []
     # ignore mounting holes outside PCB for mesh calculation
     for pt in mounting_holes:
         if pcb_edge_poly.contains(Point(pt[0], pt[1])):
-            dt_centers.append(pt)
+            inner_mh_centers.append(pt)
         else:
             print(
                 "NOTE: Mounting hole at ",
                 pt,
                 " is out of PCB - will not be considered for mesh and minmesh",
             )
+    dt_centers += inner_mh_centers
 
     mesh_line_segments = []
     if len(dt_centers) >= 4:
@@ -1320,16 +1322,30 @@ if do_pcb_proc:
             mesh_line_segments.append([c, a])
 
     minmesh_line_segments = []
-    if len(dt_centers) > 2:
+    minmesh_centers = fp_centers + inner_mh_centers
+    if cfg['jig']['type']=='TH_soldering':
+        minmesh_centers += pcb_edge_simple_points
+        frame_edge_points = pcb_edge_simple_points
+    else:
+        _edge_points = []
+        for mh_name in mh_map:
+            mh_pos = [mh_map[mh_name]["x"], mh_map[mh_name]["y"]]
+            _edge_points.append(mh_pos)
+        _edge_points = np.array(_edge_points)
+        frame_hull = scipy.spatial.ConvexHull(_edge_points)
+        frame_edge_points = _edge_points[frame_hull.vertices]
+        print('Using mounting hole hull as frame edge')
+        minmesh_centers = np.concatenate((minmesh_centers,frame_edge_points), axis=0)
+    if len(minmesh_centers) > 2:
         # FIXME: should we not do minmesh if there are very large number of points !?
         # CPU could just hang if given large number of points... Of course, that can
         # generally happen if there are bugs in the program - typically we wouldn't
         # expect even 100 points to go for Travelling Salesman
-        print("Computing minmesh nodes=%d..." % (len(dt_centers)))
+        print("Computing minmesh nodes=%d..." % (len(minmesh_centers)))
         distance_matrix = euclidean_distance_matrix(
-            np.array(dt_centers), np.array(dt_centers)
+            np.array(minmesh_centers), np.array(minmesh_centers)
         )
-        all_nodes = np.array(dt_centers)
+        all_nodes = np.array(minmesh_centers)
 
         # NOTE: starting point of the travelling salesman problem will be a point
         # on the edge of the PCB, due to the way dt_centers is setup...
@@ -1349,7 +1365,7 @@ if do_pcb_proc:
         )
         minmesh_path = all_nodes[permutation2].tolist()
     else:
-        minmesh_path = dt_centers
+        minmesh_path = minmesh_centers
 
     groove_lines = edge_cuts.compute_grooves(
         arc_resolution, pcb_filled_shapes[0], groove_size
@@ -1443,6 +1459,7 @@ try:
             smd_keepouts,
             topmost_z,
             pcb_edge_points,
+            frame_edge_points,
             dt_centers,
             mesh_line_segments,
             minmesh_path,

@@ -647,6 +647,9 @@ line_width = 2.0
 # consider a thin base with lines providing extra structural strength
 line_height = 1.0
 
+[holder.base.minmesh]
+connect_components_to_frame = true
+
 [TH]
 # Parameters for Through Hole processing
 

@@ -1077,6 +1077,7 @@ def generate_jig(
     smd_keepouts,
     topmost_z,
     pcb_edge_points,
+    frame_edge_points,
     dt_centers,
     mesh_line_segments,
     minmesh_path,
@@ -1149,6 +1150,7 @@ def generate_jig(
             keepout["max_z"],
             keepout["courtyard"],
         )
+
     # Write out the PCB edge
     pcb_edge_points = np.array(pcb_edge_points)
     sm_pcb_edge = module("pcb_edge", polygon(pcb_edge_points))
@@ -1202,11 +1204,22 @@ def generate_jig(
         # close the path
         minmesh_lines += wide_line_scad(minmesh_path[0], minmesh_path[-1])
         # connect every point to the edge
-        pcb_edge_ls = LineString(pcb_edge_points)
-        for pt in minmesh_path:
-            nd = pcb_edge_ls.project(Point(pt[0], pt[1]))
-            nearest = pcb_edge_ls.interpolate(nd)
-            minmesh_lines += wide_line_scad(pt, [nearest.x, nearest.y])
+        if cfg['holder']['base']['minmesh']['connect_components_to_frame']:
+            print('Connecting components to frame edge...')
+            frame_edge_ls = LinearRing(frame_edge_points)
+            for pt in minmesh_path:
+                nd = frame_edge_ls.project(Point(pt[0], pt[1]))
+                nearest = frame_edge_ls.interpolate(nd)
+                l_start = pt
+                l_end = [nearest.x, nearest.y]
+                minmesh_lines += wide_line_scad(l_start, l_end)
+
+    frame_lines = union()
+    # add the frame as nobody else will do it in case of component fitting
+    if cfg['jig']['type']=='component_fitting':
+        for l_start, l_end in zip(frame_edge_points, frame_edge_points[1:]):
+            frame_lines += wide_line_scad(l_start, l_end)
+        frame_lines += wide_line_scad(frame_edge_points[-1], frame_edge_points[0])
 
     base_mesh_volume = linear_extrude(sv_base_line_height)(
         offset(sv_pcb_holder_perimeter + sv_pcb_gap)(sm_pcb_edge())
@@ -1222,8 +1235,12 @@ def generate_jig(
     base_minmesh = translate([0, 0, sv_mesh_start_z])(
         intersection()(minmesh_lines, sm_base_mesh_volume())
     )
+    base_frame_edge = translate([0, 0, sv_mesh_start_z])(
+        intersection()(frame_lines, sm_base_mesh_volume())
+    )
 
     sm_base_minmesh = module("base_minmesh", base_minmesh())
+    sm_base_frame_edge = module("base_frame_edge", base_frame_edge())
 
     pcb_holder = linear_extrude(sv_topmost_z + sv_pcb_thickness + sv_base_thickness)(
         difference()(
@@ -1398,9 +1415,9 @@ def generate_jig(
     fp_scad.write("}\n")
 
     fp_scad.write("module base_connect_mounting_hole_lines() {\n")
-    # Here we connect mounting holes to the PCB edge with lines
+    # Here we connect mounting holes to the frame edge with lines
     # Find the closest point, draw a line
-    pcb_edge_ls = LinearRing(pcb_edge_points)
+    pcb_edge_ls = LinearRing(frame_edge_points)
     fp_scad.write("  translate([0,0,mesh_start_z]) {\n")
     fp_scad.write("    union() {\n")
     for mh_name in mh_map:
@@ -1547,6 +1564,7 @@ module complete_model_component_fitting() {
   color("steelblue") {
     difference() {
       union() {
+        base_frame_edge();
         if(Base_Type=="mesh") {
           base_mesh();
         } else if(Base_Type=="minmesh") {
