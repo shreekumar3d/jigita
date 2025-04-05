@@ -880,6 +880,14 @@ mounting_hole_bolt_is_external = true
 # breakage in storage/shipping
 mounting_hole_spacer_is_fused = true
 
+# Trim volumes allow extraction of a range bound volume of the jig
+#
+# Trims all Zs below this (z > trim_below_z)
+trim_below_z = 0.0 # 0 disables this
+
+# Trims all Zs above this (z < trim_above_z)
+trim_above_z = -1.0 # negative value disables
+
 # NOTE:
 #
 # Many of the parameters here map to OpenSCAD, and can be tuned there.

@@ -856,7 +856,7 @@ def gen_configurable_fp_components(
 
 
 
-def gen_computed_values_jig(fp_scad):
+def gen_computed_values_jig(fp_scad, cfg):
     fp_scad.write(
         """
 groove_width = max(PCB_Gap+PCB_Holder_Perimeter, PCB_Overlap)*2.2;
@@ -868,8 +868,11 @@ c_Base_Thickness = Base_Thickness;
 c_MH_Jig_Second_Level_Height = first_layer_height+2*layer_height;
 c_Base_Line_Height = Mounting_Hole_Jig ? topmost_z-MH_Spacer_Start+c_MH_Jig_Second_Level_Height+c_Base_Thickness+Base_Line_Height: Base_Line_Height;
 c_Lower_Perimeter_Height = Mounting_Hole_Jig ? c_Base_Line_Height:Lower_Perimeter_Height;
-mesh_start_z = PCB_Thickness+topmost_z+c_Base_Thickness-c_Base_Line_Height;
-"""
+_mesh_start_z = PCB_Thickness+topmost_z+c_Base_Thickness-c_Base_Line_Height;
+trim_below_z = %f;
+// trim below_z will force a mesh at that place to ensure connection
+mesh_start_z = (trim_below_z > 0) ? trim_below_z+PCB_Thickness-c_Base_Line_Height:_mesh_start_z;
+""" % (cfg['jig']['trim_below_z'])
     )
 
 
@@ -1110,7 +1113,7 @@ def generate_jig(
     gen_configurable_fp_components(fp_scad, cfg, all_shells, fp_map, ref_map, topmost_z)
 
     gen_fixed_values_hidden(fp_scad, topmost_z)
-    gen_computed_values_jig(fp_scad)
+    gen_computed_values_jig(fp_scad, cfg)
 
     bottom_insertion_z = topmost_z + 2 * cfg["holder"]["base"]["thickness"]
     gen_computed_values(
@@ -1585,15 +1588,35 @@ pcb_max_y = %s;
         % (pcb_min_x, pcb_max_x, pcb_min_y, pcb_max_y)
     )
 
+    tbz = cfg['jig']['trim_below_z']
+    taz = cfg['jig']['trim_above_z']
+    fp_scad.write("module trim_volume() {")
+    if tbz > 0.0:
+        fp_scad.write("    translate([0,0,PCB_Thickness+%f]) {\n"%(tbz))
+        fp_scad.write("        linear_extrude(topmost_z+Base_Thickness+tiny_dimension-%f) {\n"%(tbz))
+        fp_scad.write("          offset(100) pcb_edge();\n")
+        fp_scad.write("        }\n")
+        fp_scad.write("    }\n")
+    if taz >= 0.0: # negative values have no effect
+        fp_scad.write("    translate([0,0,-tiny_dimension]) {\n")
+        fp_scad.write("        linear_extrude(%f+2*tiny_dimension+PCB_Thickness) {\n"%(taz))
+        fp_scad.write("          offset(100) pcb_edge();\n")
+        fp_scad.write("        }\n")
+        fp_scad.write("    }\n")
+    fp_scad.write("}\n")
     fp_scad.write(
         """
 module style_of_jig() {
-  if(Type_of_Jig=="TH_soldering")
-    complete_model_TH_soldering();
-  else
-    complete_model_component_fitting();
-}
+  difference() {
+    if(Type_of_Jig=="TH_soldering")
+      complete_model_TH_soldering();
+    else
+      complete_model_component_fitting();
+    trim_volume();
+  }
+}""")
 
+    fp_scad.write("""
 orient_to_print=%d;
 """
         % (not keep_orientation)
