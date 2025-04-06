@@ -656,6 +656,13 @@ line_width = 2.0
 # consider a thin base with lines providing extra structural strength
 line_height = 1.0
 
+# sometimes you need to add lines that the algo doesn't come up with
+# add them here.
+extra_lines = [
+# [[start_x,start_y],[end_x,end_y]], # absolute coordinates from KiCAD
+# ['R1','C1'], # refs, may be used for start, or end or both
+]
+
 [holder.base.minmesh]
 connect_components_to_frame = true
 

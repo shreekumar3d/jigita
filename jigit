@@ -1297,6 +1297,19 @@ if do_pcb_proc:
             )
     dt_centers += inner_mh_centers
 
+    extra_line_segments = []
+    for start, end in cfg['holder']['base']['extra_lines']:
+
+        if type(start) is str:
+            pt_start = (ref_map[start]['x'], ref_map[start]['y'])
+        else:
+            pt_start = (start[0],-start[1])
+        if type(end) is str:
+            pt_end = (ref_map[end]['x'], ref_map[end]['y'])
+        else:
+            pt_end = (end[0],-end[1])
+        extra_line_segments.append((pt_start, pt_end))
+
     mesh_line_segments = []
     if len(dt_centers) >= 4:
         mesh_comment = "delaunay triangulated mesh"
@@ -1466,6 +1479,7 @@ try:
             pcb_edge_points,
             frame_edge_points,
             dt_centers,
+            extra_line_segments,
             mesh_line_segments,
             minmesh_path,
             groove_lines,

@@ -1109,6 +1109,7 @@ def generate_jig(
     pcb_edge_points,
     frame_edge_points,
     dt_centers,
+    extra_line_segments,
     mesh_line_segments,
     minmesh_path,
     groove_lines,
@@ -1223,6 +1224,10 @@ def generate_jig(
     )
     sm_base_solid_fill = module("base_solid_fill", base_solid_fill)
 
+    extra_lines = union()
+    for start, end in extra_line_segments:
+        extra_lines += wide_line_scad(start, end)
+
     mesh_lines = union()
     for start, end in mesh_line_segments:
         mesh_lines += wide_line_scad(start, end)
@@ -1261,6 +1266,12 @@ def generate_jig(
     )
 
     sm_base_mesh = module("base_mesh", base_mesh())
+
+    extra_line_mesh = translate([0, 0, sv_mesh_start_z])(
+        intersection()(extra_lines, sm_base_mesh_volume())
+    )
+
+    sm_extra_line_mesh = module("extra_line_mesh", extra_line_mesh())
 
     base_minmesh = translate([0, 0, sv_mesh_start_z])(
         intersection()(minmesh_lines, sm_base_mesh_volume())
@@ -1557,6 +1568,7 @@ module complete_model_TH_soldering() {
           };
         }
         pcb_perimeter_short();
+        extra_line_mesh();
         if(Base_Type=="mesh") {
           base_mesh();
         } else if(Base_Type=="minmesh") {
@@ -1595,6 +1607,7 @@ module complete_model_component_fitting() {
     difference() {
       union() {
         base_frame_edge();
+        extra_line_mesh();
         if(Base_Type=="mesh") {
           base_mesh();
         } else if(Base_Type=="minmesh") {
