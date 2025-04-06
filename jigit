@@ -748,6 +748,11 @@ if args.pcb:
             if ref_info['side'] != (not args.bottom_components):
                 cull_smd_refs.append(ref)
             continue
+        # ref might be trimmed due to exclusion, nothing to do
+        # FIXME this looks a bit ugly. Rethink how this included, exclude,
+        # expansion etc is supposed to work
+        if ref not in cfg['TH']:
+            continue
         if cfg["TH"][ref]['flip_side']:
             ref_info['side'] = not ref_info['side']
             ref_info['orientation'] = 180+ref_info['orientation']
