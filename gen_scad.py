@@ -1416,8 +1416,8 @@ def generate_jig(
             or (mh_pos[1] > pcb_min_y)
             and (mh_pos[1] < pcb_max_y)
         ):
-            mh_level = "PCB_Thickness+SMD_Clearance_From_PCB"
-            mh_height = "topmost_z+c_Base_Thickness-SMD_Clearance_From_PCB"
+            mh_level = "PCB_Thickness"
+            mh_height = "topmost_z+c_Base_Thickness"
         else:
             mh_level = "0"
             mh_height = "topmost_z+c_Base_Thickness+PCB_Thickness"
