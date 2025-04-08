@@ -44,6 +44,7 @@ sv_base_line_width = ScadValue("Base_Line_Width")
 sv_base_line_height = ScadValue("c_Base_Line_Height")
 sv_mesh_start_z = ScadValue("mesh_start_z")
 sv_smd_clearance_from_pcb = ScadValue("SMD_Clearance_From_PCB")
+sv_smd_clearance_from_shells = ScadValue("SMD_Clearance_From_Shells")
 sv_smd_gap_from_shells = ScadValue("SMD_Gap_From_Shells")
 
 
@@ -593,13 +594,12 @@ def gen_courtyard_shell_shape(ref, courtyard_poly):
 
 def gen_keepout_shape(ref, x, y, rot, min_z, max_z, courtyard_poly):
     sv_max_z[ref] = ScadValue("max_z_%s" % (ref))
-    ref_smd_clearance_from_pcb = ScadValue(f"smd_clearance_from_pcb_{ref}")
     ref_smd_gap_from_shells = ScadValue(f"smd_gap_from_shells_{ref}")
     keepout_name = ref2keepout(ref)
     # keepout starts from PCB itself. This is required to prevent overhangs in
     # the output design.
     keepout_solid = translate([0, 0, 0])(
-        linear_extrude(sv_max_z[ref] + ref_smd_clearance_from_pcb + sv_pcb_thickness)(
+        linear_extrude(sv_max_z[ref] + sv_smd_clearance_from_shells + sv_pcb_thickness)(
             offset(ref_smd_gap_from_shells)(polygon(courtyard_poly))
         )
     )
@@ -696,6 +696,10 @@ SMD_Clearance_From_PCB=%s;
 
 // SMD keepout volume extension in XY
 SMD_Gap_From_Shells=%s;
+
+// SMD clearance from shells
+SMD_Clearance_From_Shells=%s;
+
 """
         % (
             cfg["pcb"]["thickness"],
@@ -717,6 +721,7 @@ SMD_Gap_From_Shells=%s;
             cfg["holder"]["base"]["line_height"],
             cfg["SMD"]["component_shell"]["shell_clearance_from_pcb"],
             cfg["SMD"]["gap_from_shells"],
+            cfg["SMD"]["clearance_from_shells"],
         )
     )
 
