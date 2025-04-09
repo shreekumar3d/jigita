@@ -888,6 +888,7 @@ fp_centers = []
 topmost_z = 0
 
 all_bids = []
+all_th_zs = {}
 # For each TH component on the board
 for this_ref in th_ref_list:
     print("Processing TH :", this_ref)
@@ -1054,6 +1055,11 @@ for this_ref in th_ref_list:
         shape_cache.add_cached_bid(
             cfg, "th", this_bid, new_body_info, new_body_metadata, th["footprint"]
         )
+    if local_max_z not in all_th_zs:
+        all_th_zs[local_max_z] = [ th['footprint'] ]
+    else:
+        if th['footprint'] not in all_th_zs[local_max_z]:
+            all_th_zs[local_max_z].append(th['footprint'])
 
 if args.topmost_z:
     if args.topmost_z < topmost_z:
@@ -1064,7 +1070,13 @@ if args.topmost_z:
     else:
         topmost_z = args.topmost_z
 all_bids = list(set(all_bids))
+all_max_z = list(all_th_zs.keys())
+all_max_z.sort()
 print(f"INFO: Board has {len(all_shells)} shells in {len(all_bids)} unique body shapes")
+print('max_Zs:')
+for val in all_max_z:
+    fp_names = ','.join(all_th_zs[val])
+    print(f'  {val:>4.2f} : {fp_names}')
 dup_fp = shape_cache.get_fp_duplicates()
 if len(dup_fp) > 0:
     print(f"WARNING: The following footprints have multiple body shapes. Please check")
