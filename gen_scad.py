@@ -34,6 +34,7 @@ sv_shell_clearance = ScadValue("Shell_Clearance_From_PCB")
 sv_shell_thickness = ScadValue("Shell_Thickness")
 sv_shell_gap = ScadValue("Shell_Gap")
 sv_pcb_thickness = ScadValue("PCB_Thickness")
+sv_base_start_z = ScadValue("base_start_z")
 sv_topmost_z = ScadValue("topmost_z")
 sv_pcb_holder_perimeter = ScadValue("PCB_Holder_Perimeter")
 sv_pcb_gap = ScadValue("PCB_Gap")
@@ -894,14 +895,15 @@ tiny_dimension = 0.0001;
 base_z =  PCB_Thickness+topmost_z+Base_Thickness+2*tiny_dimension;
 
 c_Spacer_Is_Fused = Bolt_Is_External ? Spacer_Is_Fused : true; // can't have separate bolt with internal bolt
-c_Base_Thickness = Base_Thickness;
+trim_below_z = %f;
+c_Base_Thickness = (trim_below_z > 0) ? Base_Line_Height: Base_Thickness;
 c_MH_Jig_Second_Level_Height = first_layer_height+2*layer_height;
 c_Base_Line_Height = Mounting_Hole_Jig ? topmost_z-MH_Spacer_Start+c_MH_Jig_Second_Level_Height+c_Base_Thickness+Base_Line_Height: Base_Line_Height;
 c_Lower_Perimeter_Height = Mounting_Hole_Jig ? c_Base_Line_Height:Lower_Perimeter_Height;
 _mesh_start_z = PCB_Thickness+topmost_z+c_Base_Thickness-c_Base_Line_Height;
-trim_below_z = %f;
 // trim below_z will force a mesh at that place to ensure connection
 mesh_start_z = (trim_below_z > 0) ? trim_below_z+PCB_Thickness-c_Base_Line_Height:_mesh_start_z;
+base_start_z = (trim_below_z > 0) ? trim_below_z+PCB_Thickness-c_Base_Line_Height:topmost_z+PCB_Thickness;
 """ % (cfg['jig']['trim_below_z'])
     )
 
@@ -1215,7 +1217,7 @@ def generate_jig(
         end = list_to_sane_float(end)
         return wide_line(start, end)
 
-    base_solid = translate([0, 0, sv_pcb_thickness + sv_topmost_z])(
+    base_solid = translate([0, 0, sv_base_start_z])(
         linear_extrude(sv_base_thickness)(
             offset(sv_pcb_holder_perimeter + sv_pcb_gap)(sm_pcb_edge())
         )
@@ -1626,7 +1628,10 @@ module complete_model_component_fitting() {
         } else if(Base_Type=="solid_fill") {
           base_solid_fill();
         } else {
-          base_solid(); // solid
+          // use frame edge. FIXME: this should be "policy"
+          hull() {
+            base_frame_edge();
+          }
         }
         mounted_component_shells();
         mounting_hole_bolt_shells();
