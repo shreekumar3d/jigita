@@ -1259,9 +1259,10 @@ def generate_jig(
     frame_lines = union()
     # add the frame as nobody else will do it in case of component fitting
     if cfg['jig']['type']=='component_fitting':
-        for l_start, l_end in zip(frame_edge_points, frame_edge_points[1:]):
-            frame_lines += wide_line_scad(l_start, l_end)
-        frame_lines += wide_line_scad(frame_edge_points[-1], frame_edge_points[0])
+        if len(frame_edge_points)>1:
+            for l_start, l_end in zip(frame_edge_points, frame_edge_points[1:]):
+                frame_lines += wide_line_scad(l_start, l_end)
+            frame_lines += wide_line_scad(frame_edge_points[-1], frame_edge_points[0])
 
     base_mesh_volume = linear_extrude(sv_base_line_height)(
         offset(sv_pcb_holder_perimeter + sv_pcb_gap)(sm_pcb_edge())

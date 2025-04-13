@@ -1361,11 +1361,14 @@ if do_pcb_proc:
         for mh_name in mh_map:
             mh_pos = [mh_map[mh_name]["x"], mh_map[mh_name]["y"]]
             _edge_points.append(mh_pos)
-        _edge_points = np.array(_edge_points)
-        frame_hull = scipy.spatial.ConvexHull(_edge_points)
-        frame_edge_points = _edge_points[frame_hull.vertices]
+        if len(_edge_points) > 0:
+            _edge_points = np.array(_edge_points)
+            frame_hull = scipy.spatial.ConvexHull(_edge_points)
+            frame_edge_points = _edge_points[frame_hull.vertices]
+            minmesh_centers = np.concatenate((minmesh_centers,frame_edge_points), axis=0)
+        else:
+            frame_edge_points = []
         print('Using mounting hole hull as frame edge')
-        minmesh_centers = np.concatenate((minmesh_centers,frame_edge_points), axis=0)
     if len(minmesh_centers) > 2:
         # FIXME: should we not do minmesh if there are very large number of points !?
         # CPU could just hang if given large number of points... Of course, that can
