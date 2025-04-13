@@ -1431,6 +1431,10 @@ def generate_jig(
         else:
             mh_level = "0"
             mh_height = "topmost_z+c_Base_Thickness+PCB_Thickness"
+        mh_shell_clearance = cfg['TH']['mounting_hole_shell_clearance_from_pcb']
+        if mh_shell_clearance != 0:
+            mh_level = mh_level + f'+{mh_shell_clearance}'
+            mh_height = mh_height + f'-{mh_shell_clearance}'
         # print(pcb_min_x, pcb_min_y, pcb_max_x, pcb_max_y)
         # print(mh_pos[0], mh_pos[1], mh_level)
         fp_scad.write(
@@ -1647,7 +1651,9 @@ module complete_model_component_fitting() {
     }
   }
   preview_helpers();
-  mounting_hole_jig_spacers();
+  if(Mounting_Hole_Jig) {
+    mounting_hole_jig_spacers();
+  }
 }
 """
     )

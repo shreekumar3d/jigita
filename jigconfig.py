@@ -691,6 +691,7 @@ refs_process_only_these = [
 # more lateral movement.
 mounting_hole_shell_thickness = 1.2
 mounting_hole_shell_gap = 0.1
+mounting_hole_shell_clearance_from_pcb = 0.0
 
 extra_mounting_holes = [
     # List of extra mounting holes
