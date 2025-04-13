@@ -754,6 +754,9 @@ shell_gap = 0.1
 #
 # If the component doesn't touch the PCB (min_z>0, due to force_mount) then this is
 # taken as the extra distance to trim from the top
+#
+# If this is negative, then it is considered from the bottom of the component
+# (i.e. local max z). Useful to have just a bit of a "cap"
 shell_clearance_from_pcb = 1
 
 # For dimensional accuracy, inner corners in the 3d model can be

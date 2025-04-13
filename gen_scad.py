@@ -876,12 +876,12 @@ def gen_configurable_fp_components(
             )
         this_var = "Shell_Clearance_From_PCB"
         fp_scad.write(
-            "_Effective_%s_For_%s = Tune_%s? %s_For_%s : %s_For_%s;\n"
+            "__Effective_%s_For_%s = Tune_%s? %s_For_%s : %s_For_%s;\n"
             % (this_var, this_ref, this_ref, this_var, this_ref, this_var, fp_alias)
         )
         # if component does not touch PCB (min_z <= 0), then shell_clearance will cut
         fp_scad.write(
-            "Effective_%s_For_%s = (%f <= 0.0)? _Effective_%s_For_%s : %f + _Effective_%s_For_%s;\n"
+            "_Effective_%s_For_%s = (%f <= 0.0)? __Effective_%s_For_%s : %f + __Effective_%s_For_%s;\n"
             % (this_var, this_ref, subshells["min_z"], this_var, this_ref, subshells["min_z"], this_var, this_ref)
         )
 
@@ -934,6 +934,8 @@ def gen_computed_values(
             % (this_ref, this_ref, subshells["max_z"], applies_to)
         )
         fp_scad.write("min_z_%s= %s;\n" % (this_ref, subshells["min_z"]))
+        this_var = f'Effective_Shell_Clearance_From_PCB_For_{this_ref}'
+        fp_scad.write(f'{this_var}=_{this_var}<0?{subshells["max_z"]}+_{this_var}:_{this_var};\n')
     if smd_keepouts:
         for keepout_info in smd_keepouts:
             fp_scad.write(
