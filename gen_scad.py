@@ -1272,22 +1272,22 @@ def generate_jig(
     sm_base_mesh_volume = module("base_volume", base_mesh_volume)
 
     base_mesh = translate([0, 0, sv_mesh_start_z])(
-        intersection()(mesh_lines, sm_base_mesh_volume())
+         mesh_lines
     )
 
     sm_base_mesh = module("base_mesh", base_mesh())
 
     extra_line_mesh = translate([0, 0, sv_mesh_start_z])(
-        intersection()(extra_lines, sm_base_mesh_volume())
+        extra_lines
     )
 
     sm_extra_line_mesh = module("extra_line_mesh", extra_line_mesh())
 
     base_minmesh = translate([0, 0, sv_mesh_start_z])(
-        intersection()(minmesh_lines, sm_base_mesh_volume())
+        minmesh_lines
     )
     base_frame_edge = translate([0, 0, sv_mesh_start_z])(
-        intersection()(frame_lines, sm_base_mesh_volume())
+        frame_lines
     )
 
     sm_base_minmesh = module("base_minmesh", base_minmesh())
@@ -1379,7 +1379,7 @@ def generate_jig(
         fp_scad.write("        }\n")
     fp_scad.write("        base_frame_xy_lines();\n")
     fp_scad.write("      }\n")
-    fp_scad.write("      base_volume();\n")
+    #fp_scad.write("      base_volume();\n")
     fp_scad.write("    }\n")
     fp_scad.write("  }\n")
     fp_scad.write("}\n")
@@ -1399,7 +1399,7 @@ def generate_jig(
         fp_scad.write("        }\n")
     fp_scad.write("        base_frame_xy_lines();\n")
     fp_scad.write("      }\n")
-    fp_scad.write("      base_volume();\n")
+    #fp_scad.write("      base_volume();\n")
     fp_scad.write("    }\n")
     fp_scad.write("  }\n")
     fp_scad.write("}\n")
