@@ -1297,24 +1297,10 @@ if do_pcb_proc:
     for pt in pcb_edge_simple_points:
         pt[1] = -pt[1]
 
-    pcb_edge_poly = Polygon(pcb_edge_points)
-    inner_mh_centers = []
-    # ignore mounting holes outside PCB for mesh calculation
-    for pt in mounting_holes:
-        if pcb_edge_poly.contains(Point(pt[0], pt[1])):
-            inner_mh_centers.append(pt)
-        else:
-            print(
-                "NOTE: Mounting hole at ",
-                pt,
-                " is out of PCB - will not be considered for mesh and minmesh",
-            )
-
     dt_centers = fp_centers
     if cfg['jig']['type']=='TH_soldering':
         dt_centers += pcb_edge_simple_points
-    else:
-        dt_centers += inner_mh_centers
+    dt_centers += mounting_holes
 
     extra_line_segments = []
     for start, end in cfg['holder']['base']['extra_lines']:
@@ -1359,7 +1345,7 @@ if do_pcb_proc:
             mesh_line_segments.append([c, a])
 
     minmesh_line_segments = []
-    minmesh_centers = fp_centers + inner_mh_centers
+    minmesh_centers = fp_centers + mounting_holes
     if cfg['jig']['type']=='TH_soldering':
         minmesh_centers += pcb_edge_simple_points
         frame_edge_points = pcb_edge_simple_points
