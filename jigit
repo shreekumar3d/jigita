@@ -1293,7 +1293,6 @@ if do_pcb_proc:
     pcb_edge_simple_points = edge_cuts.get_representative_verts(pcb_filled_shapes[0])
     for pt in pcb_edge_simple_points:
         pt[1] = -pt[1]
-    dt_centers = pcb_edge_simple_points + fp_centers
 
     pcb_edge_poly = Polygon(pcb_edge_points)
     inner_mh_centers = []
@@ -1307,7 +1306,12 @@ if do_pcb_proc:
                 pt,
                 " is out of PCB - will not be considered for mesh and minmesh",
             )
-    dt_centers += inner_mh_centers
+
+    dt_centers = fp_centers
+    if cfg['jig']['type']=='TH_soldering':
+        dt_centers += pcb_edge_simple_points
+    else:
+        dt_centers += inner_mh_centers
 
     extra_line_segments = []
     for start, end in cfg['holder']['base']['extra_lines']:
