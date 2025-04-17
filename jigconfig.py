@@ -354,6 +354,13 @@ def update(cfg, default_cfg, ref_map, fp_map, mh_map):
                     f"{rtp} is not a though hole footprint, and cannot be processed (reason: included in refs_process_only_these)"
                 )
         th_ref_list = rtp_list
+        # Remove any MHs not mentioned in the process list
+        mh_x_list = []
+        for mh_ref in mh_map:
+            if mh_ref not in rtp_list:
+                mh_x_list.append(mh_ref)
+        for x in mh_x_list:
+            mh_map.pop(x)
     elif len(cfg["TH"]["refs_do_not_process"]) > 0:
         rtp_x_list = expand_refs(
             cfg["TH"]["refs_do_not_process"],
@@ -680,6 +687,8 @@ refs_process_only_these = [
   # list of refs to include in the output
   # this takes precedence over "do_not_process"
   # this is exclusive with do_not_process
+  # Includes mounting holes too. If you need any mounting holes,
+  # mention them here explicitly
 ]
 
 # Mounting hole shells have a thickness and a gap
