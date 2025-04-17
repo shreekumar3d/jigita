@@ -266,7 +266,7 @@ def xform_mesh(mesh_in, modinfo, flip_side=False, pcb_thickness=1.6):
     return vertices, mesh, min_z, max_z
 
 
-def get_ref_info(fp_list, unity_xform):
+def get_ref_info(cfg, fp_list, unity_xform):
     mounting_holes = {}
     ref_map = {}
     fp_map = {}
@@ -325,7 +325,11 @@ def get_ref_info(fp_list, unity_xform):
                             file=sys.stderr,
                         )
                         continue
-                    ref_info["mounting_hole_radius"] = units_to_mm(ds[0]) * 0.5
+                    hr = units_to_mm(ds[0]) * 0.5
+                    force_hr = cfg['TH']['mounting_hole_shell_radius']
+                    if force_hr >= 0:
+                        hr = force_hr
+                    ref_info["mounting_hole_radius"] = hr
                     # print('Mounting hole:', ref,
                     #      ' at (%s,%s)'%(fp_x, -fp_y), # show in KiCAD coords
                     #      ' size=', ref_info['mounting_hole_radius'])
@@ -722,7 +726,7 @@ if args.show_paths:
 
 if args.pcb:
     board = pcbnew.LoadBoard(args.pcb)
-    ref_map, fp_map, mh_map = get_ref_info(board.Footprints(), args.pcb_footprints)
+    ref_map, fp_map, mh_map = get_ref_info(cfg, board.Footprints(), args.pcb_footprints)
 if args.genconfig:
     jigconfig.generate_config(args.genconfig, ref_map, fp_map)
     print(f"Generated : {args.genconfig}")

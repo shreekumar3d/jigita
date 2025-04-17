@@ -346,14 +346,20 @@ def update(cfg, default_cfg, ref_map, fp_map, mh_map):
 
     if len(cfg["TH"]["refs_process_only_these"]) > 0:
         rtp_list = expand_refs(
-            cfg["TH"]["refs_process_only_these"], ref_map.keys(), fp_map
+            cfg["TH"]["refs_process_only_these"],
+            list(ref_map.keys()) + list(mh_map.keys()),
+            fp_map
         )
         for rtp in rtp_list:
-            if rtp not in th_ref_list:
+            if rtp not in th_ref_list and rtp not in mh_map:
                 raise ValueError(
                     f"{rtp} is not a though hole footprint, and cannot be processed (reason: included in refs_process_only_these)"
                 )
-        th_ref_list = rtp_list
+        # any MHs must not be in TH list. FIXME make MHs first class like TH and SMD?
+        th_ref_list = []
+        for ref in rtp_list:
+            if ref not in mh_map:
+                th_ref_list.append(ref)
         # Remove any MHs not mentioned in the process list
         mh_x_list = []
         for mh_ref in mh_map:
@@ -434,6 +440,7 @@ def update(cfg, default_cfg, ref_map, fp_map, mh_map):
         hy = hole_info[1]
         hr = hole_info[2] / 2
         mh_name = "EMH%s" % (idx + 1)  # they hates it - zero indexed numbers :D
+        # override the radius if requested
         mh_map[mh_name] = {
             "x": hx,
             "y": -hy,  # KiCAD coordinate system
@@ -701,6 +708,10 @@ refs_process_only_these = [
 mounting_hole_shell_thickness = 1.2
 mounting_hole_shell_gap = 0.1
 mounting_hole_shell_clearance_from_pcb = 0.0
+# set the below value to a >=0 value to force a specific radius for
+# every mounting hole. Useful to create things like a drill stencil
+# This override does not apply to extra_mounting_holes below
+mounting_hole_shell_radius = -1
 
 extra_mounting_holes = [
     # List of extra mounting holes
