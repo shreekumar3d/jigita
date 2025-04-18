@@ -326,10 +326,11 @@ def get_ref_info(cfg, fp_list, unity_xform):
                         )
                         continue
                     hr = units_to_mm(ds[0]) * 0.5
-                    force_hr = cfg['TH']['mounting_hole_shell_radius']
-                    if force_hr >= 0:
-                        hr = force_hr
-                    ref_info["mounting_hole_radius"] = hr
+                    if 'hole_dia' in cfg['MH']:
+                        force_hr = cfg['MH']['hole_dia']*0.5
+                        if force_hr >= 0:
+                            hr = force_hr
+                    ref_info["radius"] = hr
                     # print('Mounting hole:', ref,
                     #      ' at (%s,%s)'%(fp_x, -fp_y), # show in KiCAD coords
                     #      ' size=', ref_info['mounting_hole_radius'])
@@ -797,7 +798,7 @@ print('Mounting holes at:')
 mounting_holes = []
 for name in mh_map.keys():
     mh = mh_map[name]
-    print(f'  {name:5} : {mh["x"]:>8.2f},{mh["y"]:>8.2f},r={mh["mounting_hole_radius"]:>5.2f}')
+    print(f'  {name:5} : {mh["x"]:>8.2f},{mh["y"]:>8.2f},r={mh["radius"]:>5.2f}')
     mounting_holes.append([mh_map[name]["x"], mh_map[name]["y"]])
 
 if args.dump_config:

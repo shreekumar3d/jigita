@@ -62,6 +62,12 @@ SMD_ref_params = [
     "shell_clearance_from_pcb",
 ]
 
+MH_ref_params = [
+    "shell_gap",
+    "shell_thickness",
+    "shell_clearance_from_pcb"
+]
+
 _user_cfg = None
 
 
@@ -434,8 +440,15 @@ def update(cfg, default_cfg, ref_map, fp_map, mh_map):
         else:
             cfg["SMD"][ref] = deepcopy(default_cfg["SMD"])
 
+    for ref in mh_map:
+        if ref not in cfg["MH"]:
+            cfg['MH'][ref] = {}
+        for param in MH_ref_params:
+            if param not in cfg['MH'][ref]:
+                cfg['MH'][ref][param] = cfg['MH'][param]
+
     # Add extra mounting holes
-    for idx, hole_info in enumerate(cfg["TH"]["extra_mounting_holes"]):
+    for idx, hole_info in enumerate(cfg["MH"]["extra_mounting_holes"]):
         hx = hole_info[0]
         hy = hole_info[1]
         hr = hole_info[2] / 2
@@ -444,8 +457,13 @@ def update(cfg, default_cfg, ref_map, fp_map, mh_map):
         mh_map[mh_name] = {
             "x": hx,
             "y": -hy,  # KiCAD coordinate system
-            "mounting_hole_radius": hr,
+            "radius": hr,
         }
+        for param in MH_ref_params:
+            if mh_name not in cfg['MH']:
+                cfg['MH'][mh_name] = {}
+            if param not in cfg['MH'][mh_name]:
+                cfg['MH'][mh_name][param] = cfg['MH'][param]
     return cfg, proc_th_footprints, th_ref_list, smd_ref_list
 
 
@@ -698,6 +716,7 @@ refs_process_only_these = [
   # mention them here explicitly
 ]
 
+[MH]
 # Mounting hole shells have a thickness and a gap
 # Circles typically print smaller, so mind the gap. In general,
 # mounting holes are made slightly larger than the bolt. E.g. It
@@ -705,13 +724,13 @@ refs_process_only_these = [
 # configurable value is provided so that you can smoothly slide
 # it in. You could consider increasing it if you want to have
 # more lateral movement.
-mounting_hole_shell_thickness = 1.2
-mounting_hole_shell_gap = 0.1
-mounting_hole_shell_clearance_from_pcb = 0.0
+shell_thickness = 1.2
+shell_gap = 0.1
+shell_clearance_from_pcb = 0.0
 # set the below value to a >=0 value to force a specific radius for
 # every mounting hole. Useful to create things like a drill stencil
 # This override does not apply to extra_mounting_holes below
-mounting_hole_shell_radius = -1
+hole_dia = -1
 
 extra_mounting_holes = [
     # List of extra mounting holes

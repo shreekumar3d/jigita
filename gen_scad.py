@@ -1416,8 +1416,8 @@ def generate_jig(
     for mh_name in mh_map:
         mh_pos = [mh_map[mh_name]["x"], mh_map[mh_name]["y"]]
         mh_radius = (
-            mh_map[mh_name]["mounting_hole_radius"]
-            + cfg["TH"]["mounting_hole_shell_gap"]
+            mh_map[mh_name]["radius"]
+            + cfg["MH"][mh_name]["shell_gap"]
         )
         # FIXME: check against the shape, not the rectangle
         if (
@@ -1431,7 +1431,7 @@ def generate_jig(
         else:
             mh_level = "0"
             mh_height = "topmost_z+c_Base_Thickness+PCB_Thickness"
-        mh_shell_clearance = cfg['TH']['mounting_hole_shell_clearance_from_pcb']
+        mh_shell_clearance = cfg['MH'][mh_name]['shell_clearance_from_pcb']
         if mh_shell_clearance != 0:
             mh_level = mh_level + f'+{mh_shell_clearance}'
             mh_height = mh_height + f'-{mh_shell_clearance}'
@@ -1444,7 +1444,7 @@ def generate_jig(
         fp_scad.write("        difference() {\n")
         fp_scad.write(
             "          circle(r=%s);\n"
-            % (mh_radius + cfg["TH"]["mounting_hole_shell_thickness"])
+            % (mh_radius + cfg["MH"][mh_name]["shell_thickness"])
         )
         fp_scad.write("          circle(r=%s);\n" % (mh_radius))
         fp_scad.write("        }\n")
@@ -1459,8 +1459,8 @@ def generate_jig(
     for mh_name in mh_map:
         mh_pos = [mh_map[mh_name]["x"], mh_map[mh_name]["y"]]
         mh_radius = (
-            mh_map[mh_name]["mounting_hole_radius"]
-            + cfg["TH"]["mounting_hole_shell_gap"]
+            mh_map[mh_name]["radius"]
+            + cfg["MH"][mh_name]["shell_gap"]
         )
         fp_scad.write("      translate([%s,%s,0]) {\n" % (mh_pos[0], mh_pos[1]))
         fp_scad.write("        circle(r=%s);\n" % (mh_radius))
@@ -1510,10 +1510,10 @@ def generate_jig(
     for mh_name in mh_map:
         mh_pos = [mh_map[mh_name]["x"], mh_map[mh_name]["y"]]
         mh_radius = (
-            mh_map[mh_name]["mounting_hole_radius"]
-            + cfg["TH"]["mounting_hole_shell_gap"]
+            mh_map[mh_name]["radius"]
+            + cfg["MH"][mh_name]["shell_gap"]
         )
-        mh_outer_radius = mh_radius + cfg["TH"]["mounting_hole_shell_thickness"]
+        mh_outer_radius = mh_radius + cfg["MH"][mh_name]["shell_thickness"]
         fp_scad.write("      translate([%s,%s,0]) {\n" % (mh_pos[0], mh_pos[1]))
         fp_scad.write("        difference() {\n")
         fp_scad.write("          circle(r=%s);\n" % (mh_outer_radius))
@@ -1530,8 +1530,8 @@ def generate_jig(
     fp_scad.write("  if (!Bolt_Is_External) {\n")
     for mh_name in mh_map:
         mh_pos = [mh_map[mh_name]["x"], mh_map[mh_name]["y"]]
-        mh_radius = mh_map[mh_name]["mounting_hole_radius"]
-        mh_inner_radius = mh_radius - cfg["TH"]["mounting_hole_shell_gap"]
+        mh_radius = mh_map[mh_name]["radius"]
+        mh_inner_radius = mh_radius - cfg["MH"][mh_name]["shell_gap"]
         fp_scad.write("      translate([%s,%s,0]) {\n" % (mh_pos[0], mh_pos[1]))
         fp_scad.write(
             "        linear_extrude(PCB_Thickness+topmost_z+c_Base_Thickness) {\n"
