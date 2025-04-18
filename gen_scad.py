@@ -1416,7 +1416,7 @@ def generate_jig(
     for mh_name in mh_map:
         mh_pos = [mh_map[mh_name]["x"], mh_map[mh_name]["y"]]
         mh_radius = (
-            mh_map[mh_name]["radius"]
+            cfg["MH"][mh_name]["radius"]
             + cfg["MH"][mh_name]["shell_gap"]
         )
         # FIXME: check against the shape, not the rectangle
@@ -1459,7 +1459,7 @@ def generate_jig(
     for mh_name in mh_map:
         mh_pos = [mh_map[mh_name]["x"], mh_map[mh_name]["y"]]
         mh_radius = (
-            mh_map[mh_name]["radius"]
+            cfg["MH"][mh_name]["radius"]
             + cfg["MH"][mh_name]["shell_gap"]
         )
         fp_scad.write("      translate([%s,%s,0]) {\n" % (mh_pos[0], mh_pos[1]))
@@ -1510,7 +1510,7 @@ def generate_jig(
     for mh_name in mh_map:
         mh_pos = [mh_map[mh_name]["x"], mh_map[mh_name]["y"]]
         mh_radius = (
-            mh_map[mh_name]["radius"]
+            cfg["MH"][mh_name]["radius"]
             + cfg["MH"][mh_name]["shell_gap"]
         )
         mh_outer_radius = mh_radius + cfg["MH"][mh_name]["shell_thickness"]
@@ -1530,7 +1530,7 @@ def generate_jig(
     fp_scad.write("  if (!Bolt_Is_External) {\n")
     for mh_name in mh_map:
         mh_pos = [mh_map[mh_name]["x"], mh_map[mh_name]["y"]]
-        mh_radius = mh_map[mh_name]["radius"]
+        mh_radius = cfg["MH"][mh_name]["radius"]
         mh_inner_radius = mh_radius - cfg["MH"][mh_name]["shell_gap"]
         fp_scad.write("      translate([%s,%s,0]) {\n" % (mh_pos[0], mh_pos[1]))
         fp_scad.write(

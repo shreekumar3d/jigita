@@ -62,7 +62,7 @@ SMD_ref_params = [
     "shell_clearance_from_pcb",
 ]
 
-MH_ref_params = [
+MH_ref_params_inherit = [
     "shell_gap",
     "shell_thickness",
     "shell_clearance_from_pcb"
@@ -443,9 +443,11 @@ def update(cfg, default_cfg, ref_map, fp_map, mh_map):
     for ref in mh_map:
         if ref not in cfg["MH"]:
             cfg['MH'][ref] = {}
-        for param in MH_ref_params:
+        for param in MH_ref_params_inherit:
             if param not in cfg['MH'][ref]:
                 cfg['MH'][ref][param] = cfg['MH'][param]
+        if 'radius' not in cfg['MH'][ref]:
+            cfg['MH'][ref]['radius'] = mh_map[ref]['radius']
 
     # Add extra mounting holes
     for idx, hole_info in enumerate(cfg["MH"]["extra_mounting_holes"]):
@@ -459,11 +461,13 @@ def update(cfg, default_cfg, ref_map, fp_map, mh_map):
             "y": -hy,  # KiCAD coordinate system
             "radius": hr,
         }
-        for param in MH_ref_params:
+        for param in MH_ref_params_inherit:
             if mh_name not in cfg['MH']:
                 cfg['MH'][mh_name] = {}
             if param not in cfg['MH'][mh_name]:
                 cfg['MH'][mh_name][param] = cfg['MH'][param]
+        if 'radius' not in cfg['MH'][ref]:
+            cfg['MH'][ref]['radius'] = mh_map[ref]['radius']
     return cfg, proc_th_footprints, th_ref_list, smd_ref_list
 
 
@@ -727,10 +731,6 @@ refs_process_only_these = [
 shell_thickness = 1.2
 shell_gap = 0.1
 shell_clearance_from_pcb = 0.0
-# set the below value to a >=0 value to force a specific radius for
-# every mounting hole. Useful to create things like a drill stencil
-# This override does not apply to extra_mounting_holes below
-hole_dia = -1
 
 extra_mounting_holes = [
     # List of extra mounting holes
