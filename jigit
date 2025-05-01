@@ -1356,7 +1356,7 @@ if do_pcb_proc:
             mh_pos = [mh_map[mh_name]["x"], mh_map[mh_name]["y"]]
             _edge_points.append(mh_pos)
         _edge_points += fp_centers # include footprints to include everything inside PCB
-        if len(_edge_points) > 0:
+        if len(_edge_points) > 2:
             _edge_points = np.array(_edge_points)
             frame_hull = scipy.spatial.ConvexHull(_edge_points)
             frame_edge_points = _edge_points[frame_hull.vertices]

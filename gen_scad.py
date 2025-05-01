@@ -1254,9 +1254,10 @@ def generate_jig(
             for pt in minmesh_path:
                 nd = frame_edge_ls.project(Point(pt[0], pt[1]))
                 nearest = frame_edge_ls.interpolate(nd)
-                l_start = pt
-                l_end = [nearest.x, nearest.y]
-                minmesh_lines += wide_line_scad(l_start, l_end)
+                if nearest:
+                    l_start = pt
+                    l_end = [nearest.x, nearest.y]
+                    minmesh_lines += wide_line_scad(l_start, l_end)
 
     frame_lines = union()
     # add the frame as nobody else will do it in case of component fitting
