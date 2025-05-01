@@ -234,7 +234,7 @@ def load_footprints(cfg, fp_spec_list, arc_resolution):
     return ref_map, fp_map
 
 
-def xform_mesh(mesh_in, modinfo, flip_side=False, pcb_thickness=1.6):
+def xform_mesh(mesh_in, modinfo, flip_side=False, pcb_thickness=1.6, th_z_offset=0.0):
     mesh = mesh_in.copy()  # don't change source mesh
     mesh.apply_scale(modinfo["scale"])
     # FIXME: Hrrmph! why should I need to reverse these
@@ -246,7 +246,7 @@ def xform_mesh(mesh_in, modinfo, flip_side=False, pcb_thickness=1.6):
     )
     mesh.apply_transform(mat)
     mesh.apply_translation(
-        [modinfo["offset"][0], modinfo["offset"][1], modinfo["offset"][2]]
+        [modinfo["offset"][0], modinfo["offset"][1], modinfo["offset"][2]+th_z_offset]
     )
     if flip_side:
         # flip mesh
@@ -409,15 +409,15 @@ def load_3d_models(ref_list, ref_map, desc):
         load_ref_3d_models(cfg, ref, ref_map)
 
 
-def body_id(cfg, ref, flip_side=False, pcb_thickness=1.6, force_mount=False):
+def body_id(cfg, ref, flip_side=False, pcb_thickness=1.6, z_offset=0.0, force_mount=False):
     model_names = []
     for modinfo in ref["models"]:
         model_names.append(
             [modinfo["model"], modinfo["rotation"], modinfo["offset"], modinfo["scale"]]
         )
 
-    # FIXME PCB thickness and force_mount here are ultra ugly, but safe!
-    full_name = '%s_%s_%s_'%(flip_side, pcb_thickness, force_mount)
+    # FIXME PCB thickness, force_mount and z_offset here are ultra ugly, but safe!
+    full_name = '%s_%s_%s_%s_'%(flip_side, pcb_thickness, z_offset, force_mount)
     for values in model_names:
         for x in values:
             full_name += str(x)
@@ -905,7 +905,8 @@ for this_ref in th_ref_list:
     th = ref_map[this_ref]
     th_flip_side = cfg["TH"][this_ref]["flip_side"]
     th_force_mount = cfg["TH"][this_ref]['force_mount']
-    this_bid = body_id(cfg, th, th_flip_side, cfg['pcb']['thickness'], th_force_mount)
+    th_z_offset = cfg["TH"][this_ref]['z_offset']
+    this_bid = body_id(cfg, th, th_flip_side, cfg['pcb']['thickness'], th_z_offset, th_force_mount)
     if this_bid in all_bids:
         print('Repeated shape: ' , this_ref)
     all_bids.append(this_bid)
@@ -929,7 +930,7 @@ for this_ref in th_ref_list:
                 sys.exit(1)
 
         if not body_info:
-            mverts, mesh, min_z, max_z = xform_mesh(mesh, modinfo, th_flip_side, cfg['pcb']['thickness'])
+            mverts, mesh, min_z, max_z = xform_mesh(mesh, modinfo, th_flip_side, cfg['pcb']['thickness'], th_z_offset)
             min_x = min(mverts[:, 0])
             max_x = max(mverts[:, 0])
             min_y = min(mverts[:, 1])

@@ -15,17 +15,6 @@ valid_jig_types = ["TH_soldering", "component_fitting"]
 valid_base_types = ["x_lines", "y_lines", "griddish", "mesh", "minmesh", "solid", "solid_fill"]
 valid_insertions = ["top", "bottom"]
 keys_TH_builtin = None
-TH_component_shell_value_keys = [
-    "shell_thickness",
-    "shell_gap",
-    "shell_wrapper_thickness",
-    "shell_wrapper_height",
-    "shell_clearance_from_pcb",
-    "corner_cut_width",
-    "min_petal_length",
-    "petal_support_length",
-    "corner_cut_depth",
-]
 SMD_default_value_keys = ["clearance_from_shells", "gap_from_shells"]
 
 TH_ref_params = [
@@ -44,6 +33,7 @@ TH_ref_params = [
     "corner_cut_depth",
     "shell_gap",
     "shell_thickness",
+    "z_offset",
     "shell_clearance_from_pcb",
 ]
 
@@ -111,7 +101,7 @@ inheritable_footprint_keys_smd = [
     "corner_cut_depth",
 ]
 
-inheritable_footprint_keys_th = inheritable_footprint_keys_smd + ["force_smd", "force_mount", "flip_side"]
+inheritable_footprint_keys_th = inheritable_footprint_keys_smd + ["force_smd", "force_mount", "flip_side","z_offset"]
 
 valid_footprint_keys_th = [
     "kicad_footprint",
@@ -845,6 +835,10 @@ force_mount = false
 # top mounted component is actually bottom mount.
 # (This is the reverse of KiCAD convention for TH components.)
 flip_side = false
+
+# Move the component shape up/down by adjusting this
+# Useful to adjust in the jig, without change in KiCAD design
+z_offset = 0.0
 
 [SMD]
 # Parameters for SMD components
