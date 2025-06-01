@@ -49,6 +49,11 @@ It's not just for soldering - make Gridfinity containers for all your electronic
 
 <img src="demo/05-gridfinity/images/gridfinity-container-8x10pin-header.png" width="400" >
 
+It can be used for more than electronics too, with just a bit more work.... Here is an example of a gridfinity container holding three allen keys - M2, M3 and M4:
+
+<img src="demo/05-gridfinity/images/gridfinity-container-allen-keys.gif" width="400" >
+
+
 ## Getting Started
 
 See the [Getting Started page](doc/GETTING-STARTED.md).
