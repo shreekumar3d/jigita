@@ -1103,6 +1103,7 @@ def gen_included_component_pockets(fp_scad, all_shells):
 
 
 def generate_jig(
+    is_2d,
     fp_scad,
     config_text,
     cfg,
@@ -1716,6 +1717,10 @@ translate([0,0,PCB_Thickness])
 scale([1,1,-1]) {
 """)
 
+    if is_2d:
+        fp_scad.write("""
+projection(cut=false)
+""")
     fp_scad.write(
         """
 if(orient_to_print == 1) {

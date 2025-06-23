@@ -66,6 +66,12 @@ from python_tsp.distances import euclidean_distance_matrix
 from python_tsp.heuristics import solve_tsp_local_search, solve_tsp_simulated_annealing
 from shapely import LineString, Polygon, Point
 
+output_exts_2d = ["svg", "dxf"]
+output_exts_3d = ["3mf", "stl"]
+# "conv" means need conversion. we use oscad to convert to the target
+# format right now
+output_exts_conv = output_exts_2d + output_exts_3d
+output_exts = ["scad"] + output_exts_conv
 
 def get_courtyard_polygon(shape):
     # Courtyard Polygon Coordinate System Note:
@@ -518,8 +524,15 @@ parser.add_argument("-o", "--output", help="Output file.")
 parser.add_argument(
     "-f",
     "--output-format",
-    choices=["3mf", "stl", "scad"],
+    choices=output_exts,
     help="Output file format. Default autodect based on output file extension.",
+)
+parser.add_argument(
+    "--2d",
+    action="store_true",
+    default=False,
+    help="""2D output, useful if you want to generate DXF/SVG, or modify the
+SCAD file manaully later""",
 )
 parser.add_argument(
     "--keep-orientation",
@@ -666,8 +679,11 @@ if args.model3d:
 if args.output and not args.output_format:
     out_split = os.path.splitext(args.output)
     out_ext = out_split[1]  # will be empty string if no extension
-    if out_ext in [".3mf", ".stl", ".scad"]:
-        args.output_format = out_ext[1:]
+    out_ext = "" if not out_ext else out_ext[1:] # remove the .
+    if out_ext in output_exts:
+        args.output_format = out_ext
+        if args.output_format in output_exts_2d:
+            setattr(args, "2d", True)
     if not args.output_format:
         print(
             f"Unrecorgnized extension in output filename '{args.output}'",
@@ -684,6 +700,11 @@ if args.output and not args.output_format:
                 file=sys.stderr,
             )
             sys.exit(1)
+
+# Validation of 2D vs file format
+if getattr(args, "2d") and args.output_format in output_exts_3d:
+    print(f"2D mode is not supported for 3MF and STL files", file=sys.stderr)
+    sys.exit(1)
 
 if args.show_paths:
     config_error = False
@@ -843,7 +864,7 @@ if jig_type_component_fitting:
 # load_3d_models(th_ref_list, ref_map, 'Through Hole')
 # load_3d_models(smd_ref_list, ref_map, 'SMD')
 
-if args.output_format in ["3mf", "stl"]:
+if args.output_format in output_exts_conv:
     # FreeCAD 8.0.9 ships with Python 3.11.5
     # we'll delete the file as cleanup
     fp_scad = tempfile.NamedTemporaryFile(
@@ -1475,6 +1496,7 @@ if (
 try:
     if do_pcb_proc:
         gen_scad.generate_jig(
+            getattr(args, '2d'), # can't use args.2d
             fp_scad,
             config_text,
             cfg,
@@ -1528,7 +1550,7 @@ except ValueError as err:
 # Done with the file
 fp_scad.close()
 
-if args.output_format in ["3mf", "stl"]:
+if args.output_format in output_exts_conv:
     cmd = []
     # FIXME - ideally we'll have a config in ~/.config to store things
     # like paths to binaries etc
