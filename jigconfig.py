@@ -437,7 +437,8 @@ def update(cfg, default_cfg, ref_map, fp_map, mh_map):
             if param not in cfg['MH'][ref]:
                 cfg['MH'][ref][param] = cfg['MH'][param]
         if 'radius' not in cfg['MH'][ref]:
-            cfg['MH'][ref]['radius'] = mh_map[ref]['radius']
+            r = cfg['MH']['radius']
+            cfg['MH'][ref]['radius'] = r if r>0 else mh_map[ref]['radius']
 
     # Add extra mounting holes
     for idx, hole_info in enumerate(cfg["MH"]["extra_mounting_holes"]):
@@ -721,6 +722,7 @@ refs_process_only_these = [
 shell_thickness = 1.2
 shell_gap = 0.1
 shell_clearance_from_pcb = 0.0
+radius = 0.0
 
 extra_mounting_holes = [
     # List of extra mounting holes
