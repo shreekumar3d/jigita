@@ -778,6 +778,9 @@ if args.pcb:
         if cfg["TH"][ref]['flip_side']:
             ref_info['side'] = not ref_info['side']
             ref_info['orientation'] = 180+ref_info['orientation']
+        # if on bottom side, reverse X axis in model. KiCAD seems to do this.
+        if not ref_info['side']:
+            ref_info['models'][0]['scale'][0]=-1
         if ref_info['side'] != (not args.bottom_components):
             # on other side, so add to cull list
             cull_th_refs.append(ref)
